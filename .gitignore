@@ -1,0 +1,8 @@
+.qmake.stash
+Makefile
+*.pro.user
+*.o
+*.a
+*.s
+*.hex
+*.dump

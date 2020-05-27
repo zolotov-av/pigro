@@ -1,0 +1,30 @@
+* -text
+
+*.c       text
+*.cpp     text
+*.h       text
+*.xml     text
+*.html    text
+*.css     text
+*.js      text
+*.rst     text
+
+*.jpg     binary
+*.png     binary
+*.gif     binary
+*.tiff    binary
+*.tga     binary
+*.bmp     binary
+
+*.wav     binary
+*.ogg     binary
+*.mp3     binary
+*.flac    binary
+
+*.mp4     binary
+*.mov     binary
+*.flv     binary
+
+.editorconfig      text diff
+.gitattributes     text diff
+.gitignore         text diff
