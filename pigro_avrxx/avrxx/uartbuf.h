@@ -1,11 +1,43 @@
 #ifndef UARTBUF_H
 #define UARTBUF_H
 
+#include <avrxx.h>
 #include <iobuf.h>
 #include <avr/io.h>
 
 namespace avr
 {
+
+    class UART
+    {
+    public:
+
+        void enableTransmitter()
+        {
+            avr::ioreg(UCSRB).setPin(TXEN, true);
+        }
+
+        void disableTransmitter()
+        {
+            avr::ioreg(UCSRB).setPin(TXEN, false);
+        }
+
+        void enableReceiver()
+        {
+            avr::ioreg(UCSRB).setPin(RXEN, true);
+        }
+
+        void disableReceiver()
+        {
+            avr::ioreg(UCSRB).setPin(RXEN, false);
+        }
+
+        void setBaudRate(int rate)
+        {
+            avr::ioreg(UBRRH).raw_write( (rate / 256) & 0xF );
+            avr::ioreg(UBRRL).raw_write(rate % 256);
+        }
+    };
 
     template <int iSize, int oSize>
     class uartbuf

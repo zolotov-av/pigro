@@ -1,4 +1,5 @@
 TEMPLATE = subdirs
 
-SUBDIRS += avrxx \
-    pigro
+SUBDIRS += avrxx
+SUBDIRS += pigro
+SUBDIRS += demo
