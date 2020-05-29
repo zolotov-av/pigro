@@ -2,44 +2,13 @@
 #define UARTBUF_H
 
 #include <avrxx.h>
+#include <uart.h>
 #include <iobuf.h>
-#include <avr/io.h>
 
 namespace avr
 {
 
-    class UART
-    {
-    public:
-
-        void enableTransmitter()
-        {
-            avr::ioreg(UCSRB).setPin(TXEN, true);
-        }
-
-        void disableTransmitter()
-        {
-            avr::ioreg(UCSRB).setPin(TXEN, false);
-        }
-
-        void enableReceiver()
-        {
-            avr::ioreg(UCSRB).setPin(RXEN, true);
-        }
-
-        void disableReceiver()
-        {
-            avr::ioreg(UCSRB).setPin(RXEN, false);
-        }
-
-        void setBaudRate(int rate)
-        {
-            avr::ioreg(UBRRH).raw_write( (rate / 256) & 0xF );
-            avr::ioreg(UBRRL).raw_write(rate % 256);
-        }
-    };
-
-    template <int iSize, int oSize>
+    template <int iSize, int oSize, class uart = UART>
     class uartbuf
     {
     private:
@@ -59,7 +28,7 @@ namespace avr
 
         void handle_rxc_isr()
         {
-            buf.enque_input(UDR);
+            buf.enque_input(uart::read());
         }
 
         void handle_txc_isr()
@@ -71,7 +40,7 @@ namespace avr
             uint8_t dest;
             if ( buf.deque_output(&dest) )
             {
-                UDR = dest;
+                uart::write(dest);
                 if ( buf.output().empty() )
                 {
                     UCSRB &= ~(1 << UDRIE);

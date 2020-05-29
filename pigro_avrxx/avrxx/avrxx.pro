@@ -8,6 +8,7 @@ SOURCES += \
     iobuf.cpp \
     ringbuf.cpp \
     spibuf.cpp \
+    uart.cpp \
     uartbuf.cpp
 
 HEADERS += \
@@ -15,6 +16,7 @@ HEADERS += \
     iobuf.h \
     ringbuf.h \
     spibuf.h \
+    uart.h \
     uartbuf.h
 
 AVR_MCU = atmega16a

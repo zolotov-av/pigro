@@ -41,33 +41,29 @@ ISR(SPI_STC_vect)
 
 }
 
-volatile uint8_t test;
-
 int main()
 {
 
-    const bitfield<uint8_t> upm( UCSRC, UPM0, 2 );
+    // TODO: UARTConfig -> UART::setMode()
+    UARTConfig config;
+    config.setCharacterSize(8);
+    config.apply();
 
-    //if ( upm.value() == 3 ) test = 1;
-
-
+    UART::enableTransmitter();
+    UART::enableReceiver();
+    UART::enableRXC();
+    UART::enableTXC();
+    UART::enableUDRE();
+    UART::setBaudRate(UART_BAUD_K);
+    /*
     // Настройка UART
-    ioreg(UCSRA).set(0);
-    ioreg reg(UCSRB);
-    reg.clear();
-    UART().enableReceiver();
-    UART().disableTransmitter();
-    reg.setPin(RXCIE, true);
-    reg.setPin(TXCIE, true);
-    reg.setPin(UDRIE, true);
-    ioreg(UCSRC).set( (1<<URSEL)|(1<<UCSZ0)|(1<<UCSZ1) );
-
-    upm.set(2);
+    UCSRA = makebits();
+    UCSRB = makebits(RXEN, TXEN, RXCIE, TXCIE, UDRIE);
+    UCSRC = makebits(URSEL, UCSZ0, UCSZ1);
 
     // Настройка частоты UART
-    UART().setBaudRate(UART_BAUD_K);
-
-
+    UART::setBaudRate(UART_BAUD_K);
+*/
     avr::interrupt_enable();
     avr::sleep_loop();
 }

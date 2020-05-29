@@ -6,6 +6,39 @@
 namespace avr
 {
 
+    constexpr auto makebits()
+    {
+        return 0;
+    }
+
+    template<typename T>
+    constexpr T makebits(T first) {
+        return (1 << first);
+    }
+
+    template<typename T, typename... Args>
+    constexpr T makebits(T first, Args... args) {
+        return (1 << first) | makebits(args...);
+    }
+
+    template <typename T>
+    void setreg(volatile T &reg)
+    {
+        reg = 0;
+    }
+
+    template <typename T>
+    void setreg(volatile T &reg, int bit)
+    {
+        reg = (1 << bit);
+    }
+
+    template <typename T, typename... Bits>
+    void setreg(volatile T &reg, Bits... bits)
+    {
+        reg = makebits(bits...);
+    }
+
     inline void interrupt_enable()
     {
         __asm__ __volatile__ ("sei" ::: "memory");
@@ -73,6 +106,7 @@ namespace avr
 
     public:
 
+        constexpr bitfield(T &a, int o, int l): addr(a), vaddr(a), offset(o), length(l) { }
         constexpr bitfield(volatile T &a, int o, int l): addr((T &)a), vaddr(a), offset(o), length(l) { }
 
         T extract(T data) const
@@ -122,6 +156,7 @@ namespace avr
 
     public:
 
+        constexpr ioreg(T &a): addr(a), vaddr(a) { }
         constexpr ioreg(volatile T &a): addr((T &)a), vaddr(a) { }
         constexpr ioreg(const ioreg &) = default;
 
