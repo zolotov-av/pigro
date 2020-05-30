@@ -16,6 +16,14 @@ namespace avr
 
     public:
 
+        void wait()
+        {
+            while ( buf.input().empty() )
+            {
+                sleep();
+            }
+        }
+
         bool read(uint8_t *dest)
         {
             return buf.read(dest);
@@ -23,7 +31,13 @@ namespace avr
 
         bool write(uint8_t value)
         {
-            return buf.write(value);
+            if ( buf.write(value) )
+            {
+                uart::enableUDRE();
+                return true;
+            }
+
+            return false;
         }
 
         void handle_rxc_isr()
@@ -43,7 +57,7 @@ namespace avr
                 uart::write(dest);
                 if ( buf.output().empty() )
                 {
-                    UCSRB &= ~(1 << UDRIE);
+                    uart::disableUDRE();
                 }
             }
 

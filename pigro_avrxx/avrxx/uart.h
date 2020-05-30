@@ -11,26 +11,6 @@ namespace avr
     {
     public:
 
-        static void enableTransmitter()
-        {
-            avr::ioreg(UCSRB).setPin(TXEN, true);
-        }
-
-        static void disableTransmitter()
-        {
-            avr::ioreg(UCSRB).setPin(TXEN, false);
-        }
-
-        static void enableReceiver()
-        {
-            avr::ioreg(UCSRB).setPin(RXEN, true);
-        }
-
-        static void disableReceiver()
-        {
-            avr::ioreg(UCSRB).setPin(RXEN, false);
-        }
-
         static void enableRXC()
         {
             avr::ioreg(UCSRB).setPin(RXCIE, true);
@@ -53,12 +33,32 @@ namespace avr
 
         static void enableUDRE()
         {
-            avr::ioreg(UCSRB).setPin(UDRIE, true);
+            avr::ioreg(UCSRB).write_pin(UDRIE, true);
         }
 
         static void disableUDRE()
         {
-            avr::ioreg(UCSRB).setPin(UDRIE, false);
+            avr::ioreg(UCSRB).write_pin(UDRIE, false);
+        }
+
+        static void enableTransmitter()
+        {
+            avr::ioreg(UCSRB).setPin(TXEN, true);
+        }
+
+        static void disableTransmitter()
+        {
+            avr::ioreg(UCSRB).setPin(TXEN, false);
+        }
+
+        static void enableReceiver()
+        {
+            avr::ioreg(UCSRB).setPin(RXEN, true);
+        }
+
+        static void disableReceiver()
+        {
+            avr::ioreg(UCSRB).setPin(RXEN, false);
         }
 
         static void setBaudRate(int rate)
@@ -74,7 +74,7 @@ namespace avr
 
         static void write(uint8_t value)
         {
-            avr::ioreg(UDR).set(value);
+            avr::ioreg(UDR).write(value);
         }
 
     };

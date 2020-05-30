@@ -197,7 +197,7 @@ namespace avr
 
         void write_pin(int offset, bool value) const
         {
-            if ( value ) addr |= (1 << offset);
+            if ( value ) vaddr |= (1 << offset);
             else vaddr &= ~(1 << offset);
         }
 
