@@ -160,6 +160,15 @@ namespace avr
         constexpr ioreg(volatile T &a): addr((T &)a), vaddr(a) { }
         constexpr ioreg(const ioreg &) = default;
 
+        uint8_t raw_read() const
+        {
+            const uint8_t port = reinterpret_cast<int>(&addr) - 0x20;
+            // здесь не нужен ни "memory" ни __volatile__
+            uint8_t value;
+            __asm__  ( "in %0, %1" : "=r"(value) : "I"(port) );
+            return value;
+        }
+
         /**
          * Непосредственная запись в порт
          *
