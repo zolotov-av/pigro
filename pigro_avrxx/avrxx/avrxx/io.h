@@ -209,6 +209,12 @@ namespace avr
     }
 
     template <typename T>
+    auto forced(T &r)
+    {
+        return forced_io(r);
+    }
+
+    template <typename T>
     auto raw(volatile T &r)
     {
         return raw_io(r);

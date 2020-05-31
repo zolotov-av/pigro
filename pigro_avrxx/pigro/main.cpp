@@ -1,11 +1,11 @@
-#include <avrxx/spibuf.h>
+#include <avrxx/spi_master.h>
 #include <avrxx/uartbuf.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
 using namespace avr;
 
-spibuf<8, 8> spi {};
+SPI_Master spi {};
 uartbuf<8, 8> uart {};
 
 /**

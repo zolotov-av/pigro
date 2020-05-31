@@ -1,5 +1,5 @@
 #include <avrxx/io.h>
-#include <avrxx/spibuf.h>
+#include <avrxx/spi_master.h>
 #include <avrxx/uartbuf.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -9,7 +9,16 @@ using namespace avr;
 // 51 at 8MHz = 9600
 constexpr auto UART_BAUD_K = 51;
 
+SPI_Master spi {};
 uartbuf<8, 8> uart {};
+
+/**
+ * Прерываение SPI
+ */
+ISR(SPI_STC_vect)
+{
+    spi.handle_isr();
+}
 
 /**
  * USART Receive Complete
