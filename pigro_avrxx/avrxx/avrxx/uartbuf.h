@@ -1,12 +1,28 @@
 #ifndef UARTBUF_H
 #define UARTBUF_H
 
+#include <avr/io.h>
 #include <avrxx/io.h>
 #include <avrxx/uart.h>
 #include <avrxx/iobuf.h>
 
 namespace avr
 {
+
+    class intr_lock
+    {
+    public:
+
+        intr_lock()
+        {
+            avr::interrupt_disable();
+        }
+
+        ~intr_lock()
+        {
+            avr::interrupt_enable();
+        }
+    };
 
     template <int iSize, int oSize, class uart = UART>
     class uartbuf
@@ -27,11 +43,19 @@ namespace avr
 
         bool read(uint8_t *dest)
         {
+            intr_lock lock;
             return buf.read(dest);
+        }
+
+        bool read_sync(uint8_t *dest)
+        {
+            wait();
+            return read(dest);
         }
 
         bool write(uint8_t value)
         {
+            intr_lock lock;
             if ( buf.write(value) )
             {
                 uart::enableUDRE();
@@ -39,6 +63,16 @@ namespace avr
             }
 
             return false;
+        }
+
+        void write_sync(uint8_t value)
+        {
+            while ( buf.output().full() )
+            {
+                sleep();
+            }
+
+            write(value);
         }
 
         void handle_rxc_isr()
