@@ -73,36 +73,13 @@ static void read_packet()
 
 int main()
 {
-    //offset = 0;
-    //uart.clear();
-
     DDRA = 0xFF;
     PORTA = offset;
 
     avr::pin(MCUCR, SE).set(true);
 
-    // TODO: UARTConfig -> UART::setMode()
-    /*
-    UARTConfig config;
-    config.setCharacterSize(8);
-    config.apply();
-    */
-
-    /*
-    UART::enableTransmitter();
-    UART::enableReceiver();
-    UART::enableRXC();
-    UART::enableTXC();
-    UART::enableUDRE();
-    UART::setBaudRate(UART_BAUD_K);
-    */
-
     // Настройка UART
-    UCSRA = makebits();
-    UCSRB = makebits(RXEN, TXEN, RXCIE, TXCIE /*, UDRIE */);
-    UCSRC = makebits(URSEL, UCSZ0, UCSZ1);
-
-    // Настройка частоты UART
+    UART::init();
     UART::setBaudRate(UART_BAUD_K);
 
     avr::interrupt_enable();

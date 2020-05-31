@@ -12,6 +12,7 @@ namespace avr
     class uartbuf
     {
     private:
+
         iobuf<iSize, oSize> buf;
 
     public:
@@ -71,6 +72,5 @@ namespace avr
     };
 
 }
-
 
 #endif // UARTBUF_H
