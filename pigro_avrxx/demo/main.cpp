@@ -1,6 +1,6 @@
-#include <avrxx.h>
-#include <spibuf.h>
-#include <uartbuf.h>
+#include <avrxx/io.h>
+#include <avrxx/spibuf.h>
+#include <avrxx/uartbuf.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 

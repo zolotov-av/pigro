@@ -1,7 +1,7 @@
 #ifndef IOBUF_H
 #define IOBUF_H
 
-#include <ringbuf.h>
+#include <avrxx/ringbuf.h>
 
 namespace avr {
 

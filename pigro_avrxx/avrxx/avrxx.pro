@@ -4,20 +4,20 @@ CONFIG -= qt
 CONFIG += c++17
 
 SOURCES += \
-    avrxx.cpp \
-    iobuf.cpp \
-    ringbuf.cpp \
-    spibuf.cpp \
-    uart.cpp \
-    uartbuf.cpp
+    avrxx/io.cpp \
+    avrxx/iobuf.cpp \
+    avrxx/ringbuf.cpp \
+    avrxx/spibuf.cpp \
+    avrxx/uart.cpp \
+    avrxx/uartbuf.cpp
 
 HEADERS += \
-    avrxx.h \
-    iobuf.h \
-    ringbuf.h \
-    spibuf.h \
-    uart.h \
-    uartbuf.h
+    avrxx/io.h \
+    avrxx/iobuf.h \
+    avrxx/ringbuf.h \
+    avrxx/spibuf.h \
+    avrxx/uart.h \
+    avrxx/uartbuf.h
 
 AVR_MCU = atmega16a
 

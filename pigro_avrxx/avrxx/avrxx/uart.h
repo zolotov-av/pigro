@@ -1,7 +1,7 @@
 #ifndef UART_H
 #define UART_H
 
-#include <avrxx.h>
+#include <avrxx/io.h>
 #include <avr/io.h>
 
 namespace avr

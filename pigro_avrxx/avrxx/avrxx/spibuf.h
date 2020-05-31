@@ -1,7 +1,7 @@
 #ifndef SPIBUF_H
 #define SPIBUF_H
 
-#include <iobuf.h>
+#include <avrxx/iobuf.h>
 #include <avr/io.h>
 
 namespace avr

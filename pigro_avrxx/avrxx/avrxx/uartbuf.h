@@ -1,9 +1,9 @@
 #ifndef UARTBUF_H
 #define UARTBUF_H
 
-#include <avrxx.h>
-#include <uart.h>
-#include <iobuf.h>
+#include <avrxx/io.h>
+#include <avrxx/uart.h>
+#include <avrxx/iobuf.h>
 
 namespace avr
 {
