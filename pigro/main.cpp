@@ -23,6 +23,7 @@
 #include <array>
 
 #include "serial.h"
+#include "IntelHEX.h"
 
 constexpr uint8_t PKT_ACK = 1;
 constexpr uint8_t PKT_NACK = 2;
@@ -341,24 +342,6 @@ int at_act_check()
 	int r = at_check_firmware(fname);
 	if ( r ) printf("firmware is same\n");
 	else printf("firmware differ\n");
-	return r;
-}
-
-/**
-* Действие - записать прошивку в устройство
-*/
-int at_act_write()
-{
-    int r = at_chip_erase();
-	if ( r )
-	{
-		r = at_write_firmware(fname);
-	}
-	else
-	{
-		fprintf(stderr, "firmware erase fault\n");
-	}
-	printf("firmware write: %s\n", (r ? "ok" : "fail"));
 	return r;
 }
 
@@ -734,6 +717,20 @@ public:
     }
 
     /**
+     * Действие - записать прошивку в устройство
+     */
+    int action_write()
+    {
+        pigro::IntelHEX hex;
+        hex.open(fname);
+        //isp_chip_erase();
+        //auto r = at_write_firmware(fname);
+        //printf("firmware write: %s\n", (r ? "ok" : "fail"));
+        //return r;
+        return 0;
+    }
+
+    /**
     * Запус команды
     */
     int execute(PigroAction action)
@@ -742,7 +739,7 @@ public:
         {
         case AT_ACT_INFO: return action_info();
         case AT_ACT_CHECK: return at_act_check();
-        case AT_ACT_WRITE: return at_act_write();
+        case AT_ACT_WRITE: return action_write();
         case AT_ACT_ERASE: return action_erase();
         case AT_ACT_READ_FUSE: return action_read_fuse();
         case AT_ACT_WRITE_FUSE_LO: return action_write_fuse_lo();
