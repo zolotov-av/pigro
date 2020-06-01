@@ -184,31 +184,6 @@ unsigned int cmd_isp_io(unsigned int cmd)
 }
 
 /**
-* Отправить команду ADC (АЦП).
-* 
-* Тестовая комнада для тестирования функций ADC (АЦП) на демоплате.
-*/
-int cmd_adc(uint8_t admux, uint16_t *value)
-{
-	packet_t pkt;
-	pkt.cmd = 4;
-	pkt.len = 1;
-	pkt.data[0] = admux;
-	if ( ! send_packet(&pkt) )
-	{
-		fprintf(stderr, "send_packet fault (ADC)\n");
-		return 0;
-	}
-	
-	int r = recv_packet(&pkt);
-	if ( !r ) fprintf(stderr, "recv_packet failed (ADC)\n");
-	if ( pkt.cmd != 4 ) fprintf(stderr, "wrong packet (ADC), cmd: %d\n", pkt.cmd);
-	if ( pkt.len != 2 ) fprintf(stderr, "wrong packet (ADC), len: %d\n", pkt.len);
-	*value = pkt.data[1] * 256 + pkt.data[0];
-	return 1;
-}
-
-/**
 * Отправить комманду микроконтроллеру и прочтать ответ
 * Все комманды размером 4 байта
 */
@@ -681,39 +656,6 @@ int at_act_info()
 }
 
 /**
-* API для обращения к функции ADC (АЦП)
-*/
-int adc(char pin, double aref, double *result)
-{
-	uint16_t value = 0;
-	int r = cmd_adc(pin & 0x07, &value);
-	if ( ! r )
-	{
-		fprintf(stderr, "ADC fault\n");
-		return 0;
-	}
-	*result = value * (aref / 1024.0);
-	return 1;
-}
-
-/**
-* Обработка команды ADC
-*/
-int at_act_adc()
-{
-	double u;
-	int i;
-	for(i = 0; i < 10; i++)
-	{
-	if ( adc(0, 5.05, &u) )
-	{
-		printf("ADC result: U=%.2f\n", u);
-	}
-	}
-	return 1;
-}
-
-/**
 * Запус команды
 */
 int run()
@@ -727,8 +669,7 @@ int run()
 	case AT_ACT_READ_FUSE: return at_act_read_fuse();
 	case AT_ACT_WRITE_FUSE_LO: return at_act_write_fuse_lo();
 	case AT_ACT_WRITE_FUSE_HI: return at_act_write_fuse_hi();
-	case AT_ACT_WRITE_FUSE_EX: return at_act_write_fuse_ex();
-	case AT_ACT_ADC: return at_act_adc();
+    case AT_ACT_WRITE_FUSE_EX: return at_act_write_fuse_ex();
 	}
 	printf("Victory!\n");
 	return 0;
@@ -748,8 +689,7 @@ int help()
 	printf("    rfuse - read fuses\n");
 	printf("    wfuse_lo - write low fuse bits\n");
 	printf("    wfuse_hi - write high fuse bits\n");
-	printf("    wfuse_ex - write extended fuse bits\n");
-	printf("    adc - run ADC mesure\n");
+    printf("    wfuse_ex - write extended fuse bits\n");
 	return 0;
 }
 
@@ -873,8 +813,7 @@ int real_main(int argc, char *argv[])
 	else if ( strcmp(argv[1], "rfuse") == 0 ) action = AT_ACT_READ_FUSE;
 	else if ( strcmp(argv[1], "wfuse_lo") == 0 ) action = AT_ACT_WRITE_FUSE_LO;
 	else if ( strcmp(argv[1], "wfuse_hi") == 0 ) action = AT_ACT_WRITE_FUSE_HI;
-	else if ( strcmp(argv[1], "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
-	else if ( strcmp(argv[1], "adc") == 0 ) action = AT_ACT_ADC;
+    else if ( strcmp(argv[1], "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
 	else return help();
 	
 	fuse_bits = 0x100;
@@ -900,12 +839,7 @@ int real_main(int argc, char *argv[])
     app.checkVersion();
     app.dumpProtoVersion();
 	
-	if ( action == AT_ACT_ADC )
-	{
-		status = run() ? 0 : 1;
-		
-	}
-	else if ( at_program_enable() )
+    if ( at_program_enable() )
 	{
 		status = run() ? 0 : 1;
 	}
