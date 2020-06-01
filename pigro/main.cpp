@@ -68,62 +68,10 @@ unsigned int fuse_bits;
 */
 int verbose = 0;
 
-/**
-* Файловый дескриптор (виртуального) последовательного порта
-*/
-static pigro::serial *serial = nullptr;
+static class PigroApp *papp = nullptr;
 
-/**
-* Инициализация последовательного порта
-*/
-int serial_init()
-{
-    serial = new pigro::serial("/dev/ttyUSB0");
-	return 1;
-}
-
-/**
-* Отправить пакет данных
-*/
-int send_packet(const packet_t *pkt)
-{
-    ssize_t r = serial->write(pkt, pkt->len + 2);
-	if ( r == pkt->len + 2 ) return 1;
-	else
-	{
-		// TODO обработка ошибок
-        throw pigro::exception("fail to send packet\n");
-	}
-}
-
-/**
-* Прочитать пакет данных
-*/
-int recv_packet(packet_t *pkt)
-{
-	ssize_t r;
-	//printf("recv_packet begin\n");
-    r = serial->read(&pkt->cmd, sizeof(pkt->cmd));
-	if ( r != sizeof(pkt->cmd) )
-	{ /*fprintf(stderr, "cmd recv fail, r: %d\n", r);*/ return 0; }
-// 	printf("cmd: %d\n", pkt->cmd);
-	
-    r = serial->read(&pkt->len, sizeof(pkt->len));
-	if ( r != sizeof(pkt->len) )
-	{ /*fprintf(stderr, "len recv fail, r: %d\n", r);*/ return 0; }
-// 	printf("len: %d\n", pkt->len);
-	
-	int i;
-	for(i = 0; i < pkt->len; i++)
-	{
-        r = serial->read(&pkt->data[i], sizeof(pkt->data[i]));
-		if ( r != sizeof(pkt->data[i]) )
-		{ /*fprintf(stderr, "data[%d] recv fail, r: %d\n", i, r);*/ return 0; }
-// 		printf("data[%d] = %02X\n", i, pkt->data[i]);
-	}
-	
-	return 1;
-}
+int send_packet(const packet_t *pkt);
+int recv_packet(packet_t *pkt);
 
 /**
 * Тестовая команда, по сути ничего полезного не делает, использовалась
@@ -131,11 +79,11 @@ int recv_packet(packet_t *pkt)
 */
 int cmd_seta(char value)
 {
-	packet_t pkt;
-	pkt.cmd = 1;
-	pkt.len = 1;
-	pkt.data[0] = value;
-	return send_packet(&pkt);
+    packet_t pkt;
+    pkt.cmd = 1;
+    pkt.len = 1;
+    pkt.data[0] = value;
+    return send_packet(&pkt);
 }
 
 /**
@@ -697,13 +645,14 @@ class PigroApp
 {
 private:
 
+    bool nack_support = false;
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
     pigro::serial *serial = nullptr;
 
 public:
 
-    PigroApp(): serial (new pigro::serial())
+    PigroApp(const char *path): serial (new pigro::serial(path))
     {
         if ( serial == nullptr )
         {
@@ -727,7 +676,7 @@ public:
     /**
      * Отправить пакет данных
      */
-    void send_packet(const packet_t *pkt)
+    bool send_packet(const packet_t *pkt)
     {
         ssize_t r = serial->write(pkt, pkt->len + 2);
         if ( r != pkt->len + 2 )
@@ -735,6 +684,13 @@ public:
             // TODO обработка ошибок
             throw pigro::exception("fail to send packet\n");
         }
+
+        if ( nack_support )
+        {
+            return serial->read_sync() == PKT_ACK;
+        }
+
+        return true;
     }
 
     void recv_packet(packet_t *pkt)
@@ -775,6 +731,7 @@ public:
                 recv_packet(&pkt);
                 if ( pkt.len != 2 )
                     throw pigro::exception("wrong protocol");
+                nack_support = true;
                 protoVersionMajor = pkt.data[0];
                 protoVersionMinor = pkt.data[1];
                 info("new protocol");
@@ -786,6 +743,7 @@ public:
             }
         }
 
+        nack_support = false;
         protoVersionMajor = 0;
         protoVersionMinor = 1;
         info("old protocol");
@@ -798,6 +756,24 @@ public:
     }
 
 };
+
+/**
+* Отправить пакет данных
+*/
+int send_packet(const packet_t *pkt)
+{
+    papp->send_packet(pkt);
+    return 1;
+}
+
+/**
+* Прочитать пакет данных
+*/
+int recv_packet(packet_t *pkt)
+{
+    papp->recv_packet(pkt);
+    return 1;
+}
 
 
 int real_main(int argc, char *argv[])
@@ -828,17 +804,12 @@ int real_main(int argc, char *argv[])
 	{
 		printf("firmware file: %s\n", fname);
 	}
-	
-	if ( ! serial_init() )
-	{
-		printf("serial init fault\n");
-		return 1;
-	}
 
-    PigroApp app(serial);
+    PigroApp app("/dev/ttyUSB0");
     app.checkVersion();
     app.dumpProtoVersion();
-	
+    papp = &app;
+
     if ( at_program_enable() )
 	{
 		status = run() ? 0 : 1;
