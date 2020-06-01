@@ -74,19 +74,6 @@ int send_packet(const packet_t *pkt);
 int recv_packet(packet_t *pkt);
 
 /**
-* Тестовая команда, по сути ничего полезного не делает, использовалась
-* для индикации во время отладки
-*/
-int cmd_seta(char value)
-{
-    packet_t pkt;
-    pkt.cmd = 1;
-    pkt.len = 1;
-    pkt.data[0] = value;
-    return send_packet(&pkt);
-}
-
-/**
 * Управление линией RESET программируемого контроллера
 */
 int cmd_isp_reset(char value)
@@ -753,6 +740,20 @@ public:
     void dumpProtoVersion()
     {
         printf("proto version: %d.%d\n", protoVersionMajor, protoVersionMinor);
+    }
+
+    /**
+     * @brief set PORTA
+     * @param value
+     * @return
+     */
+    void cmd_seta(uint8_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 1;
+        pkt.len = 1;
+        pkt.data[0] = value;
+        send_packet(&pkt);
     }
 
 };
