@@ -27,7 +27,7 @@ constexpr uint8_t PKT_NACK = 2;
 
 int at_flush();
 
-enum {
+enum PigroAction {
 	AT_ACT_INFO,
 	AT_ACT_CHECK,
 	AT_ACT_WRITE,
@@ -39,19 +39,14 @@ enum {
 	AT_ACT_ADC
 };
 
-#define PACKET_MAXLEN 6
+constexpr auto PACKET_MAXLEN = 6;
 
-typedef struct
+struct packet_t
 {
 	unsigned char cmd;
 	unsigned char len;
 	unsigned char data[PACKET_MAXLEN];
-} packet_t;
-
-/**
-* Действие которое надо выполнить
-*/
-int action;
+};
 
 /**
 * Имя hex-файла
@@ -72,18 +67,6 @@ static class PigroApp *papp = nullptr;
 
 int send_packet(const packet_t *pkt);
 int recv_packet(packet_t *pkt);
-
-/**
-* Управление линией RESET программируемого контроллера
-*/
-int cmd_isp_reset(char value)
-{
-	packet_t pkt;
-	pkt.cmd = 2;
-	pkt.len = 1;
-	pkt.data[0] = value;
-	return send_packet(&pkt);
-}
 
 /**
 * Отправить команду программирования (ISP)
@@ -125,28 +108,6 @@ unsigned int cmd_isp_io(unsigned int cmd)
 unsigned int at_io(unsigned int cmd)
 {
 	return cmd_isp_io(cmd);
-}
-
-/**
-* Подать сигнал RESET и командду "Programming Enable"
-*/
-int at_program_enable()
-{
-	cmd_isp_reset(0);
-	//sleep(3);
-	cmd_isp_reset(1);
-	//sleep(3);
-	cmd_isp_reset(0);
-	//sleep(3);
-	
-	unsigned int r = cmd_isp_io(0xAC53000F);
-	int status = (r & 0xFF00) == 0x5300;
-	if ( verbose || !status )
-	{
-		const char *s = status ? "ok" : "fault";
-		printf("at_program_enable(): %s 0x%08x\n", s, r);
-	}
-	return status;
 }
 
 /**
@@ -591,26 +552,6 @@ int at_act_info()
 }
 
 /**
-* Запус команды
-*/
-int run()
-{
-	switch ( action )
-	{
-	case AT_ACT_INFO: return at_act_info();
-	case AT_ACT_CHECK: return at_act_check();
-	case AT_ACT_WRITE: return at_act_write();
-	case AT_ACT_ERASE: return at_act_erase();
-	case AT_ACT_READ_FUSE: return at_act_read_fuse();
-	case AT_ACT_WRITE_FUSE_LO: return at_act_write_fuse_lo();
-	case AT_ACT_WRITE_FUSE_HI: return at_act_write_fuse_hi();
-    case AT_ACT_WRITE_FUSE_EX: return at_act_write_fuse_ex();
-	}
-	printf("Victory!\n");
-	return 0;
-}
-
-/**
 * Отобразить подсказку
 */
 int help()
@@ -756,6 +697,64 @@ public:
         send_packet(&pkt);
     }
 
+    /**
+     * @brief Управление линией RESET программируемого контроллера
+     * @param value
+     * @return
+     */
+    void cmd_isp_reset(bool value)
+    {
+        packet_t pkt;
+        pkt.cmd = 2;
+        pkt.len = 1;
+        pkt.data[0] = value ? 1 : 0;
+        send_packet(&pkt);
+    }
+
+    /**
+     * @brief Подать сигнал RESET и командду "Programming Enable"
+     * @return
+     */
+    int isp_program_enable()
+    {
+        cmd_isp_reset(0);
+        cmd_isp_reset(1);
+        cmd_isp_reset(0);
+
+        unsigned int r = cmd_isp_io(0xAC530000);
+        int status = (r & 0xFF00) == 0x5300;
+        if ( verbose || !status )
+        {
+            const char *s = status ? "ok" : "fault";
+            printf("at_program_enable(): %s 0x%08x\n", s, r);
+        }
+        if ( !status )
+        {
+            throw pigro::exception("isp_program_enable() failed");
+        }
+        return status;
+    }
+
+
+    /**
+    * Запус команды
+    */
+    int execute(PigroAction action)
+    {
+        switch ( action )
+        {
+        case AT_ACT_INFO: return at_act_info();
+        case AT_ACT_CHECK: return at_act_check();
+        case AT_ACT_WRITE: return at_act_write();
+        case AT_ACT_ERASE: return at_act_erase();
+        case AT_ACT_READ_FUSE: return at_act_read_fuse();
+        case AT_ACT_WRITE_FUSE_LO: return at_act_write_fuse_lo();
+        case AT_ACT_WRITE_FUSE_HI: return at_act_write_fuse_hi();
+        case AT_ACT_WRITE_FUSE_EX: return at_act_write_fuse_ex();
+        default: throw pigro::exception("Victory!");
+        }
+    }
+
 };
 
 /**
@@ -779,10 +778,10 @@ int recv_packet(packet_t *pkt)
 
 int real_main(int argc, char *argv[])
 {
-	int status = 0;
-	
 	if ( argc <= 1 ) return help();
 	
+    PigroAction action;
+
 	if ( strcmp(argv[1], "info") == 0 ) action = AT_ACT_INFO;
 	else if ( strcmp(argv[1], "check") == 0 ) action = AT_ACT_CHECK;
 	else if ( strcmp(argv[1], "write") == 0 ) action = AT_ACT_WRITE;
@@ -811,17 +810,11 @@ int real_main(int argc, char *argv[])
     app.dumpProtoVersion();
     papp = &app;
 
-    if ( at_program_enable() )
-	{
-		status = run() ? 0 : 1;
-	}
-	cmd_isp_reset(1);
-	
-	if ( verbose )
-	{
-		printf("main() = %d\n", status);
-	}
-	return status;
+    app.isp_program_enable();
+    app.execute(action);
+    app.cmd_isp_reset(1);
+
+    return 0;
 }
 
 int main(int argc, char *argv[])
