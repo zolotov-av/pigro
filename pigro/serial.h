@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unistd.h>
+#include <sys/poll.h>
 #include <iostream>
 
 namespace pigro
@@ -66,6 +67,33 @@ namespace pigro
         {
             return check( ::write(serial_fd, buf, len) );
         }
+
+        bool wait()
+        {
+            pollfd p{};
+            p.fd = serial_fd;
+            p.events = POLLIN | POLLPRI | POLLERR;
+
+            return check( poll(&p, 1, 200) ) == 1;
+
+        }
+
+        void wait_sync()
+        {
+            if ( wait() ) return;
+
+            // timeout
+            throw pigro::exception("serial timeout");
+        }
+
+        uint8_t read_sync()
+        {
+            wait_sync();
+            uint8_t data;
+            read(&data, sizeof(data));
+            return data;
+        }
+
     };
 
 }

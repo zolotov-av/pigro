@@ -22,6 +22,9 @@
 
 #include "serial.h"
 
+constexpr uint8_t PKT_ACK = 1;
+constexpr uint8_t PKT_NACK = 2;
+
 int at_flush();
 
 enum {
@@ -750,6 +753,113 @@ int help()
 	return 0;
 }
 
+class PigroApp
+{
+private:
+
+    uint8_t protoVersionMajor = 0;
+    uint8_t protoVersionMinor = 0;
+    pigro::serial *serial = nullptr;
+
+public:
+
+    PigroApp(): serial (new pigro::serial())
+    {
+        if ( serial == nullptr )
+        {
+            throw pigro::exception("fail to create pigro::serial");
+        }
+    }
+
+    PigroApp(pigro::serial *tty): serial(tty)
+    {
+        if ( serial == nullptr )
+        {
+            throw pigro::exception("serial = nullptr");
+        }
+    }
+
+    ~PigroApp()
+    {
+        delete serial;
+    }
+
+    /**
+     * Отправить пакет данных
+     */
+    void send_packet(const packet_t *pkt)
+    {
+        ssize_t r = serial->write(pkt, pkt->len + 2);
+        if ( r != pkt->len + 2 )
+        {
+            // TODO обработка ошибок
+            throw pigro::exception("fail to send packet\n");
+        }
+    }
+
+    void recv_packet(packet_t *pkt)
+    {
+        pkt->cmd = serial->read_sync();
+        pkt->len = serial->read_sync();
+        if ( pkt->len >= PACKET_MAXLEN )
+        {
+            throw pigro::exception("packet to big: " + std::to_string(pkt->len) + "/" + std::to_string((PACKET_MAXLEN)));
+        }
+        for(int i = 0; i < pkt->len; i++)
+        {
+            pkt->data[i] = serial->read_sync();
+        }
+    }
+
+
+    static void info(const char *msg)
+    {
+        printf("info: %s\n", msg);
+    }
+
+    void checkVersion()
+    {
+        packet_t pkt;
+        pkt.cmd = 1;
+        pkt.len = 2;
+        pkt.data[0] = 0;
+        pkt.data[1] = 0;
+        send_packet(&pkt);
+
+        if ( serial->wait() )
+        {
+            uint8_t ack;
+            serial->read(&ack, sizeof(ack));
+            if ( ack == PKT_ACK )
+            {
+                recv_packet(&pkt);
+                if ( pkt.len != 2 )
+                    throw pigro::exception("wrong protocol");
+                protoVersionMajor = pkt.data[0];
+                protoVersionMinor = pkt.data[1];
+                info("new protocol");
+                return;
+            }
+            else
+            {
+                throw pigro::exception("wrong protocol");
+            }
+        }
+
+        protoVersionMajor = 0;
+        protoVersionMinor = 1;
+        info("old protocol");
+
+    }
+
+    void dumpProtoVersion()
+    {
+        printf("proto version: %d.%d\n", protoVersionMajor, protoVersionMinor);
+    }
+
+};
+
+
 int real_main(int argc, char *argv[])
 {
 	int status = 0;
@@ -785,6 +895,10 @@ int real_main(int argc, char *argv[])
 		printf("serial init fault\n");
 		return 1;
 	}
+
+    PigroApp app(serial);
+    app.checkVersion();
+    app.dumpProtoVersion();
 	
 	if ( action == AT_ACT_ADC )
 	{

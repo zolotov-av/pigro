@@ -11,6 +11,9 @@ constexpr auto UART_BAUD_K = 51;
 
 constexpr auto PACKET_MAXLEN = 6;
 
+constexpr uint8_t PKT_ACK = 1;
+constexpr uint8_t PKT_NACK = 2;
+
 struct packet_t
 {
     uint8_t cmd;
@@ -55,12 +58,30 @@ ISR(USART_UDRE_vect)
 
 static packet_t pkt;
 
+void send_packet();
+
+static void send_ack()
+{
+    uart.write_sync(PKT_ACK);
+}
+
+static void send_nack()
+{
+    uart.write_sync(PKT_NACK);
+}
+
 /**
  * Обработка команды seta
  */
 void cmd_seta()
 {
     if ( pkt.len == 1 ) PORTA = pkt.data[0];
+    if ( pkt.len == 2 )
+    {
+        pkt.data[0] = 0;
+        pkt.data[1] = 2;
+        send_packet();
+    }
 }
 
 /**
@@ -140,6 +161,7 @@ static void read_packet()
     if ( pkt.len > PACKET_MAXLEN )
     {
         uint8_t dummy;
+        send_nack();
         for(i = 0; i < pkt.len; i++) uart.read_sync(&dummy);
         return;
     }
@@ -148,6 +170,7 @@ static void read_packet()
     {
         uart.read_sync(&pkt.data[i]);
     }
+    send_ack();
 
     handle_packet();
 }
