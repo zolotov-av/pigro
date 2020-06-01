@@ -363,108 +363,6 @@ int at_act_write()
 }
 
 /**
-* Действие - прочитать биты fuse
-*/
-int at_act_read_fuse()
-{
-	if ( verbose )
-	{
-		printf("read device's fuses\n");
-	}
-	unsigned int fuse_lo;
-	unsigned int fuse_hi;
-	unsigned int fuse_ex;
-	
-	fuse_lo = at_io(0x50000000);
-	fuse_hi = at_io(0x58080000);
-	fuse_ex = at_io(0x50080000);
-	
-	printf("fuse[lo]: %02X (%08X)\n", (fuse_lo % 0x100), fuse_lo);
-	printf("fuse[hi]: %02X (%08X)\n", (fuse_hi % 0x100), fuse_hi);
-	printf("fuse[ex]: %02X (%08X)\n", (fuse_ex % 0x100), fuse_ex);
-	
-	return 1;
-}
-
-/**
-* Действие - записать младшие биты fuse
-*/
-int at_act_write_fuse_lo()
-{
-	if ( verbose )
-	{
-		printf("write device's low fuse bits (0x%02X)\n", fuse_bits);
-	}
-	if ( fuse_bits > 0xFF )
-	{
-		printf("wrong fuse bits\n");
-		return 0;
-	}
-	
-	unsigned int r = at_io(0xACA00000 + (fuse_bits & 0xFF));
-	int ok = ((r >> 16) & 0xFF) == 0xAC;
-	if ( verbose )
-	{
-		const char *status = ok ? "[ ok ]" : "[ fail ]";
-		printf("write device's low fuse bits %s\n", status);
-	}
-	
-	return ok;
-}
-
-/**
-* Действие - записать старшие биты fuse
-*/
-int at_act_write_fuse_hi()
-{
-	if ( verbose )
-	{
-		printf("write device's high fuse bits (0x%02X)\n", fuse_bits);
-	}
-	if ( fuse_bits > 0xFF )
-	{
-		printf("wrong fuse bits\n");
-		return 0;
-	}
-	
-	unsigned int r = at_io(0xACA80000 + (fuse_bits & 0xFF));
-	int ok = ((r >> 16) & 0xFF) == 0xAC;
-	if ( verbose )
-	{
-		const char *status = ok ? "[ ok ]" : "[ fail ]";
-		printf("write device's high fuse bits %s\n", status);
-	}
-	
-	return ok;
-}
-
-/**
-* Действие - записать расширеные биты fuse
-*/
-int at_act_write_fuse_ex()
-{
-	if ( verbose )
-	{
-		printf("write device's extended fuse bits (0x%02X)\n", fuse_bits);
-	}
-	if ( fuse_bits > 0xFF )
-	{
-		printf("wrong fuse bits\n");
-		return 0;
-	}
-	
-	unsigned int r = at_io(0xACA40000 + (fuse_bits & 0xFF));
-	int ok = ((r >> 16) & 0xFF) == 0xAC;
-	if ( verbose )
-	{
-		const char *status = ok ? "[ ok ]" : "[ fail ]";
-		printf("write device's extended fuse bits %s\n", status);
-	}
-	
-	return ok;
-}
-
-/**
 * Отобразить подсказку
 */
 int help()
@@ -726,6 +624,107 @@ public:
     }
 
     /**
+     * Действие - прочитать биты fuse
+     */
+    int action_read_fuse()
+    {
+        if ( verbose )
+        {
+            info("read device's fuses");
+        }
+
+        uint8_t fuse_lo = at_io(0x50000000) & 0xFF;
+        uint8_t fuse_hi = at_io(0x58080000) & 0xFF;
+        uint8_t fuse_ex = at_io(0x50080000) & 0xFF;
+
+        printf("fuse[lo]: 0x%02X\n", fuse_lo);
+        printf("fuse[hi]: 0x%02X\n", fuse_hi);
+        printf("fuse[ex]: 0x%02X\n", fuse_ex);
+
+        return 1;
+    }
+
+    /**
+     * Действие - записать младшие биты fuse
+     */
+    int action_write_fuse_lo()
+    {
+        if ( verbose )
+        {
+            printf("write device's low fuse bits (0x%02X)\n", fuse_bits);
+        }
+
+        if ( fuse_bits > 0xFF )
+        {
+            printf("wrong fuse bits\n");
+            return 0;
+        }
+
+        unsigned int r = at_io(0xACA00000 + (fuse_bits & 0xFF));
+        int ok = ((r >> 16) & 0xFF) == 0xAC;
+
+        if ( verbose )
+        {
+            const char *status = ok ? "[ ok ]" : "[ fail ]";
+            printf("write device's low fuse bits %s\n", status);
+        }
+
+        return ok;
+    }
+
+    /**
+     * Действие - записать старшие биты fuse
+     */
+    int action_write_fuse_hi()
+    {
+        if ( verbose )
+        {
+            printf("write device's high fuse bits (0x%02X)\n", fuse_bits);
+        }
+        if ( fuse_bits > 0xFF )
+        {
+            printf("wrong fuse bits\n");
+            return 0;
+        }
+
+        unsigned int r = at_io(0xACA80000 + (fuse_bits & 0xFF));
+        int ok = ((r >> 16) & 0xFF) == 0xAC;
+        if ( verbose )
+        {
+            const char *status = ok ? "[ ok ]" : "[ fail ]";
+            printf("write device's high fuse bits %s\n", status);
+        }
+
+        return ok;
+    }
+
+    /**
+     * Действие - записать расширеные биты fuse
+     */
+    int action_write_fuse_ex()
+    {
+        if ( verbose )
+        {
+            printf("write device's extended fuse bits (0x%02X)\n", fuse_bits);
+        }
+        if ( fuse_bits > 0xFF )
+        {
+            printf("wrong fuse bits\n");
+            return 0;
+        }
+
+        unsigned int r = at_io(0xACA40000 + (fuse_bits & 0xFF));
+        int ok = ((r >> 16) & 0xFF) == 0xAC;
+        if ( verbose )
+        {
+            const char *status = ok ? "[ ok ]" : "[ fail ]";
+            printf("write device's extended fuse bits %s\n", status);
+        }
+
+        return ok;
+    }
+
+    /**
      * Действие - стереть чип
      */
     int action_erase()
@@ -745,10 +744,10 @@ public:
         case AT_ACT_CHECK: return at_act_check();
         case AT_ACT_WRITE: return at_act_write();
         case AT_ACT_ERASE: return action_erase();
-        case AT_ACT_READ_FUSE: return at_act_read_fuse();
-        case AT_ACT_WRITE_FUSE_LO: return at_act_write_fuse_lo();
-        case AT_ACT_WRITE_FUSE_HI: return at_act_write_fuse_hi();
-        case AT_ACT_WRITE_FUSE_EX: return at_act_write_fuse_ex();
+        case AT_ACT_READ_FUSE: return action_read_fuse();
+        case AT_ACT_WRITE_FUSE_LO: return action_write_fuse_lo();
+        case AT_ACT_WRITE_FUSE_HI: return action_write_fuse_hi();
+        case AT_ACT_WRITE_FUSE_EX: return action_write_fuse_ex();
         default: throw pigro::exception("Victory!");
         }
     }
