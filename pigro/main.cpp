@@ -20,6 +20,8 @@
 #include <termios.h> /* Объявления управления POSIX-терминалом */
 #include <string.h>
 
+#include <array>
+
 #include "serial.h"
 
 constexpr uint8_t PKT_ACK = 1;
@@ -48,6 +50,8 @@ struct packet_t
 	unsigned char data[PACKET_MAXLEN];
 };
 
+using AVR_Signature = std::array<uint8_t, 3>;
+
 /**
 * Имя hex-файла
 */
@@ -68,47 +72,8 @@ static class PigroApp *papp = nullptr;
 int send_packet(const packet_t *pkt);
 int recv_packet(packet_t *pkt);
 
-/**
-* Отправить команду программирования (ISP)
-*/
-unsigned int cmd_isp_io(unsigned int cmd)
-{
-	packet_t pkt;
-	pkt.cmd = 3;
-	pkt.len = 4;
-	
-	int i;
-	for(i = 0; i < 4; i++)
-	{
-		unsigned char byte = cmd >> 24;
-		pkt.data[i] = byte;
-		cmd <<= 8;
-	}
-	
-	send_packet(&pkt);
-	int r = recv_packet(&pkt);
-	if ( !r ) fprintf(stderr, "recv_packet failed\n");
-	if ( pkt.cmd != 3 ) fprintf(stderr, "wrong packet, cmd: %d\n", pkt.cmd);
-	if ( pkt.len != 4 ) fprintf(stderr, "wrong packet, len: %d\n", pkt.len);
-	
-	unsigned int result = 0;
-	for(i = 0; i < 4; i++)
-	{
-		unsigned char byte = pkt.data[i];
-		result = result * 256 + byte;
-	}
-	
-	return result;
-}
-
-/**
-* Отправить комманду микроконтроллеру и прочтать ответ
-* Все комманды размером 4 байта
-*/
-unsigned int at_io(unsigned int cmd)
-{
-	return cmd_isp_io(cmd);
-}
+unsigned int at_io(unsigned int cmd);
+unsigned int cmd_isp_io(unsigned int cmd);
 
 /**
 * Прочитать байт прошивки из устройства
@@ -523,35 +488,6 @@ int at_act_write_fuse_ex()
 }
 
 /**
-* Подать команду "Read Device Code"
-* 
-* Лучший способ проверить связь с чипом в режиме программирования.
-* Эта команда возвращает код который индентфицирует модель чипа
-*/
-unsigned int at_chip_info()
-{
-	unsigned int sig = 0;
-	sig = sig * 256 + (at_io(0x30000000) & 0xFF);
-	sig = sig * 256 + (at_io(0x30000100) & 0xFF);
-	sig = sig * 256 + (at_io(0x30000200) & 0xFF);
-	if ( verbose )
-	{
-		printf("at_chip_info(): %08X\n", sig);
-	}
-	return sig;
-}
-
-/**
-* Действие - вывести информацию об устройстве
-*/
-int at_act_info()
-{
-	unsigned int info = at_chip_info();
-	printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", (info >> 16) & 0xFF, (info >> 8) & 0xFF, info & 0xFF);
-	return 1;
-}
-
-/**
 * Отобразить подсказку
 */
 int help()
@@ -712,6 +648,38 @@ public:
     }
 
     /**
+     * Отправить команду программирования (ISP)
+     */
+    unsigned int cmd_isp_io(unsigned int cmd)
+    {
+        packet_t pkt;
+        pkt.cmd = 3;
+        pkt.len = 4;
+
+        for(int i = 0; i < 4; i++)
+        {
+            unsigned char byte = cmd >> 24;
+            pkt.data[i] = byte;
+            cmd <<= 8;
+        }
+
+        send_packet(&pkt);
+
+        recv_packet(&pkt);
+        if ( pkt.cmd != 3 || pkt.len != 4 ) throw pigro::exception("unexpected packet");
+
+        unsigned int result = 0;
+        for(int i = 0; i < 4; i++)
+        {
+            unsigned char byte = pkt.data[i];
+            result = result * 256 + byte;
+        }
+
+        return result;
+    }
+
+
+    /**
      * @brief Подать сигнал RESET и командду "Programming Enable"
      * @return
      */
@@ -735,6 +703,32 @@ public:
         return status;
     }
 
+    /**
+     * Подать команду "Read Device Code"
+     *
+     *
+     * Лучший способ проверить связь с чипом в режиме программирования.
+     * Эта команда возвращает код который индентфицирует модель чипа.
+     */
+    AVR_Signature isp_chip_info()
+    {
+        uint8_t b000 = cmd_isp_io(0x30000000) & 0xFF;
+        uint8_t b001 = cmd_isp_io(0x30000100) & 0xFF;
+        uint8_t b002 = cmd_isp_io(0x30000200) & 0xFF;
+
+        return {b000, b001, b002};
+    }
+
+    /**
+     * @brief Действие - вывести информацию об устройстве
+     * @return
+     */
+    int action_info()
+    {
+        auto info = isp_chip_info();
+        printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", info[0], info[1], info[2]);
+        return 1;
+    }
 
     /**
     * Запус команды
@@ -743,7 +737,7 @@ public:
     {
         switch ( action )
         {
-        case AT_ACT_INFO: return at_act_info();
+        case AT_ACT_INFO: return action_info();
         case AT_ACT_CHECK: return at_act_check();
         case AT_ACT_WRITE: return at_act_write();
         case AT_ACT_ERASE: return at_act_erase();
@@ -775,6 +769,22 @@ int recv_packet(packet_t *pkt)
     return 1;
 }
 
+/**
+* Отправить комманду микроконтроллеру и прочтать ответ
+* Все комманды размером 4 байта
+*/
+unsigned int at_io(unsigned int cmd)
+{
+    return papp->cmd_isp_io(cmd);
+}
+
+/**
+ * Отправить команду программирования (ISP)
+ */
+unsigned int cmd_isp_io(unsigned int cmd)
+{
+    return papp->cmd_isp_io(cmd);
+}
 
 int real_main(int argc, char *argv[])
 {
