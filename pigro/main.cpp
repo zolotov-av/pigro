@@ -74,6 +74,7 @@ int recv_packet(packet_t *pkt);
 
 unsigned int at_io(unsigned int cmd);
 unsigned int cmd_isp_io(unsigned int cmd);
+int at_chip_erase();
 
 /**
 * Прочитать байт прошивки из устройства
@@ -277,22 +278,6 @@ int at_check_firmware(const char *fname)
 }
 
 /**
-* Стереть чип
-* 
-* Отправить команду стирания чипа, чип уже должен быть переведен в режим
-* программирования.
-*/
-int at_chip_erase()
-{
-	if ( verbose )
-	{
-		printf("erase device's firmware\n");
-	}
-	unsigned int r = at_io(0xAC800000);
-	return ((r >> 16) & 0xFF) == 0xAC;
-}
-
-/**
 * Записать прошивку в устройство
 */
 int at_write_firmware(const char *fname)
@@ -364,7 +349,7 @@ int at_act_check()
 */
 int at_act_write()
 {
-	int r = at_chip_erase();
+    int r = at_chip_erase();
 	if ( r )
 	{
 		r = at_write_firmware(fname);
@@ -375,14 +360,6 @@ int at_act_write()
 	}
 	printf("firmware write: %s\n", (r ? "ok" : "fail"));
 	return r;
-}
-
-/**
-* Действие - стереть чип
-*/
-int at_act_erase()
-{
-	return at_chip_erase();
 }
 
 /**
@@ -720,6 +697,24 @@ public:
     }
 
     /**
+     * Команда "Chip Erase"
+     *
+     * Отправить команду стирания чипа, чип уже должен быть переведен в режим
+     * программирования.
+     */
+    void isp_chip_erase()
+    {
+        if ( verbose )
+        {
+            info("erase device's firmware");
+        }
+        unsigned int r = at_io(0xAC800000);
+        bool status = ((r >> 16) & 0xFF) == 0xAC;
+        if ( !status ) throw pigro::exception("isp_chip_erase() error");
+    }
+
+
+    /**
      * @brief Действие - вывести информацию об устройстве
      * @return
      */
@@ -727,6 +722,15 @@ public:
     {
         auto info = isp_chip_info();
         printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", info[0], info[1], info[2]);
+        return 1;
+    }
+
+    /**
+     * Действие - стереть чип
+     */
+    int action_erase()
+    {
+        isp_chip_erase();
         return 1;
     }
 
@@ -740,7 +744,7 @@ public:
         case AT_ACT_INFO: return action_info();
         case AT_ACT_CHECK: return at_act_check();
         case AT_ACT_WRITE: return at_act_write();
-        case AT_ACT_ERASE: return at_act_erase();
+        case AT_ACT_ERASE: return action_erase();
         case AT_ACT_READ_FUSE: return at_act_read_fuse();
         case AT_ACT_WRITE_FUSE_LO: return at_act_write_fuse_lo();
         case AT_ACT_WRITE_FUSE_HI: return at_act_write_fuse_hi();
@@ -784,6 +788,12 @@ unsigned int at_io(unsigned int cmd)
 unsigned int cmd_isp_io(unsigned int cmd)
 {
     return papp->cmd_isp_io(cmd);
+}
+
+int at_chip_erase()
+{
+    papp->isp_chip_erase();
+    return true;
 }
 
 int real_main(int argc, char *argv[])
