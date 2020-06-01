@@ -51,8 +51,6 @@ struct packet_t
 	unsigned char data[PACKET_MAXLEN];
 };
 
-using AVR_Signature = std::array<uint8_t, 3>;
-
 /**
 * Имя hex-файла
 */
@@ -568,7 +566,7 @@ public:
      * Лучший способ проверить связь с чипом в режиме программирования.
      * Эта команда возвращает код который индентфицирует модель чипа.
      */
-    AVR_Signature isp_chip_info()
+    pigro::AVR_Signature isp_chip_info()
     {
         uint8_t b000 = cmd_isp_io(0x30000000) & 0xFF;
         uint8_t b001 = cmd_isp_io(0x30000100) & 0xFF;
@@ -592,6 +590,43 @@ public:
         unsigned int r = at_io(0xAC800000);
         bool status = ((r >> 16) & 0xFF) == 0xAC;
         if ( !status ) throw pigro::exception("isp_chip_erase() error");
+    }
+
+    /**
+     * Прочитать байт прошивки из устройства
+     */
+    uint8_t isp_read_memory(uint16_t addr)
+    {
+        uint8_t cmd = (addr & 1) ? 0x28 : 0x20;
+        uint16_t offset = (addr >> 1);
+        return cmd_isp_io( (cmd << 24) | (offset << 8 ) ) & 0xFF;
+    }
+
+    void isp_check_firmware(const pigro::AVR_Data &pages)
+    {
+        for(const auto &[page_addr, page] : pages)
+        {
+            printf("PAGE[0x%04X]", page_addr);
+            const size_t size = page.data.size();
+            for(size_t i = 0; i < size; i++)
+            {
+                uint8_t byte = isp_read_memory((page_addr * 2) + i);
+                printf("%s", (page.data[i] == byte ? "." : "*" ));
+                fflush(stdout);
+            }
+            printf(" %ld\n", size);
+        }
+    }
+
+    /**
+     * Записать прошивку
+     */
+    void isp_write_firmware(const pigro::AVR_Data &pages)
+    {
+        for(const auto &[page_addr, page] : pages)
+        {
+
+        }
     }
 
 
@@ -716,17 +751,36 @@ public:
         return 1;
     }
 
+    pigro::AVR_Data readHEX()
+    {
+        pigro::IntelHEX hex;
+        hex.open(fname);
+
+        pigro::AVR_Info avr;
+        avr.page_word_size = 64;
+        avr.page_count = 128;
+        auto pages = hex.split_pages(avr);
+        printf("page usages: %ld / %d\n", pages.size(), avr.page_count);
+        return pages;
+    }
+
+    /**
+     * Действие - проверить прошивку в устройстве
+     */
+    int action_check()
+    {
+        pigro::AVR_Data pages = readHEX();
+        isp_check_firmware(pages);
+        return 0;
+    }
+
     /**
      * Действие - записать прошивку в устройство
      */
     int action_write()
     {
-        pigro::IntelHEX hex;
-        hex.open(fname);
-        //isp_chip_erase();
-        //auto r = at_write_firmware(fname);
-        //printf("firmware write: %s\n", (r ? "ok" : "fail"));
-        //return r;
+        pigro::AVR_Data pages = readHEX();
+        isp_write_firmware(pages);
         return 0;
     }
 
@@ -738,7 +792,7 @@ public:
         switch ( action )
         {
         case AT_ACT_INFO: return action_info();
-        case AT_ACT_CHECK: return at_act_check();
+        case AT_ACT_CHECK: return action_check();
         case AT_ACT_WRITE: return action_write();
         case AT_ACT_ERASE: return action_erase();
         case AT_ACT_READ_FUSE: return action_read_fuse();

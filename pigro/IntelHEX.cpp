@@ -32,13 +32,15 @@ namespace pigro
 
     void IntelHEX::open(const std::string &path)
     {
+        rows.clear();
+
         std::fstream f(path, std::ios_base::in);
         if ( f.fail() ) throw pigro::exception("fail to open file: " + path);
 
         int lineno = 0;
         while ( !f.eof() )
         {
-            line_t hexline;
+            row_t row {};
             std::string line;
             std::getline(f, line);
             lineno++;
@@ -55,31 +57,68 @@ namespace pigro
 
             for(int i = 0; i < bytelen; i++)
             {
-                hexline.bytes[i] = at_hex_get_byte(line.data(), i);
+                row.bytes[i] = at_hex_get_byte(line.data(), i);
             }
 
             uint8_t sum = 0;
             for(int i = 0; i < (bytelen-1); i++)
             {
-                sum -= hexline.bytes[i];
+                sum -= row.bytes[i];
             }
 
-            //printf("line=%d sum=0x%02X expected=0x%02X\n", lineno, sum, hexline.checksum());
-            if ( hexline.checksum() != sum ) throw pigro::exception("wrong hex-file: wrong checksum");
+            if ( row.checksum() != sum ) throw pigro::exception("wrong hex-file: wrong checksum");
 
-            uint8_t type = hexline.type();
-            uint16_t addr = hexline.addr();
-            //const uint8_t *data = hexline.data();
+            uint8_t type = row.type();
+            uint16_t addr = row.addr();
 
             printf("line[%2d] len=%3d type=%d, addr=0x%04X charlen=%ld/%ld\n", lineno, len, type, addr, charlen, line.length());
+
+            rows.push_back(std::move(row));
 
             if ( type == 1 )
             {
                 printf("end of hex\n");
+                printf("rows count: %ld\n", rows.size());
                 return;
             }
         }
 
+    }
+
+    AVR_Data IntelHEX::split_pages(const AVR_Info &avr)
+    {
+        const uint16_t page_byte_size = avr.page_byte_size();
+        const uint16_t page_mask = avr.page_mask();
+        const uint16_t byte_mask = avr.byte_mask();
+        const uint16_t flash_size = avr.flash_size();
+
+        AVR_Data pages;
+        for(const auto &row : rows)
+        {
+            if ( row.type() == 0 )
+            {
+                const uint16_t row_addr = row.addr();
+                const uint8_t *row_data = row.data();
+                for(uint16_t i = 0; i < row.length(); i++)
+                {
+                    const uint16_t addr = row_addr + i;
+                    if ( addr >= flash_size ) throw pigro::exception("image too big");
+                    const uint16_t page_addr = (addr / 2) & page_mask;
+                    const uint16_t offset = addr & byte_mask;
+                    AVR_Page &page = pages[page_addr];
+                    if ( page.data.size() == 0 )
+                    {
+                        page.addr = page_addr;
+                        page.data.resize(page_byte_size);
+                        std::fill(page.data.begin(), page.data.end(), 0xFF);
+
+                    }
+                    page.data[offset] = row_data[i];
+                }
+            }
+        }
+
+        return pages;
     }
 
 }
