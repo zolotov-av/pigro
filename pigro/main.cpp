@@ -14,10 +14,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdint.h>
-#include <unistd.h>  /* Объявления стандартных функций UNIX */
-#include <fcntl.h>   /* Объявления управления файлами */
-#include <errno.h>   /* Объявления кодов ошибок */
-#include <termios.h> /* Объявления управления POSIX-терминалом */
 #include <string.h>
 
 #include <array>
@@ -441,12 +437,7 @@ public:
                 counter = (counter + 1) & 0x1F;
 
             }
-            auto status = isp_write_memory_page(page_addr);
-            if ( verbose )
-            {
-                //printf("FLUSH[%04X]%s\n", (page_addr*2), (status ? "+" : "-"));
-            }
-
+            isp_write_memory_page(page_addr);
         }
     }
 
@@ -634,47 +625,6 @@ public:
     }
 
 };
-
-/**
-* Отправить пакет данных
-*/
-int send_packet(const packet_t *pkt)
-{
-    papp->send_packet(pkt);
-    return 1;
-}
-
-/**
-* Прочитать пакет данных
-*/
-int recv_packet(packet_t *pkt)
-{
-    papp->recv_packet(pkt);
-    return 1;
-}
-
-/**
-* Отправить комманду микроконтроллеру и прочтать ответ
-* Все комманды размером 4 байта
-*/
-unsigned int at_io(unsigned int cmd)
-{
-    return papp->cmd_isp_io(cmd);
-}
-
-/**
- * Отправить команду программирования (ISP)
- */
-unsigned int cmd_isp_io(unsigned int cmd)
-{
-    return papp->cmd_isp_io(cmd);
-}
-
-int at_chip_erase()
-{
-    papp->isp_chip_erase();
-    return true;
-}
 
 int real_main(int argc, char *argv[])
 {
