@@ -57,7 +57,7 @@ const char *fname;
 /**
 * FUSE-биты
 */
-unsigned int fuse_bits;
+std::string fuse_bits_s;
 
 /**
 * Нужно ли выводить дополнительный отладочный вывод или быть тихим?
@@ -178,10 +178,22 @@ public:
         }
     }
 
-
     static void info(const char *msg)
     {
-        printf("info: %s\n", msg);
+        if ( verbose )
+        {
+            printf("info: %s\n", msg);
+        }
+    }
+
+    static void warn(const char *msg)
+    {
+        fprintf(stderr, "warn: %s\n", msg);
+    }
+
+    static void error(const char *msg)
+    {
+        fprintf(stderr, "error: %s\n", msg);
     }
 
     void checkVersion()
@@ -217,8 +229,7 @@ public:
         nack_support = false;
         protoVersionMajor = 0;
         protoVersionMinor = 1;
-        info("old protocol");
-
+        warn("old protocol? update firmware...");
     }
 
     void dumpProtoVersion()
@@ -364,12 +375,6 @@ public:
         uint32_t result = cmd_isp_io( (cmd << 24) | (word_addr << 8 ) | (byte & 0xFF) );
         uint8_t r = (result >> 16) & 0xFF;
         int status = (r == cmd);
-        if ( verbose )
-        {
-            printf(status ? "." : "*");
-            fflush(stdout);
-            //printf("[%04X]=%02X%s ", offset, byte, (status ? "+" : "-"));
-        }
         if ( !status ) throw pigro::exception("isp_load_memory_page() error");
     }
 
@@ -382,27 +387,31 @@ public:
         uint32_t result = cmd_isp_io( (cmd << 24) | (page_addr << 8 ) );
         uint8_t r = (result >> 16) & 0xFF;
         int status = (r == cmd);
-        if ( verbose )
-        {
-            printf("FLUSH[%04X]%s\n", page_addr, (status ? "+" : "-"));
-        }
         //sleep(1);
         return status;
     }
 
     void isp_check_firmware(const pigro::AVR_Data &pages)
     {
+        auto signature = isp_chip_info();
+        if ( signature != avr.signature )
+        {
+            warn("isp_check_firmware(): wrong chip signature");
+        }
+
         for(const auto &[page_addr, page] : pages)
         {
-            printf("PAGE[0x%04X]", page_addr);
+            uint8_t counter = 0;
             const size_t size = page.data.size();
             for(size_t i = 0; i < size; i++)
             {
-                uint8_t byte = isp_read_memory((page_addr * 2) + i);
+                const uint16_t addr = (page_addr * 2) + i;
+                if ( counter == 0 ) printf("MEM[0x%04X]", addr);
+                uint8_t byte = isp_read_memory(addr);
                 printf("%s", (page.data[i] == byte ? "." : "*" ));
-                fflush(stdout);
+                if ( counter == 0x1F ) printf("\n");
+                counter = (counter + 1) & 0x1F;
             }
-            printf(" %ld\n", size);
         }
     }
 
@@ -414,19 +423,30 @@ public:
         auto signature = isp_chip_info();
         if ( signature != avr.signature )
         {
-            throw pigro::exception("isp_write_firmware() rejected: wrong chip signature");
+            throw pigro::exception("isp_write_firmware() reject: wrong chip signature");
         }
 
         isp_chip_erase();
         for(const auto &[page_addr, page] : pages)
         {
-            printf("PAGE[0x%04X]", page_addr);
+            uint8_t counter = 0;
             const size_t size = page.data.size();
             for(size_t i = 0; i < size; i++)
             {
+                const uint16_t addr = (page_addr * 2) + i;
+                if ( counter == 0 ) printf("MEM[0x%04X]", addr);
                 isp_load_memory_page((page_addr * 2) + i, page.data[i]);
+                printf(".");
+                if ( counter == 0x1F ) printf("\n");
+                counter = (counter + 1) & 0x1F;
+
             }
-            isp_write_memory_page(page_addr);
+            auto status = isp_write_memory_page(page_addr);
+            if ( verbose )
+            {
+                //printf("FLUSH[%04X]%s\n", (page_addr*2), (status ? "+" : "-"));
+            }
+
         }
     }
 
@@ -468,6 +488,8 @@ public:
      */
     int action_write_fuse_lo()
     {
+        auto fuse_bits = at_hex_to_int(fuse_bits_s.c_str());
+
         if ( verbose )
         {
             printf("write device's low fuse bits (0x%02X)\n", fuse_bits);
@@ -496,10 +518,13 @@ public:
      */
     int action_write_fuse_hi()
     {
+        auto fuse_bits = at_hex_to_int(fuse_bits_s.c_str());
+
         if ( verbose )
         {
             printf("write device's high fuse bits (0x%02X)\n", fuse_bits);
         }
+
         if ( fuse_bits > 0xFF )
         {
             printf("wrong fuse bits\n");
@@ -522,10 +547,13 @@ public:
      */
     int action_write_fuse_ex()
     {
+        auto fuse_bits = at_hex_to_int(fuse_bits_s.c_str());
+
         if ( verbose )
         {
             printf("write device's extended fuse bits (0x%02X)\n", fuse_bits);
         }
+
         if ( fuse_bits > 0xFF )
         {
             printf("wrong fuse bits\n");
@@ -664,10 +692,9 @@ int real_main(int argc, char *argv[])
     else if ( strcmp(argv[1], "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
 	else return help();
 	
-	fuse_bits = 0x100;
-	if ( argc > 2 )
+    if ( argc > 2 )
 	{
-        fuse_bits = at_hex_to_int(argv[2]);
+        fuse_bits_s = argv[2];
 	}
 	
 	fname = argc > 2 ? argv[2] : "firmware.hex";
