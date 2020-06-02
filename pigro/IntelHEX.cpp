@@ -71,7 +71,7 @@ namespace pigro
             uint8_t type = row.type();
             uint16_t addr = row.addr();
 
-            printf("line[%2d] len=%3d type=%d, addr=0x%04X charlen=%ld/%ld\n", lineno, len, type, addr, charlen, line.length());
+            //printf("line[%2d] len=%3d type=%d, addr=0x%04X charlen=%ld/%ld\n", lineno, len, type, addr, charlen, line.length());
 
             rows.push_back(std::move(row));
 

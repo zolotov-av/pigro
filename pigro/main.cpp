@@ -28,8 +28,6 @@
 constexpr uint8_t PKT_ACK = 1;
 constexpr uint8_t PKT_NACK = 2;
 
-int at_flush();
-
 enum PigroAction {
 	AT_ACT_INFO,
 	AT_ACT_CHECK,
@@ -68,279 +66,31 @@ int verbose = 0;
 
 static class PigroApp *papp = nullptr;
 
-int send_packet(const packet_t *pkt);
-int recv_packet(packet_t *pkt);
-
-unsigned int at_io(unsigned int cmd);
-unsigned int cmd_isp_io(unsigned int cmd);
-int at_chip_erase();
-
 /**
-* Прочитать байт прошивки из устройства
-*/
-unsigned char at_read_memory(unsigned int addr)
+ * Конверировать шестнадцатеричную цифру в число
+ */
+static uint8_t at_hex_digit(char ch)
 {
-	unsigned int cmd = (addr & 1) ? 0x28 : 0x20;
-	unsigned int offset = (addr >> 1) & 0xFFFF;
-	unsigned int byte = at_io( (cmd << 24) | (offset << 8 ) ) & 0xFF;
-	return byte;
+    if ( ch >= '0' && ch <= '9' ) return ch - '0';
+    if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
+    if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
+    throw pigro::exception("wrong hex digit");
 }
 
 /**
-* Адрес активной страницы
-*/
-static unsigned int active_page = 0;
-
-/**
-* Флаг грязной страницы
-* 
-* Указывает что в буфер текущей страницы были записаны
-* данные и требуется запись во флеш.
-*/
-static unsigned int dirty_page = 0;
-
-/**
-* Записать байт прошивки в устройство
-* NOTE: байт сначала записывается в специальный буфер, фиксация
-* данных происходит в функции at_flush(). Функция at_write_memory()
-* сама переодически вызывает at_flush() поэтому нет необходимости
-* часто вызывать at_flush() и необходимо только в конце, чтобы
-* убедиться что последние данные будут записаны в устройство
-*/
-int at_write_memory(unsigned int addr, unsigned char byte)
+ * Первести шестнадцатеричное число из строки в целочисленное значение
+ */
+static uint32_t at_hex_to_int(const char *s)
 {
-	unsigned int cmd = (addr & 1) ? 0x48 : 0x40;
-	unsigned int offset = (addr >> 1) & 0xFFFF;
-	unsigned int page = (addr >> 1) & 0xFFF0;
-	unsigned int x = 0;
-	if ( page != active_page )
-	{
-		at_flush();
-		active_page = page;
-	}
-	dirty_page = 1;
-	unsigned int result = at_io(x = (cmd << 24) | (offset << 8 ) | (byte & 0xFF) );
-	unsigned int r = (result >> 16) & 0xFF;
-	int status = (r == cmd);
-	if ( verbose )
-	{
-		printf(status ? "." : "*");
-		//printf("[%04X]=%02X%s ", offset, byte, (status ? "+" : "-"));
-	}
-	return status;
-}
-
-/**
-* Завершить запись данных
-*/
-int at_flush()
-{
-	if ( ! dirty_page )
-	{
-		return 1;
-	}
-	
-	unsigned int cmd = 0x4C;
-	unsigned int offset = active_page & 0xFFF0;
-	unsigned int x = 0;
-	unsigned int result = at_io(x = (cmd << 24) | (offset << 8 ) );
-	unsigned int r = (result >> 16) & 0xFF;
-	int status = (r == cmd);
-	dirty_page = 0;
-	if ( verbose )
-	{
-		printf("FLUSH[%04X]%s\n", offset, (status ? "+" : "-"));
-	}
-	return status;
-}
-
-/**
-* выдать сообщение об ошибке в hex-файле
-*/
-void at_wrong_file()
-{
-	printf("wrong hex-file\n");
-}
-
-/**
-* Конверировать шестнадцатеричную цифру в число
-*/
-unsigned char at_hex_digit(char ch)
-{
-	if ( ch >= '0' && ch <= '9' ) return ch - '0';
-	if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
-	if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
-	// TODO somethink...
-	return 0;
-}
-
-/**
-* Первести шестнадцатеричное число из строки в целочисленное значение
-*/
-unsigned int at_hex_to_int(const char *s)
-{
-	unsigned int r = 0;
-	while ( *s )
-	{
-		char ch = *s++;
-		unsigned int hex = 0x10;
-		if ( ch >= '0' && ch <= '9' ) hex = ch - '0';
-		else if ( ch >= 'A' && ch <= 'F' ) hex = ch - 'A' + 10;
-		else if ( ch >= 'a' && ch <= 'f' ) hex = ch - 'a' + 10;
-		else hex = 0x10;
-		if ( hex > 0xF ) return r;
-		r = r * 0x10 + hex;
-	}
-	return r;
-}
-
-/**
-* Прочитать байт
-*/
-unsigned char at_hex_get_byte(const char *line, int i)
-{
-	int offset = i * 2 + 1;
-	// TODO index limit checks
-	return at_hex_digit(line[offset]) * 16 + at_hex_digit(line[offset+1]);
-}
-
-/**
-* Прочитать слово (два байта)
-*/
-unsigned int at_hex_get_word(const char *line, int i)
-{
-	return at_hex_get_byte(line, i) * 256 + at_hex_get_byte(line, i+1);
-}
-
-/**
-* Прочитать байт данных (читает из секции данных)
-*/
-unsigned char at_hex_get_data(const char *line, int i)
-{
-	return at_hex_get_byte(line, i + 4);
-}
-
-/**
-* Сверить прошивку с данными из файла
-*/
-int at_check_firmware(const char *fname)
-{
-	FILE *f = fopen(fname, "r");
-	if ( f )
-	{
-		int lineno = 0;
-		int result = 1;
-		int bytes = 0;
-		while ( 1 )
-		{
-			char line[1024];
-			const char *s = fgets(line, sizeof(line), f);
-			if ( s == NULL ) break;
-			lineno++;
-			if ( line[0] != ':' )
-			{
-				at_wrong_file();
-				break;
-			}
-			unsigned char len = at_hex_get_byte(line, 0);
-			unsigned int addr = at_hex_get_word(line, 1);
-			unsigned char type = at_hex_get_byte(line, 3);
-            //unsigned char cc = at_hex_get_byte(line, 4 + len);
-			if ( verbose ) printf("[%04X]", addr);
-			if ( type == 0 )
-			{
-				int i;
-				for(i = 0; i < len; i++)
-				{
-					bytes ++;
-					unsigned char fbyte = at_hex_get_data(line, i);
-					unsigned char dbyte = at_read_memory(addr + i);
-					int r = (fbyte == dbyte);
-					result = result && r;
-					if ( verbose )
-					{
-						printf(r ? "." : "*");
-					}
-				}
-				if ( verbose ) printf("\n");
-			}
-			if ( type == 1 )
-			{
-				if ( verbose ) printf("end of hex-file\n");
-				break;
-			}
-		}
-		fclose(f);
-		return result;
-	}
-	return 0;
-}
-
-/**
-* Записать прошивку в устройство
-*/
-int at_write_firmware(const char *fname)
-{
-	FILE *f = fopen(fname, "r");
-	if ( f )
-	{
-		int lineno = 0;
-		int result = 1;
-		int bytes = 0;
-		while ( 1 )
-		{
-			char line[1024];
-			const char *s = fgets(line, sizeof(line), f);
-			if ( s == NULL ) break;
-			lineno++;
-			if ( line[0] != ':' )
-			{
-				at_wrong_file();
-				break;
-			}
-			unsigned char len = at_hex_get_byte(line, 0);
-			unsigned int addr = at_hex_get_word(line, 1);
-			unsigned char type = at_hex_get_byte(line, 3);
-            //unsigned char cc = at_hex_get_byte(line, 4 + len);
-			if ( type == 0 )
-			{
-				int i;
-				for(i = 0; i < len; i++)
-				{
-					bytes++;
-					unsigned char fbyte = at_hex_get_data(line, i);
-					int r = at_write_memory(addr + i, fbyte);
-					result = result && r;
-				}
-			}
-			if ( type == 1 )
-			{
-				at_flush();
-				if ( verbose ) printf("end of hex-file\n");
-				break;
-			}
-		}
-		at_flush();
-		fclose(f);
-		if ( verbose )
-		{
-            const char *st = result ? "ok" : "fail";
-			printf("memory write: %s, bytes: %d\n", st, bytes);
-		}
-		return result;
-	}
-	return 0;
-}
-
-/**
-* Действие - сверить прошивку в устрействе с файлом
-*/
-int at_act_check()
-{
-	int r = at_check_firmware(fname);
-	if ( r ) printf("firmware is same\n");
-	else printf("firmware differ\n");
-	return r;
+    uint32_t r = 0;
+    while ( *s )
+    {
+        char ch = *s++;
+        uint8_t hex = at_hex_digit(ch);
+        if ( hex > 0xF ) throw pigro::exception("wrong hex digit");
+        r = r * 0x10 + hex;
+    }
+    return r;
 }
 
 /**
@@ -369,6 +119,7 @@ private:
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
     pigro::serial *serial = nullptr;
+    pigro::AVR_Info avr;
 
 public:
 
@@ -587,7 +338,7 @@ public:
         {
             info("erase device's firmware");
         }
-        unsigned int r = at_io(0xAC800000);
+        unsigned int r = cmd_isp_io(0xAC800000);
         bool status = ((r >> 16) & 0xFF) == 0xAC;
         if ( !status ) throw pigro::exception("isp_chip_erase() error");
     }
@@ -600,6 +351,43 @@ public:
         uint8_t cmd = (addr & 1) ? 0x28 : 0x20;
         uint16_t offset = (addr >> 1);
         return cmd_isp_io( (cmd << 24) | (offset << 8 ) ) & 0xFF;
+    }
+
+    /**
+     * Загрузить байт прошивки в буфер страницы
+     */
+    void isp_load_memory_page(uint16_t addr, uint8_t byte)
+    {
+        uint8_t cmd = (addr & 1) ? 0x48 : 0x40;
+        //uint16_t offset = (addr >> 1);
+        uint16_t word_addr = (addr >> 1);
+        uint32_t result = cmd_isp_io( (cmd << 24) | (word_addr << 8 ) | (byte & 0xFF) );
+        uint8_t r = (result >> 16) & 0xFF;
+        int status = (r == cmd);
+        if ( verbose )
+        {
+            printf(status ? "." : "*");
+            fflush(stdout);
+            //printf("[%04X]=%02X%s ", offset, byte, (status ? "+" : "-"));
+        }
+        if ( !status ) throw pigro::exception("isp_load_memory_page() error");
+    }
+
+    /**
+     * Записать буфер страницы
+     */
+    int isp_write_memory_page(uint16_t page_addr)
+    {
+        uint8_t cmd = 0x4C;
+        uint32_t result = cmd_isp_io( (cmd << 24) | (page_addr << 8 ) );
+        uint8_t r = (result >> 16) & 0xFF;
+        int status = (r == cmd);
+        if ( verbose )
+        {
+            printf("FLUSH[%04X]%s\n", page_addr, (status ? "+" : "-"));
+        }
+        //sleep(1);
+        return status;
     }
 
     void isp_check_firmware(const pigro::AVR_Data &pages)
@@ -623,9 +411,22 @@ public:
      */
     void isp_write_firmware(const pigro::AVR_Data &pages)
     {
+        auto signature = isp_chip_info();
+        if ( signature != avr.signature )
+        {
+            throw pigro::exception("isp_write_firmware() rejected: wrong chip signature");
+        }
+
+        isp_chip_erase();
         for(const auto &[page_addr, page] : pages)
         {
-
+            printf("PAGE[0x%04X]", page_addr);
+            const size_t size = page.data.size();
+            for(size_t i = 0; i < size; i++)
+            {
+                isp_load_memory_page((page_addr * 2) + i, page.data[i]);
+            }
+            isp_write_memory_page(page_addr);
         }
     }
 
@@ -651,9 +452,9 @@ public:
             info("read device's fuses");
         }
 
-        uint8_t fuse_lo = at_io(0x50000000) & 0xFF;
-        uint8_t fuse_hi = at_io(0x58080000) & 0xFF;
-        uint8_t fuse_ex = at_io(0x50080000) & 0xFF;
+        uint8_t fuse_lo = cmd_isp_io(0x50000000) & 0xFF;
+        uint8_t fuse_hi = cmd_isp_io(0x58080000) & 0xFF;
+        uint8_t fuse_ex = cmd_isp_io(0x50080000) & 0xFF;
 
         printf("fuse[lo]: 0x%02X\n", fuse_lo);
         printf("fuse[hi]: 0x%02X\n", fuse_hi);
@@ -678,7 +479,7 @@ public:
             return 0;
         }
 
-        unsigned int r = at_io(0xACA00000 + (fuse_bits & 0xFF));
+        unsigned int r = cmd_isp_io(0xACA00000 + (fuse_bits & 0xFF));
         int ok = ((r >> 16) & 0xFF) == 0xAC;
 
         if ( verbose )
@@ -705,7 +506,7 @@ public:
             return 0;
         }
 
-        unsigned int r = at_io(0xACA80000 + (fuse_bits & 0xFF));
+        unsigned int r = cmd_isp_io(0xACA80000 + (fuse_bits & 0xFF));
         int ok = ((r >> 16) & 0xFF) == 0xAC;
         if ( verbose )
         {
@@ -731,7 +532,7 @@ public:
             return 0;
         }
 
-        unsigned int r = at_io(0xACA40000 + (fuse_bits & 0xFF));
+        unsigned int r = cmd_isp_io(0xACA40000 + (fuse_bits & 0xFF));
         int ok = ((r >> 16) & 0xFF) == 0xAC;
         if ( verbose )
         {
@@ -756,9 +557,10 @@ public:
         pigro::IntelHEX hex;
         hex.open(fname);
 
-        pigro::AVR_Info avr;
+        avr.signature = {0x1E, 0x94, 0x03};
         avr.page_word_size = 64;
         avr.page_count = 128;
+
         auto pages = hex.split_pages(avr);
         printf("page usages: %ld / %d\n", pages.size(), avr.page_count);
         return pages;
@@ -865,7 +667,7 @@ int real_main(int argc, char *argv[])
 	fuse_bits = 0x100;
 	if ( argc > 2 )
 	{
-		fuse_bits = at_hex_to_int(argv[2]);
+        fuse_bits = at_hex_to_int(argv[2]);
 	}
 	
 	fname = argc > 2 ? argv[2] : "firmware.hex";
