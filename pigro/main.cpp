@@ -119,12 +119,14 @@ private:
     bool nack_support = false;
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
+    nano::IniReader<512> config;
     nano::serial *serial = nullptr;
     AVR_Info avr;
+    std::string hexfname;
 
 public:
 
-    PigroApp(const char *path): serial (new nano::serial(path))
+    PigroApp(const char *path): config("pigro.ini"), serial (new nano::serial(path))
     {
     }
 
@@ -441,8 +443,15 @@ public:
      */
     int action_info()
     {
+        loadConfig();
+
         auto info = isp_chip_info();
         printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", info[0], info[1], info[2]);
+        if ( info != avr.signature )
+        {
+            warn("isp_check_firmware(): wrong chip signature");
+        }
+
         return 1;
     }
 
@@ -564,20 +573,14 @@ public:
         return 1;
     }
 
-    AVR_Data readHEX()
+    void loadConfig()
     {
-        nano::IniReader ini("pigro.ini");
-
-        if ( const std::string output = ini.value("main", "output", "quiet"); output == "verbose" )
+        if ( const std::string output = config.value("main", "output", "quiet"); output == "verbose" )
         {
             verbose = true;
         }
 
-        avr.signature = {0x1E, 0x94, 0x03};
-        avr.page_word_size = 64;
-        avr.page_count = 128;
-
-        std::string device = ini.value("main", "device");
+        std::string device = config.value("main", "device");
         if ( device.empty() )
         {
             throw nano::exception("specify device");
@@ -587,6 +590,12 @@ public:
         {
             avr = *dev;
         }
+        else
+        {
+            throw nano::exception("device not found: " + device);
+        }
+
+        hexfname = config.value("main", "hex", fname);
 
         if ( verbose )
         {
@@ -594,9 +603,14 @@ public:
             std::cout << "page_size: " << int(avr.page_word_size) << "\n";
             std::cout << "page_count: " << int(avr.page_count) << "\n";
             std::cout << "flash_size: " << ((avr.flash_size()+1023) / 1024) << "k\n";
+            std::cout << "hex_file: " << hexfname << "\n";
         }
+    }
 
-        auto hexfname = ini.value("main", "hex", fname);
+    AVR_Data readHEX()
+    {
+        loadConfig();
+
 
         auto pages = avr_load_from_hex(avr, hexfname);
         printf("page usages: %ld / %d\n", pages.size(), avr.page_count);

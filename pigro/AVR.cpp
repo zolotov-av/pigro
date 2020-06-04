@@ -111,12 +111,14 @@ std::optional<AVR::DeviceInfo> AVR::findDeviceByName(const std::string &name)
         return device;
     }
 
-    if ( auto device = findInFile(name, "~/.pigro/devices.ini"); device.has_value() )
+    const std::string home = getenv("HOME");
+
+    if ( auto device = findInFile(name, home + "/.pigro/devices.ini"); device.has_value() )
     {
         return device;
     }
 
-    if ( auto device = findInFile(name, "~/.pigro/" + name + ".ini"); device.has_value() )
+    if ( auto device = findInFile(name, home + "~/.pigro/" + name + ".ini"); device.has_value() )
     {
         return device;
     }

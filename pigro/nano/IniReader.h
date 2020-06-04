@@ -62,19 +62,9 @@ namespace nano
                 if ( pos == sv.npos ) throw exception(std::string("wrong ini syntax (value): ") + path);
                 const auto key = nano::trim(sv.substr(0, pos));
                 const auto value = nano::trim(sv.substr(pos+1, sv.length()-pos-1));
-                //std::cout << "key: " << quote(key) << " value: " << quote(value) << std::endl;
 
                 data[current_section][std::string(key)] = std::string(value);
             }
-
-            /*
-            std::cout << "sections:\n";
-            for(const auto &t : data)
-            {
-                std::cout << t.first << "\n";
-            }
-            std::cout << std::flush;
-            */
 
         }
 
@@ -103,14 +93,6 @@ namespace nano
                 {
                     return opt->second;
                 }
-                else
-                {
-                    //std::cout << "option not found: " << section << "." << option << std::endl;
-                }
-            }
-            else
-            {
-                //std::cout << "section not found: " << section << std::endl;
             }
 
             return std::string(defaultValue);
@@ -119,6 +101,16 @@ namespace nano
         void setValue(const std::string &section, const std::string &option, const std::string &value)
         {
             data[section][option] = value;
+        }
+
+        void dumpSections() const
+        {
+            std::cout << "sections:\n";
+            for(const auto &t : data)
+            {
+                std::cout << "  " << t.first << "\n";
+            }
+            std::cout << std::flush;
         }
 
     };
