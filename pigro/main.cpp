@@ -19,6 +19,7 @@
 #include <array>
 #include <nano/exception.h>
 #include <nano/serial.h>
+#include <nano/IniReader.h>
 
 #include "AVR.h"
 
@@ -562,11 +563,15 @@ public:
 
     AVR_Data readHEX()
     {
+        nano::IniReader ini("pigro.ini");
+
         avr.signature = {0x1E, 0x94, 0x03};
         avr.page_word_size = 64;
         avr.page_count = 128;
 
-        auto pages = avr_load_from_hex(avr, fname);
+        auto hexfname = ini.value("main", "hex", fname);
+
+        auto pages = avr_load_from_hex(avr, hexfname);
         printf("page usages: %ld / %d\n", pages.size(), avr.page_count);
         return pages;
     }
@@ -633,7 +638,7 @@ int real_main(int argc, char *argv[])
         fuse_bits_s = argv[2];
 	}
 	
-	fname = argc > 2 ? argv[2] : "firmware.hex";
+    fname = argc > 2 ? argv[2] : "firmware.hex";
 	verbose = argc > 3 && strcmp(argv[3], "verbose") == 0;
 	if ( verbose )
 	{

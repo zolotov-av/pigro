@@ -36,7 +36,11 @@ namespace nano
             lineno++;
             std::array<char, linesize> line;
             fstream.getline(line.data(), line.size());
-            if ( fstream.fail() ) throw exception("line #" + std::to_string(lineno) + " too long: " + path);
+            if ( fstream.fail() )
+            {
+                if ( fstream.eof() ) return std::string();
+                throw exception("line #" + std::to_string(lineno) + " too long: " + path);
+            }
             return std::string(line.data());
         }
 

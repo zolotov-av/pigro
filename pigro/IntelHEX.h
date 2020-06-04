@@ -33,7 +33,7 @@ public:
     IntelHEX(const IntelHEX &) = delete;
     IntelHEX(IntelHEX &&) = default;
 
-    IntelHEX(const char *path)
+    IntelHEX(const std::string &path)
     {
         open(path);
     }

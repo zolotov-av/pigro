@@ -2,7 +2,7 @@
 
 #include "IntelHEX.h"
 
-AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const char *path)
+AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path)
 {
     const auto rows = IntelHEX(path).rows;
 

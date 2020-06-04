@@ -48,6 +48,6 @@ using AVR_Page = AVR::PageData;
 
 using AVR_Data = AVR::FirmwareData;
 
-AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const char *path);
+AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path);
 
 #endif // AVR_H
