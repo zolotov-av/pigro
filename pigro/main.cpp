@@ -313,7 +313,7 @@ public:
      * Лучший способ проверить связь с чипом в режиме программирования.
      * Эта команда возвращает код который индентфицирует модель чипа.
      */
-    AVR_Signature isp_chip_info()
+    AVR::DeviceCode isp_chip_info()
     {
         uint8_t b000 = cmd_isp_io(0x30000000) & 0xFF;
         uint8_t b001 = cmd_isp_io(0x30000100) & 0xFF;
