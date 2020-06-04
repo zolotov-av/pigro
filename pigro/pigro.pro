@@ -4,10 +4,14 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += \
-        IntelHEX.cpp \
-        main.cpp \
-        serial.cpp
+    nano/TextReader.cpp \
+    nano/exception.cpp \
+    nano/serial.cpp \
+    IntelHEX.cpp \
+    main.cpp \
 
 HEADERS += \
+    nano/TextReader.h \
+    nano/exception.h \
+    nano/serial.h \
     IntelHEX.h \
-    serial.h

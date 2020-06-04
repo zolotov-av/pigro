@@ -1,7 +1,7 @@
 #ifndef INTELHEX_H
 #define INTELHEX_H
 
-#include "serial.h"
+#include <nano/serial.h>
 
 #include <map>
 #include <list>

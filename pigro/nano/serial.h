@@ -5,44 +5,10 @@
 #include <unistd.h>
 #include <sys/poll.h>
 #include <iostream>
+#include <nano/exception.h>
 
-namespace pigro
+namespace nano
 {
-
-    class exception
-    {
-    private:
-        std::string m_message;
-    public:
-        exception(const std::string &msg): m_message(msg) { }
-
-        std::string message() const { return m_message; }
-    };
-
-    std::string errno_message(int err);
-
-    template <typename T>
-    T check(T ret)
-    {
-        if ( ret == -1 )
-        {
-            throw exception( errno_message(errno) );
-        }
-
-        return ret;
-    }
-
-    template <typename T>
-    T warn(T ret)
-    {
-        if ( ret == -1 )
-        {
-            const auto err = errno;
-            std::cerr << "warning: " << errno_message(err) << std::endl;
-        }
-
-        return ret;
-    }
 
     class serial
     {
@@ -83,7 +49,7 @@ namespace pigro
             if ( wait() ) return;
 
             // timeout
-            throw pigro::exception("serial timeout");
+            throw exception("serial timeout");
         }
 
         uint8_t read_sync()

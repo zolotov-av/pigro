@@ -1,6 +1,6 @@
 #include "IntelHEX.h"
 
-#include <fstream>
+#include <nano/TextReader.h>
 
 namespace
 {
@@ -13,7 +13,7 @@ namespace
         if ( ch >= '0' && ch <= '9' ) return ch - '0';
         if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
         if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
-        throw pigro::exception("at_hex_digit(): unexpected character");
+        throw nano::exception("at_hex_digit(): unexpected character");
     }
 
     /**
@@ -34,26 +34,22 @@ namespace pigro
     {
         rows.clear();
 
-        std::fstream f(path, std::ios_base::in);
-        if ( f.fail() ) throw pigro::exception("fail to open file: " + path);
+        nano::TextReader f(path);
 
-        int lineno = 0;
         while ( !f.eof() )
         {
             row_t row {};
-            std::string line;
-            std::getline(f, line);
-            lineno++;
-            if ( line.length() < 11 ) throw pigro::exception("wrong hex-file: line length < 11");
+            std::string line = f.readLine();
+            if ( line.length() < 11 ) throw nano::exception("wrong hex-file: line length < 11");
             if ( line[0] != ':' )
             {
-                throw pigro::exception("wrong hex-file: line doen't start from ':'");
+                throw nano::exception("wrong hex-file: line doen't start from ':'");
             }
 
             uint8_t len = at_hex_get_byte(line.data(), 0);
             int bytelen = len + 5;
             size_t charlen = bytelen * 2 + 1;
-            if ( line.length() < charlen ) throw pigro::exception("wrong hex-file: line too short");
+            if ( line.length() < charlen ) throw nano::exception("wrong hex-file: line too short");
 
             for(int i = 0; i < bytelen; i++)
             {
@@ -66,7 +62,7 @@ namespace pigro
                 sum -= row.bytes[i];
             }
 
-            if ( row.checksum() != sum ) throw pigro::exception("wrong hex-file: wrong checksum");
+            if ( row.checksum() != sum ) throw nano::exception("wrong hex-file: wrong checksum");
 
             rows.push_back(std::move(row));
 
@@ -76,7 +72,7 @@ namespace pigro
             }
         }
 
-        throw pigro::exception("wrong hex-file: unexpected end of file");
+        throw nano::exception("wrong hex-file: unexpected end of file");
     }
 
     AVR_Data IntelHEX::split_pages(const AVR_Info &avr)
@@ -96,7 +92,7 @@ namespace pigro
                 for(uint16_t i = 0; i < row.length(); i++)
                 {
                     const uint16_t addr = row_addr + i;
-                    if ( addr >= flash_size ) throw pigro::exception("image too big");
+                    if ( addr >= flash_size ) throw nano::exception("image too big");
                     const uint16_t page_addr = (addr / 2) & page_mask;
                     const uint16_t offset = addr & byte_mask;
                     AVR_Page &page = pages[page_addr];

@@ -1,26 +1,11 @@
 #include "serial.h"
 
-#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
-#include <cstring>
 
-namespace pigro
+namespace nano
 {
-
-    std::string errno_message(int err)
-    {
-        char buf[1024];
-        char *message = strerror_r(err, buf, sizeof(buf));
-        if ( message != nullptr )
-        {
-            return std::string(message);
-        }
-
-        int len = snprintf(buf, sizeof(buf), "unknown error (errno=%d)", err);
-        return std::string(buf, len);
-    }
 
     serial::serial(const char *path): serial_fd(open(path, O_RDWR | O_NOCTTY | O_NDELAY))
     {

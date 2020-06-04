@@ -18,7 +18,6 @@
 
 #include <array>
 
-#include "serial.h"
 #include "IntelHEX.h"
 
 constexpr uint8_t PKT_ACK = 1;
@@ -70,7 +69,7 @@ static uint8_t at_hex_digit(char ch)
     if ( ch >= '0' && ch <= '9' ) return ch - '0';
     if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
     if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
-    throw pigro::exception("wrong hex digit");
+    throw nano::exception("wrong hex digit");
 }
 
 /**
@@ -83,7 +82,7 @@ static uint32_t at_hex_to_int(const char *s)
     {
         char ch = *s++;
         uint8_t hex = at_hex_digit(ch);
-        if ( hex > 0xF ) throw pigro::exception("wrong hex digit");
+        if ( hex > 0xF ) throw nano::exception("wrong hex digit");
         r = r * 0x10 + hex;
     }
     return r;
@@ -114,25 +113,13 @@ private:
     bool nack_support = false;
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
-    pigro::serial *serial = nullptr;
+    nano::serial *serial = nullptr;
     pigro::AVR_Info avr;
 
 public:
 
-    PigroApp(const char *path): serial (new pigro::serial(path))
+    PigroApp(const char *path): serial (new nano::serial(path))
     {
-        if ( serial == nullptr )
-        {
-            throw pigro::exception("fail to create pigro::serial");
-        }
-    }
-
-    PigroApp(pigro::serial *tty): serial(tty)
-    {
-        if ( serial == nullptr )
-        {
-            throw pigro::exception("serial = nullptr");
-        }
     }
 
     ~PigroApp()
@@ -149,7 +136,7 @@ public:
         if ( r != pkt->len + 2 )
         {
             // TODO обработка ошибок
-            throw pigro::exception("fail to send packet\n");
+            throw nano::exception("fail to send packet\n");
         }
 
         if ( nack_support )
@@ -166,7 +153,7 @@ public:
         pkt->len = serial->read_sync();
         if ( pkt->len >= PACKET_MAXLEN )
         {
-            throw pigro::exception("packet to big: " + std::to_string(pkt->len) + "/" + std::to_string((PACKET_MAXLEN)));
+            throw nano::exception("packet to big: " + std::to_string(pkt->len) + "/" + std::to_string((PACKET_MAXLEN)));
         }
         for(int i = 0; i < pkt->len; i++)
         {
@@ -209,7 +196,7 @@ public:
             {
                 recv_packet(&pkt);
                 if ( pkt.len != 2 )
-                    throw pigro::exception("wrong protocol");
+                    throw nano::exception("wrong protocol");
                 nack_support = true;
                 protoVersionMajor = pkt.data[0];
                 protoVersionMinor = pkt.data[1];
@@ -218,7 +205,7 @@ public:
             }
             else
             {
-                throw pigro::exception("wrong protocol");
+                throw nano::exception("wrong protocol");
             }
         }
 
@@ -280,7 +267,7 @@ public:
         send_packet(&pkt);
 
         recv_packet(&pkt);
-        if ( pkt.cmd != 3 || pkt.len != 4 ) throw pigro::exception("unexpected packet");
+        if ( pkt.cmd != 3 || pkt.len != 4 ) throw nano::exception("unexpected packet");
 
         unsigned int result = 0;
         for(int i = 0; i < 4; i++)
@@ -312,7 +299,7 @@ public:
         }
         if ( !status )
         {
-            throw pigro::exception("isp_program_enable() failed");
+            throw nano::exception("isp_program_enable() failed");
         }
         return status;
     }
@@ -347,7 +334,7 @@ public:
         }
         unsigned int r = cmd_isp_io(0xAC800000);
         bool status = ((r >> 16) & 0xFF) == 0xAC;
-        if ( !status ) throw pigro::exception("isp_chip_erase() error");
+        if ( !status ) throw nano::exception("isp_chip_erase() error");
     }
 
     /**
@@ -371,7 +358,7 @@ public:
         uint32_t result = cmd_isp_io( (cmd << 24) | (word_addr << 8 ) | (byte & 0xFF) );
         uint8_t r = (result >> 16) & 0xFF;
         int status = (r == cmd);
-        if ( !status ) throw pigro::exception("isp_load_memory_page() error");
+        if ( !status ) throw nano::exception("isp_load_memory_page() error");
     }
 
     /**
@@ -419,7 +406,7 @@ public:
         auto signature = isp_chip_info();
         if ( signature != avr.signature )
         {
-            throw pigro::exception("isp_write_firmware() reject: wrong chip signature");
+            throw nano::exception("isp_write_firmware() reject: wrong chip signature");
         }
 
         isp_chip_erase();
@@ -620,7 +607,7 @@ public:
         case AT_ACT_WRITE_FUSE_LO: return action_write_fuse_lo();
         case AT_ACT_WRITE_FUSE_HI: return action_write_fuse_hi();
         case AT_ACT_WRITE_FUSE_EX: return action_write_fuse_ex();
-        default: throw pigro::exception("Victory!");
+        default: throw nano::exception("Victory!");
         }
     }
 
@@ -672,9 +659,14 @@ int main(int argc, char *argv[])
     {
         return real_main(argc, argv);
     }
-    catch (const pigro::exception &e)
+    catch (const nano::exception &e)
     {
-        std::cerr << "error: " << e.message() << std::endl;
+        std::cerr << "[nano::exception] " << e.message() << std::endl;
+        return 1;
+    }
+    catch(const std::exception &e)
+    {
+        std::cerr << "[std::exception] " << e.what() << std::endl;
         return 1;
     }
 }
