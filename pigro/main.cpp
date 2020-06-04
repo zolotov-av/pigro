@@ -17,8 +17,10 @@
 #include <string.h>
 
 #include <array>
+#include <nano/exception.h>
+#include <nano/serial.h>
 
-#include "IntelHEX.h"
+#include "AVR.h"
 
 constexpr uint8_t PKT_ACK = 1;
 constexpr uint8_t PKT_NACK = 2;
@@ -114,7 +116,7 @@ private:
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
     nano::serial *serial = nullptr;
-    pigro::AVR_Info avr;
+    AVR_Info avr;
 
 public:
 
@@ -311,7 +313,7 @@ public:
      * Лучший способ проверить связь с чипом в режиме программирования.
      * Эта команда возвращает код который индентфицирует модель чипа.
      */
-    pigro::AVR_Signature isp_chip_info()
+    AVR_Signature isp_chip_info()
     {
         uint8_t b000 = cmd_isp_io(0x30000000) & 0xFF;
         uint8_t b001 = cmd_isp_io(0x30000100) & 0xFF;
@@ -374,7 +376,7 @@ public:
         return status;
     }
 
-    void isp_check_firmware(const pigro::AVR_Data &pages)
+    void isp_check_firmware(const AVR_Data &pages)
     {
         auto signature = isp_chip_info();
         if ( signature != avr.signature )
@@ -401,7 +403,7 @@ public:
     /**
      * Записать прошивку
      */
-    void isp_write_firmware(const pigro::AVR_Data &pages)
+    void isp_write_firmware(const AVR_Data &pages)
     {
         auto signature = isp_chip_info();
         if ( signature != avr.signature )
@@ -558,16 +560,13 @@ public:
         return 1;
     }
 
-    pigro::AVR_Data readHEX()
+    AVR_Data readHEX()
     {
-        pigro::IntelHEX hex;
-        hex.open(fname);
-
         avr.signature = {0x1E, 0x94, 0x03};
         avr.page_word_size = 64;
         avr.page_count = 128;
 
-        auto pages = hex.split_pages(avr);
+        auto pages = avr_load_from_hex(avr, fname);
         printf("page usages: %ld / %d\n", pages.size(), avr.page_count);
         return pages;
     }
@@ -577,7 +576,7 @@ public:
      */
     int action_check()
     {
-        pigro::AVR_Data pages = readHEX();
+        AVR_Data pages = readHEX();
         isp_check_firmware(pages);
         return 0;
     }
@@ -587,14 +586,14 @@ public:
      */
     int action_write()
     {
-        pigro::AVR_Data pages = readHEX();
+        AVR_Data pages = readHEX();
         isp_write_firmware(pages);
         return 0;
     }
 
     /**
-    * Запус команды
-    */
+     * Запус команды
+     */
     int execute(PigroAction action)
     {
         switch ( action )

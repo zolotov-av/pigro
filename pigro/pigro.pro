@@ -4,6 +4,7 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += \
+    AVR.cpp \
     nano/TextReader.cpp \
     nano/exception.cpp \
     nano/serial.cpp \
@@ -11,6 +12,7 @@ SOURCES += \
     main.cpp \
 
 HEADERS += \
+    AVR.h \
     nano/TextReader.h \
     nano/exception.h \
     nano/serial.h \
