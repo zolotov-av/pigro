@@ -40,6 +40,10 @@ public:
 
     using FirmwareData = std::map<uint16_t, PageData>;
 
+    static AVR::DeviceCode parseDeviceCode(const std::string &code);
+
+    static std::optional<DeviceInfo> findDeviceByName(const std::string &name);
+
 };
 
 using AVR_Info = AVR::DeviceInfo;

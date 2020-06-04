@@ -80,7 +80,10 @@ static uint8_t at_hex_digit(char ch)
  */
 static uint32_t at_hex_to_int(const char *s)
 {
+    if ( s[0] == '0' && (s[1] == 'x' || s[1] == 'X') ) s += 2;
+
     uint32_t r = 0;
+
     while ( *s )
     {
         char ch = *s++;
@@ -565,9 +568,33 @@ public:
     {
         nano::IniReader ini("pigro.ini");
 
+        if ( const std::string output = ini.value("main", "output", "quiet"); output == "verbose" )
+        {
+            verbose = true;
+        }
+
         avr.signature = {0x1E, 0x94, 0x03};
         avr.page_word_size = 64;
         avr.page_count = 128;
+
+        std::string device = ini.value("main", "device");
+        if ( device.empty() )
+        {
+            throw nano::exception("specify device");
+        }
+
+        if ( auto dev = AVR::findDeviceByName(device); dev.has_value() )
+        {
+            avr = *dev;
+        }
+
+        if ( verbose )
+        {
+            std::cout << "device: " << device << "\n";
+            std::cout << "page_size: " << int(avr.page_word_size) << "\n";
+            std::cout << "page_count: " << int(avr.page_count) << "\n";
+            std::cout << "flash_size: " << ((avr.flash_size()+1023) / 1024) << "k\n";
+        }
 
         auto hexfname = ini.value("main", "hex", fname);
 

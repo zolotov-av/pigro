@@ -29,10 +29,10 @@ namespace nano
         IniReader() = default;
         IniReader(const IniReader &) = delete;
         IniReader(IniReader &&) = default;
-        IniReader(const char *path) { open(path); }
+        IniReader(const std::string &path) { open(path); }
         ~IniReader() = default;
 
-        void open(const char *path)
+        void open(const std::string &path)
         {
             TextReader<linesize> reader(path);
 
@@ -67,12 +67,14 @@ namespace nano
                 data[current_section][std::string(key)] = std::string(value);
             }
 
+            /*
             std::cout << "sections:\n";
             for(const auto &t : data)
             {
                 std::cout << t.first << "\n";
             }
             std::cout << std::flush;
+            */
 
         }
 
@@ -103,12 +105,12 @@ namespace nano
                 }
                 else
                 {
-                    std::cout << "option not found: " << option << std::endl;
+                    //std::cout << "option not found: " << section << "." << option << std::endl;
                 }
             }
             else
             {
-                std::cout << "section not found: " << section << std::endl;
+                //std::cout << "section not found: " << section << std::endl;
             }
 
             return std::string(defaultValue);
