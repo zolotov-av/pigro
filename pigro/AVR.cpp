@@ -82,6 +82,13 @@ AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path
     return pages;
 }
 
+static bool parse_bool(const std::string &value)
+{
+    if ( value == "yes" || value == "true" ) return true;
+    if ( value == "no" || value == "false" ) return false;
+    throw nano::exception("wrong boolean value: " + value);
+}
+
 static std::optional<AVR::DeviceInfo> findInFile(const std::string &name, const std::string &path)
 {
     try
@@ -93,6 +100,7 @@ static std::optional<AVR::DeviceInfo> findInFile(const std::string &name, const 
             avr.signature = AVR::parseDeviceCode(ini.value(name, "device_code"));
             avr.page_word_size = atoi(ini.value(name, "page_size").c_str());
             avr.page_count = atoi(ini.value(name, "page_count").c_str());
+            avr.paged = parse_bool(ini.value(name, "paged", "yes"));
             return avr;
         }
 

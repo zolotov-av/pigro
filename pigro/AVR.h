@@ -16,6 +16,8 @@ public:
     {
         AVR::DeviceCode signature;
 
+        bool paged;
+
         uint16_t page_word_size;
         uint16_t page_count;
 
@@ -38,7 +40,8 @@ public:
             if ( page_word_size == 0 || page_count == 0 ) return false;
             if ( !is_power_of_two(page_word_size) ) return false;
 
-            return uint32_t(page_count) * uint32_t(page_word_size) * 2 < 0x10000;
+            uint32_t size = flash_size();
+            return (size > 0) && (size < 0x10000);
         }
 
         uint32_t flash_size() const { return page_byte_size() * page_count; }
