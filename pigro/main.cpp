@@ -416,6 +416,10 @@ public:
         {
             throw nano::exception("isp_write_firmware() reject: wrong chip signature");
         }
+        if ( !avr.valid() || !avr.paged )
+        {
+            throw nano::exception("isp_write_firmware() reject: unsupported chip");
+        }
 
         isp_chip_erase();
         for(const auto &[page_addr, page] : pages)
@@ -611,11 +615,11 @@ public:
 
         if ( !avr.paged )
         {
-            throw nano::exception("unsupported chip, only Write Page supported");
+            warn("unsupported chip, only Write Page supported");
         }
-        if ( !avr.valid() )
+        else if ( !avr.valid() )
         {
-            throw nano::exception("invalid or unsupported chip data, check database");
+            warn("invalid or unsupported chip data, check database");
         }
 
     }
@@ -623,7 +627,6 @@ public:
     AVR_Data readHEX()
     {
         loadConfig();
-
 
         auto pages = avr_load_from_hex(avr, hexfname);
         printf("page usages: %ld / %d\n", pages.size(), avr.page_count);
