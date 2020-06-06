@@ -600,11 +600,17 @@ public:
         if ( verbose )
         {
             std::cout << "device: " << device << "\n";
-            std::cout << "page_size: " << int(avr.page_word_size) << "\n";
+            std::cout << "page_size: " << int(avr.page_word_size) << " words\n";
             std::cout << "page_count: " << int(avr.page_count) << "\n";
             std::cout << "flash_size: " << ((avr.flash_size()+1023) / 1024) << "k\n";
             std::cout << "hex_file: " << hexfname << "\n";
         }
+
+        if ( !avr.valid() )
+        {
+            throw nano::exception("invalid chip data, check database");
+        }
+
     }
 
     AVR_Data readHEX()
