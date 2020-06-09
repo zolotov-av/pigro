@@ -32,6 +32,7 @@ enum PigroAction {
 	AT_ACT_WRITE,
 	AT_ACT_ERASE,
 	AT_ACT_READ_FUSE,
+    AT_ACT_WRITE_FUSE,
 	AT_ACT_WRITE_FUSE_LO,
 	AT_ACT_WRITE_FUSE_HI,
 	AT_ACT_WRITE_FUSE_EX,
@@ -95,6 +96,33 @@ static uint32_t at_hex_to_int(const char *s)
 }
 
 /**
+ * Первести шестнадцатеричное число из строки в целочисленное значение
+ */
+static uint32_t parse_hexint(const char *s)
+{
+    if ( s[0] == '0' && (s[1] == 'x' || s[1] == 'X') ) s += 2;
+
+    uint32_t r = 0;
+
+    while ( *s )
+    {
+        char ch = *s++;
+        uint8_t hex = at_hex_digit(ch);
+        if ( hex > 0xF ) throw nano::exception("wrong hex digit");
+        r = r * 0x10 + hex;
+    }
+    return r;
+}
+
+static uint8_t parse_fuse(const std::string &s, const char *type)
+{
+    uint32_t value = parse_hexint(s.c_str());
+    if ( value > 0xFF ) throw nano::exception(std::string("wrong ") + type + ": " + s);
+    return value & 0xFF;
+}
+
+
+/**
 * Отобразить подсказку
 */
 int help()
@@ -106,6 +134,7 @@ int help()
 	printf("    write - read file and write to device\n");
 	printf("    erase - just erase chip\n");
 	printf("    rfuse - read fuses\n");
+    printf("    wfuse - write fuses from pigro.ini\n");
 	printf("    wfuse_lo - write low fuse bits\n");
 	printf("    wfuse_hi - write high fuse bits\n");
     printf("    wfuse_ex - write extended fuse bits\n");
@@ -204,7 +233,7 @@ public:
             {
                 recv_packet(&pkt);
                 if ( pkt.len != 2 )
-                    throw nano::exception("wrong protocol");
+                    throw nano::exception("wrong protocol: len = " + std::to_string(pkt.len));
                 nack_support = true;
                 protoVersionMajor = pkt.data[0];
                 protoVersionMinor = pkt.data[1];
@@ -213,7 +242,7 @@ public:
             }
             else
             {
-                throw nano::exception("wrong protocol");
+                throw nano::exception("wrong protocol: ack = " + std::to_string(ack));
             }
         }
 
@@ -459,6 +488,33 @@ public:
         return 1;
     }
 
+    uint8_t isp_read_fuse_high()
+    {
+        uint32_t r = cmd_isp_io(0x58080000);
+        uint8_t echo = (r >> 8) & 0xFF;
+        if ( echo != 0x08 ) throw nano::exception("isp_read_fuse_high() out of sync");
+
+        return r & 0xFF;
+    }
+
+    uint8_t isp_read_fuse_low()
+    {
+        uint32_t r = cmd_isp_io(0x50000000);
+        uint8_t echo = (r >> 8) & 0xFF;
+        if ( echo != 0x00 ) throw nano::exception("isp_read_fuse_low() out of sync");
+
+        return r & 0xFF;
+    }
+
+    uint8_t isp_read_fuse_ext()
+    {
+        uint32_t r = cmd_isp_io(0x50080000);
+        uint8_t echo = (r >> 8) & 0xFF;
+        if ( echo != 0x08 ) throw nano::exception("isp_read_fuse_ext() out of sync");
+
+        return r & 0xFF;
+    }
+
     /**
      * Действие - прочитать биты fuse
      */
@@ -469,15 +525,77 @@ public:
             info("read device's fuses");
         }
 
-        uint8_t fuse_lo = cmd_isp_io(0x50000000) & 0xFF;
-        uint8_t fuse_hi = cmd_isp_io(0x58080000) & 0xFF;
-        uint8_t fuse_ex = cmd_isp_io(0x50080000) & 0xFF;
+        uint8_t fuse_lo = isp_read_fuse_low();  // cmd_isp_io(0x50000000) & 0xFF;
+        uint8_t fuse_hi = isp_read_fuse_high(); // cmd_isp_io(0x58080000) & 0xFF;
+        uint8_t fuse_ex = isp_read_fuse_ext();  // cmd_isp_io(0x50080000) & 0xFF;
 
-        printf("fuse[lo]: 0x%02X\n", fuse_lo);
-        printf("fuse[hi]: 0x%02X\n", fuse_hi);
-        printf("fuse[ex]: 0x%02X\n", fuse_ex);
+        const char *status;
 
-        return 1;
+        if ( auto s = config.value("main", "fuse_low"); !s.empty() )
+        {
+            const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+            status = (x == fuse_lo) ? " ok " : "diff";
+        }
+        else status = " NA ";
+        printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
+
+        if ( auto s = config.value("main", "fuse_high"); !s.empty() )
+        {
+            const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+            status = (x == fuse_hi) ? " ok " : "diff";
+        }
+        else status = " NA ";
+        printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
+
+        if ( auto s = config.value("main", "fuse_ext"); !s.empty() )
+        {
+            const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+            status = (x == fuse_ex) ? " ok " : "diff";
+        }
+        else status = " NA ";
+        printf("fuse ext:  0x%02X [%s]\n", fuse_ex, status);
+
+        return 0;
+    }
+
+    int action_write_fuse()
+    {
+        if ( verbose )
+        {
+            info("write device's fuses");
+        }
+
+        if ( auto s = config.value("main", "fuse_low"); !s.empty() )
+        {
+            const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+            isp_write_fuse_low(x);
+        }
+
+        if ( auto s = config.value("main", "fuse_high"); !s.empty() )
+        {
+            const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+            isp_write_fuse_high(x);
+        }
+
+        if ( auto s = config.value("main", "fuse_ext"); !s.empty() )
+        {
+            const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+            isp_write_fuse_ext(x);
+        }
+
+        return 0;
+    }
+
+    void isp_write_fuse_low(uint8_t value)
+    {
+        unsigned int r = cmd_isp_io(0xACA00000 + (value & 0xFF));
+        int ok = ((r >> 16) & 0xFF) == 0xAC;
+
+        if ( verbose || !ok )
+        {
+            const char *status = ok ? "[ ok ]" : "[ fail ]";
+            printf("write device's low fuse bits %s\n", status);
+        }
     }
 
     /**
@@ -485,29 +603,27 @@ public:
      */
     int action_write_fuse_lo()
     {
-        auto fuse_bits = at_hex_to_int(fuse_bits_s.c_str());
+        auto fuse_bits = parse_fuse(fuse_bits_s, "fuse");
 
         if ( verbose )
         {
             printf("write device's low fuse bits (0x%02X)\n", fuse_bits);
         }
 
-        if ( fuse_bits > 0xFF )
-        {
-            printf("wrong fuse bits\n");
-            return 0;
-        }
+        isp_write_fuse_low(fuse_bits);
+        return 0;
+    }
 
-        unsigned int r = cmd_isp_io(0xACA00000 + (fuse_bits & 0xFF));
-        int ok = ((r >> 16) & 0xFF) == 0xAC;
+    void isp_write_fuse_high(uint8_t value)
+    {
+        uint32_t r = cmd_isp_io(0xACA80000 + (value & 0xFF));
+        int ok = ((r >> 8) & 0xFF) == 0xA8;
 
-        if ( verbose )
+        if ( verbose || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's low fuse bits %s\n", status);
+            printf("write device's high fuse bits %s\n", status);
         }
-
-        return ok;
     }
 
     /**
@@ -515,28 +631,27 @@ public:
      */
     int action_write_fuse_hi()
     {
-        auto fuse_bits = at_hex_to_int(fuse_bits_s.c_str());
+        auto fuse_bits = parse_fuse(fuse_bits_s, "fuse");
 
         if ( verbose )
         {
             printf("write device's high fuse bits (0x%02X)\n", fuse_bits);
         }
 
-        if ( fuse_bits > 0xFF )
-        {
-            printf("wrong fuse bits\n");
-            return 0;
-        }
+        isp_write_fuse_high(fuse_bits);
+        return 0;
+    }
 
-        unsigned int r = cmd_isp_io(0xACA80000 + (fuse_bits & 0xFF));
-        int ok = ((r >> 16) & 0xFF) == 0xAC;
-        if ( verbose )
+    void isp_write_fuse_ext(uint8_t value)
+    {
+        uint32_t r = cmd_isp_io(0xACA40000 + (value & 0xFF));
+        int ok = ((r >> 8) & 0xFF) == 0xA4;
+
+        if ( verbose || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's high fuse bits %s\n", status);
+            printf("write device's extended fuse bits %s\n", status);
         }
-
-        return ok;
     }
 
     /**
@@ -544,28 +659,15 @@ public:
      */
     int action_write_fuse_ex()
     {
-        auto fuse_bits = at_hex_to_int(fuse_bits_s.c_str());
+        auto fuse_bits = parse_fuse(fuse_bits_s, "fuse");
 
         if ( verbose )
         {
             printf("write device's extended fuse bits (0x%02X)\n", fuse_bits);
         }
 
-        if ( fuse_bits > 0xFF )
-        {
-            printf("wrong fuse bits\n");
-            return 0;
-        }
-
-        unsigned int r = cmd_isp_io(0xACA40000 + (fuse_bits & 0xFF));
-        int ok = ((r >> 16) & 0xFF) == 0xAC;
-        if ( verbose )
-        {
-            const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's extended fuse bits %s\n", status);
-        }
-
-        return ok;
+        isp_write_fuse_ext(fuse_bits);
+        return 0;
     }
 
     /**
@@ -633,12 +735,40 @@ public:
         return pages;
     }
 
+    void isp_check_fuses()
+    {
+        if ( auto s = config.value("main", "fuse_low"); !s.empty() )
+        {
+            const uint8_t fuse_lo = isp_read_fuse_low();
+            const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+            const char *status = (x == fuse_lo) ? " ok " : "diff";
+            printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
+        }
+
+        if ( auto s = config.value("main", "fuse_high"); !s.empty() )
+        {
+            const uint8_t fuse_hi = isp_read_fuse_high();
+            const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+            const char *status = (x == fuse_hi) ? " ok " : "diff";
+            printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
+        }
+
+        if ( auto s = config.value("main", "fuse_ext"); !s.empty() )
+        {
+            const uint8_t fuse_ext = isp_read_fuse_ext();
+            const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+            const char *status = (x == fuse_ext) ? " ok " : "diff";
+            printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
+        }
+    }
+
     /**
      * Действие - проверить прошивку в устройстве
      */
     int action_check()
     {
         AVR_Data pages = readHEX();
+        isp_check_fuses();
         isp_check_firmware(pages);
         return 0;
     }
@@ -665,6 +795,7 @@ public:
         case AT_ACT_WRITE: return action_write();
         case AT_ACT_ERASE: return action_erase();
         case AT_ACT_READ_FUSE: return action_read_fuse();
+        case AT_ACT_WRITE_FUSE: return action_write_fuse();
         case AT_ACT_WRITE_FUSE_LO: return action_write_fuse_lo();
         case AT_ACT_WRITE_FUSE_HI: return action_write_fuse_hi();
         case AT_ACT_WRITE_FUSE_EX: return action_write_fuse_ex();
@@ -685,6 +816,7 @@ int real_main(int argc, char *argv[])
 	else if ( strcmp(argv[1], "write") == 0 ) action = AT_ACT_WRITE;
 	else if ( strcmp(argv[1], "erase") == 0 ) action = AT_ACT_ERASE;
 	else if ( strcmp(argv[1], "rfuse") == 0 ) action = AT_ACT_READ_FUSE;
+    else if ( strcmp(argv[1], "wfuse") == 0 ) action = AT_ACT_WRITE_FUSE;
 	else if ( strcmp(argv[1], "wfuse_lo") == 0 ) action = AT_ACT_WRITE_FUSE_LO;
 	else if ( strcmp(argv[1], "wfuse_hi") == 0 ) action = AT_ACT_WRITE_FUSE_HI;
     else if ( strcmp(argv[1], "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
