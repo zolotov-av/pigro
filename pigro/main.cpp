@@ -36,7 +36,8 @@ enum PigroAction {
 	AT_ACT_WRITE_FUSE_LO,
 	AT_ACT_WRITE_FUSE_HI,
 	AT_ACT_WRITE_FUSE_EX,
-	AT_ACT_ADC
+    AT_ACT_ADC,
+    AT_ACT_ARM
 };
 
 constexpr auto PACKET_MAXLEN = 6;
@@ -764,6 +765,20 @@ public:
         return 0;
     }
 
+    int action_test_arm()
+    {
+        printf("test STM32/JTAG\n");
+
+        packet_t pkt;
+        pkt.cmd = 5;
+        pkt.len = 1;
+        pkt.data[0] = 0;
+
+        send_packet(&pkt);
+
+        return 0;
+    }
+
     /**
      * Запус команды
      */
@@ -780,6 +795,7 @@ public:
         case AT_ACT_WRITE_FUSE_LO: return action_write_fuse_lo();
         case AT_ACT_WRITE_FUSE_HI: return action_write_fuse_hi();
         case AT_ACT_WRITE_FUSE_EX: return action_write_fuse_ex();
+        case AT_ACT_ARM: return action_test_arm();
         default: throw nano::exception("Victory!");
         }
     }
@@ -801,6 +817,7 @@ int real_main(int argc, char *argv[])
 	else if ( strcmp(argv[1], "wfuse_lo") == 0 ) action = AT_ACT_WRITE_FUSE_LO;
 	else if ( strcmp(argv[1], "wfuse_hi") == 0 ) action = AT_ACT_WRITE_FUSE_HI;
     else if ( strcmp(argv[1], "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
+    else if ( strcmp(argv[1], "arm") == 0 ) action = AT_ACT_ARM;
 	else return help();
 	
     if ( argc > 2 )
@@ -820,9 +837,17 @@ int real_main(int argc, char *argv[])
     app.dumpProtoVersion();
     papp = &app;
 
-    app.isp_program_enable();
+    if ( action != AT_ACT_ARM )
+    {
+        app.isp_program_enable();
+    }
+
     app.execute(action);
-    app.cmd_isp_reset(1);
+
+    if ( action != AT_ACT_ARM )
+    {
+        app.cmd_isp_reset(1);
+    }
 
     return 0;
 }

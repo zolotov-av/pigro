@@ -81,7 +81,7 @@ static void send_nack()
  */
 void cmd_seta()
 {
-    if ( pkt.len == 1 ) PORTA = pkt.data[0];
+    //if ( pkt.len == 1 ) PORTA = pkt.data[0];
     if ( pkt.len == 2 )
     {
         pkt.data[0] = 0;
@@ -95,7 +95,6 @@ void cmd_seta()
  */
 void cmd_isp_reset()
 {
-    PORTA = 4;
     if ( pkt.len == 1 )
     {
         avr::pin(PORTB, PB1).set(pkt.data[0]);
@@ -107,7 +106,6 @@ void cmd_isp_reset()
  */
 void send_packet()
 {
-    PORTA = 6;
     uart.write_sync(pkt.cmd);
     uart.write_sync(pkt.len);
     int i;
@@ -122,7 +120,6 @@ void send_packet()
  */
 void cmd_isp_io()
 {
-    PORTA = 5;
     if ( pkt.len == 4 )
     {
         spi.ioctl(pkt.data, 4);
@@ -130,13 +127,16 @@ void cmd_isp_io()
     }
 }
 
+void cmd_jtag_test()
+{
+    PORTA = 128;
+}
 
 /**
  * Обработка команд
  */
 void handle_packet()
 {
-    PORTA = 3;
     switch( pkt.cmd )
     {
     case 1:
@@ -151,6 +151,9 @@ void handle_packet()
     case 4:
         //cmd_adc();
         return;
+    case 5:
+        cmd_jtag_test();
+        return;
     }
 }
 
@@ -159,7 +162,6 @@ void handle_packet()
  */
 static void read_packet()
 {
-    PORTA = 2;
     int i;
     uart.read_sync(&pkt.cmd);
     uart.read_sync(&pkt.len);
@@ -189,8 +191,8 @@ int main()
     DDRB = makebits(MOSI_BIT, PB7, SS_BIT, PB1);
     SPCR = makebits(SPIE, SPE, MSTR, SPI2X, SPR1, SPR0);
 
-    DDRA = 0xFF;
-    PORTA = 1;//offset;
+    DDRA = makebits(PA0, PA1, PA2, PA3, PA4, /*PA5,*/ PA6, PA7); //0xFF;
+    PORTA = 0;
 
     avr::pin(MCUCR, SE).set(true);
 
