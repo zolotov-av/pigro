@@ -9,8 +9,11 @@ using namespace avr;
 // 51 at 8MHz = 9600
 //constexpr auto UART_BAUD_K = 51;
 
+// 47 at 7.3728 MHz = 9600
+constexpr auto UART_BAUD_K = 47;
+
 // 103 at 16MHz = 9600
-constexpr auto UART_BAUD_K = 103;
+//constexpr auto UART_BAUD_K = 103;
 
 constexpr auto PACKET_MAXLEN = 6;
 
