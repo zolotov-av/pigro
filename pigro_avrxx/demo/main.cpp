@@ -181,39 +181,6 @@ static void read_packet()
     handle_packet();
 }
 
-static uint8_t data[8];
-static uint8_t offset = 0;
-
-static void read_test_packet()
-{
-    uint8_t cmd;
-    if ( uart.read_sync(&cmd) )
-    {
-
-        if ( cmd & (1 << 7) )
-        {
-            if ( offset < sizeof(data) )
-            {
-                data[offset++] = cmd & ~(1 << 7);
-            }
-        }
-        else
-        {
-            uint8_t x;
-            if ( offset > 0 )
-            {
-                x = data[--offset];
-            }
-            else
-            {
-                x = 0;
-            }
-            uart.write_sync(x);
-        }
-
-    }
-}
-
 int main()
 {
 
