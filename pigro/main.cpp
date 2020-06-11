@@ -79,25 +79,6 @@ static uint8_t at_hex_digit(char ch)
 /**
  * Первести шестнадцатеричное число из строки в целочисленное значение
  */
-static uint32_t at_hex_to_int(const char *s)
-{
-    if ( s[0] == '0' && (s[1] == 'x' || s[1] == 'X') ) s += 2;
-
-    uint32_t r = 0;
-
-    while ( *s )
-    {
-        char ch = *s++;
-        uint8_t hex = at_hex_digit(ch);
-        if ( hex > 0xF ) throw nano::exception("wrong hex digit");
-        r = r * 0x10 + hex;
-    }
-    return r;
-}
-
-/**
- * Первести шестнадцатеричное число из строки в целочисленное значение
- */
 static uint32_t parse_hexint(const char *s)
 {
     if ( s[0] == '0' && (s[1] == 'x' || s[1] == 'X') ) s += 2;
