@@ -127,9 +127,70 @@ void cmd_isp_io()
     }
 }
 
+#define JTCK avr::pin(PORTA, PA2)
+#define JTDI avr::pin(PORTA, PA1)
+#define JTDO avr::pin(PORTA, PINA, PA5)
+#define JTMS avr::pin(PORTA, PA3)
+#define JRST avr::pin(PORTA, PA4)
+
+constexpr uint8_t jtag_reverse(uint8_t value)
+{
+    uint8_t result = 0;
+    for(int i = 0; i < 4; i++)
+    {
+        result = (result << 1) | (value & 1);
+        value = value >> 1;
+    }
+    return result;
+}
+
+inline void jtag_clk()
+{
+    JTCK.set(true);
+    JTCK.set(false);
+}
+
+inline void jtag_tms(uint8_t tms)
+{
+    JTMS.set(tms);
+    jtag_clk();
+}
+
+void jtag_set_ir(uint8_t ir)
+{
+    JRST.set(1);
+    jtag_tms(0);
+    jtag_tms(1);
+    jtag_tms(1);
+    jtag_tms(0);
+    jtag_tms(0);
+
+    uint8_t output = 0;
+    for(uint8_t i = 0; i < 4; i++)
+    {
+        JTDI.set(ir & 1);
+        ir = ir >> 1;
+        jtag_tms(0);
+        output = (output << 1) | (JTDO.value() ? 1 : 0);
+    }
+    jtag_tms(1); // exit1-ir
+    jtag_tms(1); // update-ir
+    jtag_tms(0); // idle
+
+    if ( output != jtag_reverse(0b0001) ) avr::pin(PORTA, PA6).set(true);
+    //else avr::pin(PORTA, PA6).set(true);
+
+    pkt.cmd = 5;
+    pkt.len = 1;
+    pkt.data[0] = output;
+    send_packet();
+
+}
+
 void cmd_jtag_test()
 {
-    PORTA = 128;
+    avr::pin(PORTA, 7).set(1);
+    jtag_set_ir( jtag_reverse(0b1110) );
 }
 
 /**
@@ -192,7 +253,7 @@ int main()
     SPCR = makebits(SPIE, SPE, MSTR, SPI2X, SPR1, SPR0);
 
     DDRA = makebits(PA0, PA1, PA2, PA3, PA4, /*PA5,*/ PA6, PA7); //0xFF;
-    PORTA = 0;
+    PORTA = 1;
 
     avr::pin(MCUCR, SE).set(true);
 

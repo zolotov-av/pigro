@@ -774,7 +774,11 @@ public:
         pkt.len = 1;
         pkt.data[0] = 0;
 
-        send_packet(&pkt);
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("jtag_test() fail");
+
+        recv_packet(&pkt);
+        printf("out: 0x%02X\n", pkt.data[0]);
 
         return 0;
     }

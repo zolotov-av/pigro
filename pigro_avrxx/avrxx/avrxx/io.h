@@ -160,15 +160,17 @@ namespace avr
     private:
 
         volatile T &addr;
+        volatile T &raddr;
         int bit;
 
     public:
 
-        constexpr pin(T &a, int b): addr(a), bit(b) { }
+        constexpr pin(T &a, int b): addr(a), raddr(a), bit(b) { }
+        constexpr pin(T &a, T &r, int b): addr(a), raddr(r), bit(b) { }
 
         bool value() const
         {
-            return addr & bit;
+            return raddr & (1 << bit);
         }
 
         void set(bool x = true) const
