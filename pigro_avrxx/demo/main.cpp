@@ -158,31 +158,19 @@ static uint8_t jtag_shift_ir(uint8_t ir)
     return output;
 }
 
-static uint8_t jtag_shift_dr(uint8_t dr)
-{
-    uint8_t output = 0;
-    for(uint8_t i = 0; i < 8; i++)
-    {
-        JTDI.set(dr & 1);
-        dr = dr >> 1;
-        jtag_tms(0);
-        output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
-    }
-    return output;
-}
-
 static uint8_t jtag_set_ir(uint8_t ir)
 {
-    jtag_tms(0);
-    jtag_tms(1);
-    jtag_tms(1);
-    jtag_tms(0);
-    jtag_tms(0);
+    jtag_tms(0); // [Reset/Idle]->idle
+    jtag_tms(1); // ->select-dr
+    jtag_tms(1); // ->select-ir
+    jtag_tms(0); // ->capture-ir
+    jtag_tms(0); // ->shift-ir
 
     uint8_t output = jtag_shift_ir(ir);
-    jtag_tms(1); // exit1-ir
-    jtag_tms(1); // update-ir
-    jtag_tms(0); // idle
+
+    jtag_tms(1); // ->exit1-ir
+    jtag_tms(1); // ->update-ir
+    jtag_tms(0); // ->idle
 
     return output;
 }
@@ -192,6 +180,7 @@ static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
     jtag_tms(0); // idle
     jtag_tms(1); // select dr-scan
     jtag_tms(0); // capture dr
+    //jtag_tms(0); // shift-dr
 
     uint8_t dr = data[0];
     uint8_t bit = 0;
@@ -209,6 +198,7 @@ static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
             data++;
             dr = data[0];
             bit = 0;
+            output = 0;
         }
     }
     if ( bit != 0 )
@@ -223,31 +213,83 @@ static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
 
 static void cmd_jtag_test()
 {
-    avr::pin(PORTA, 7).set(1);
-    pkt.cmd = 5;
-    pkt.len = 5;
+    avr::pin(PORTA, PB0).set(1);
     JRST.set(0);
+    //JTDI.set(0);
+    //JTMS.set(0);
+    //JTCK.set(0);
     JRST.set(1);
-    pkt.data[0] = jtag_set_ir( 0b1110 );
-    pkt.data[1] = 0;
-    pkt.data[2] = 0;
-    pkt.data[3] = 0;
-    pkt.data[4] = 0;
-    jtag_set_dr(&pkt.data[1], 32);
-    send_packet();
 }
 
 static void cmd_jtag_ir()
 {
     if ( pkt.len != 1 || pkt.data[0] > 0x0F ) return;
 
-    pkt.data[0] = jtag_set_ir( pkt.data[0] );
+    const uint8_t ir = pkt.data[0] & 0x0F;
+    pkt.data[0] = ir | (jtag_set_ir(ir) << 4);
     send_packet();
 }
 
 static void cmd_jtag_dr()
 {
     jtag_set_dr(&pkt.data[1], pkt.data[0]);
+    send_packet();
+}
+
+static void cmd_arm_idcode()
+{
+    if ( pkt.len != 5 ) return;
+
+    JRST.set(0);
+    JTDI.set(0);
+    JTMS.set(0);
+    JTCK.set(0);
+    JRST.set(1);
+
+    jtag_tms(0); // [Reset/Idle]->idle
+    jtag_tms(1); // ->select-dr
+    jtag_tms(1); // ->select-ir
+    jtag_tms(0); // ->capture-ir
+    //jtag_tms(0); // ->shift-ir
+
+    pkt.data[0] = jtag_shift_ir(0b1110);
+
+    jtag_tms(1); // ->exit1-ir
+    jtag_tms(1); // ->update-ir
+    jtag_tms(1); // ->select-dr
+
+    jtag_tms(0); // ->capture dr
+    //jtag_tms(0); // shift-dr
+
+    uint8_t *data = &pkt.data[1];
+    uint8_t dr = data[0];
+    uint8_t bit = 0;
+    uint8_t output = 0;
+    for(uint8_t i = 0; i < 32; i++)
+    {
+        JTDI.set(dr & 1);
+        dr = dr >> 1;
+        jtag_tms(0);
+        output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
+        bit ++;
+        if ( bit == 8 )
+        {
+            data[0] = output;
+            data++;
+            dr = data[0];
+            bit = 0;
+            output = 0;
+        }
+    }
+    if ( bit != 0 )
+    {
+        data[0] = output;
+    }
+
+    jtag_tms(1); // exit1-dr
+    jtag_tms(1); // update-dr
+    jtag_tms(0); // idle
+
     send_packet();
 }
 
@@ -278,6 +320,9 @@ void handle_packet()
         return;
     case 7:
         cmd_jtag_dr();
+        return;
+    case 8:
+        cmd_arm_idcode();
         return;
     }
 }

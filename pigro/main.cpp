@@ -170,7 +170,7 @@ public:
     {
         pkt->cmd = serial->read_sync();
         pkt->len = serial->read_sync();
-        if ( pkt->len >= PACKET_MAXLEN )
+        if ( pkt->len > PACKET_MAXLEN )
         {
             throw nano::exception("packet to big: " + std::to_string(pkt->len) + "/" + std::to_string((PACKET_MAXLEN)));
         }
@@ -765,6 +765,17 @@ public:
         return 0;
     }
 
+    void cmd_jtag_reset()
+    {
+        packet_t pkt;
+        pkt.cmd = 5;
+        pkt.len = 1;
+        pkt.data[0] = 0;
+        printf("cmd_jtag_reset()\n");
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
+    }
+
     uint8_t cmd_jtag_ir(uint8_t ir)
     {
         packet_t pkt;
@@ -772,58 +783,166 @@ public:
         pkt.len = 1;
         pkt.data[0] = ir;
 
+        printf("cmd_jtag_ir() send: 0x%02X\n", ir);
         auto status = send_packet(&pkt);
         if ( !status ) throw nano::exception("cmd_jtag_ir() fail");
 
         recv_packet(&pkt);
-        printf("cmd_jtag_ir() out: 0x%02X\n", pkt.data[0]);
+        printf("cmd_jtag_ir() recv: 0x%02X\n", pkt.data[0]);
         return pkt.data[0];
     }
 
     void cmd_jtag_dr(uint8_t *data, uint8_t bitcount)
     {
+        const uint8_t bytecount = (bitcount+7) / 8;
         packet_t pkt;
         pkt.cmd = 7;
-        pkt.len = ((bitcount+7) / 8) + 1;
+        pkt.len = bytecount + 1;
         if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("cmd_jtag_dr() bitcount too long: " + std::to_string(bitcount));
 
         pkt.data[0] = bitcount;
-        for(uint8_t i = 0; i < pkt.len; i++)
+        for(uint8_t i = 0; i < bytecount; i++)
             pkt.data[i+1] = data[i];
+
+        printf("cmd_jtag_dr() send:");
+        for(uint8_t i = 1; i < pkt.len; i++)
+        {
+            printf(" 0x%02X", pkt.data[i]);
+        }
+        printf(" (%d)\n", pkt.data[0]);
 
         auto status = send_packet(&pkt);
         if ( !status ) throw nano::exception("cmd_jtag_dr() fail");
 
         recv_packet(&pkt);
-        printf("cmd_jtag_dr() out:");
+        printf("cmd_jtag_dr() recv:");
         for(uint8_t i = 1; i < pkt.len; i++)
         {
             data[i-1] = pkt.data[i];
             printf(" 0x%02X", pkt.data[i]);
         }
-        printf("\n");
+        printf(" (%d)\n", pkt.data[0]);
+    }
+
+    uint32_t arm_data(uint8_t *data)
+    {
+        return (data[3] << 24) | (data[2] << 16) | (data[1] << 8) | data[0];
+    }
+
+    uint32_t cmd_jtag_dr32(uint32_t dr)
+    {
+        uint8_t data[4];
+        data[0] = dr & 0xFF;
+        data[1] = (dr >> 8) & 0xFF;
+        data[2] = (dr >> 16) & 0xFF;
+        data[3] = (dr >> 24) & 0xFF;
+        cmd_jtag_dr(data, 32);
+        return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+    }
+
+    uint32_t arm_idcode()
+    {
+        cmd_jtag_ir(0b1110);
+        return cmd_jtag_dr32(0);
+    }
+
+    void arm_check_idcode()
+    {
+        printf("\ncheck idcode:\n");
+        const uint32_t idcode = arm_idcode();
+        const char *status = (idcode == 0x3BA00477) ? "[ ok ]" : "[fail]";
+        printf("idcode: 0x%08X %s\n", idcode, status);
+    }
+
+    void arm_check_bypass(uint32_t value)
+    {
+        printf("\ncheck bypass(0x%08X):\n", value);
+        const uint32_t result = arm_bypass(value);
+        const char *status = (result == (value << 1)) ? "[ ok ]" : "[fail]";
+        printf("result: 0x%08X %s\n", result, status);
+    }
+
+    void arm_idcode_v2()
+    {
+        packet_t pkt;
+        pkt.cmd = 8;
+        pkt.len = 5;
+        pkt.data[1] = 0x01;
+        pkt.data[2] = 0xFF;
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("arm_idcode_v2() fail");
+
+        recv_packet(&pkt);
+        printf("arm_idcode_v2() recv: 0x%02X, 0x%02X-0x%02X-0x%02X-0x%02X\n", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4]);
+
+    }
+
+    struct DPACC
+    {
+        uint32_t data;
+        uint8_t ack;
+    };
+
+    uint64_t cmd_jtag_dr35(uint64_t dr)
+    {
+        uint8_t data[5] {};
+        data[0] = dr & 0xFF;
+        data[1] = (dr >> 8) & 0xFF;
+        data[2] = (dr >> 16) & 0xFF;
+        data[3] = (dr >> 24) &  0xFF;
+        data[4] = ((dr >> 32) & 0x07) << 5;
+        cmd_jtag_dr(data, 35);
+        return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24) | (uint64_t((data[4] >> 5) & 0x7) << 32);
+    }
+
+    uint32_t arm_bypass(uint32_t value)
+    {
+        cmd_jtag_ir(0b1111);
+        return cmd_jtag_dr32(value);
+    }
+
+    uint32_t arm_read_dp(uint8_t addr)
+    {
+        cmd_jtag_ir(0b1010);
+        uint8_t A = (addr >> 2) & 0x03;
+        uint64_t cmd = (A << 1) | 1;
+        uint64_t status = cmd_jtag_dr35(cmd);
+        //uint8_t ack = status & 0x7;
+        //if ( ack != 0b010 ) throw nano::exception("ack!=OK/FAULT: " + std::to_string(ack));
+        uint64_t result = cmd_jtag_dr35(cmd);
+        //uint8_t ack = result & 0x7;
+        //if ( ack != 0b010 ) throw nano::exception("ack!=OK/FAULT: " + std::to_string(ack));
+        return result >> 3;
     }
 
     int action_test_arm()
     {
         printf("test STM32/JTAG\n");
 
-        /*
-        packet_t pkt;
-        pkt.cmd = 5;
-        pkt.len = 1;
-        pkt.data[0] = 0;
+        cmd_jtag_reset();
 
-        auto status = send_packet(&pkt);
-        if ( !status ) throw nano::exception("jtag_test() fail");
+        printf("\ntest bypass:\n");
+        //cmd_jtag_reset();
+        arm_check_bypass(0x010203FE);
 
-        recv_packet(&pkt);
-        printf("out: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4]);
-        */
+        //cmd_jtag_reset();
+        arm_check_idcode();
 
-        cmd_jtag_ir(0b1110);
-        uint8_t data[4] = { 1, 2, 3, 7 };
-        cmd_jtag_dr(data, 32);
+
+        printf("\ntest bypass 2:\n");
+        //cmd_jtag_reset();
+        arm_check_bypass(0x01020304);
+
+
+
+/*
+        printf("\ntest arm_read_dp:\n");
+        cmd_jtag_reset();
+        uint32_t select = arm_read_dp(0x8);
+        printf("select: 0x%08X\n", select);
+*/
+        //arm_idcode_v2();
+        //arm_idcode_v2();
 
         return 0;
     }
@@ -851,22 +970,8 @@ public:
 
 };
 
-void test()
-{
-    volatile uint8_t output = 0;
-
-    output = (output >> 1) | 0x8;
-    output = (output >> 1) | 0;
-    output = (output >> 1) | 0;
-    output = (output >> 1) | 0;
-
-    printf("test: 0x%X\n", uint32_t(output));
-}
-
 int real_main(int argc, char *argv[])
 {
-    test();
-
 	if ( argc <= 1 ) return help();
 	
     PigroAction action;
