@@ -765,10 +765,50 @@ public:
         return 0;
     }
 
+    uint8_t cmd_jtag_ir(uint8_t ir)
+    {
+        packet_t pkt;
+        pkt.cmd = 6;
+        pkt.len = 1;
+        pkt.data[0] = ir;
+
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("cmd_jtag_ir() fail");
+
+        recv_packet(&pkt);
+        printf("cmd_jtag_ir() out: 0x%02X\n", pkt.data[0]);
+        return pkt.data[0];
+    }
+
+    void cmd_jtag_dr(uint8_t *data, uint8_t bitcount)
+    {
+        packet_t pkt;
+        pkt.cmd = 7;
+        pkt.len = ((bitcount+7) / 8) + 1;
+        if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("cmd_jtag_dr() bitcount too long: " + std::to_string(bitcount));
+
+        pkt.data[0] = bitcount;
+        for(uint8_t i = 0; i < pkt.len; i++)
+            pkt.data[i+1] = data[i];
+
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("cmd_jtag_dr() fail");
+
+        recv_packet(&pkt);
+        printf("cmd_jtag_dr() out:");
+        for(uint8_t i = 1; i < pkt.len; i++)
+        {
+            data[i-1] = pkt.data[i];
+            printf(" 0x%02X", pkt.data[i]);
+        }
+        printf("\n");
+    }
+
     int action_test_arm()
     {
         printf("test STM32/JTAG\n");
 
+        /*
         packet_t pkt;
         pkt.cmd = 5;
         pkt.len = 1;
@@ -778,7 +818,12 @@ public:
         if ( !status ) throw nano::exception("jtag_test() fail");
 
         recv_packet(&pkt);
-        printf("out: 0x%02X\n", pkt.data[0]);
+        printf("out: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4]);
+        */
+
+        cmd_jtag_ir(0b1110);
+        uint8_t data[4] = { 1, 2, 3, 7 };
+        cmd_jtag_dr(data, 32);
 
         return 0;
     }
@@ -806,8 +851,22 @@ public:
 
 };
 
+void test()
+{
+    volatile uint8_t output = 0;
+
+    output = (output >> 1) | 0x8;
+    output = (output >> 1) | 0;
+    output = (output >> 1) | 0;
+    output = (output >> 1) | 0;
+
+    printf("test: 0x%X\n", uint32_t(output));
+}
+
 int real_main(int argc, char *argv[])
 {
+    test();
+
 	if ( argc <= 1 ) return help();
 	
     PigroAction action;
