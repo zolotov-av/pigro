@@ -796,11 +796,11 @@ public:
         pkt.len = 1;
         pkt.data[0] = ir;
 
-        printf("cmd_jtag_ir() send: 0x%02X\n", ir);
+        //printf("cmd_jtag_ir() send: 0x%02X\n", ir);
         send_packet(&pkt);
 
         recv_packet(&pkt);
-        printf("cmd_jtag_ir() recv: 0x%02X\n", pkt.data[0]);
+        //printf("cmd_jtag_ir() recv: 0x%02X\n", pkt.data[0]);
         return pkt.data[0];
     }
 
@@ -844,26 +844,10 @@ public:
         }
     }
 
-    uint32_t arm_data(uint8_t *data)
-    {
-        return (data[3] << 24) | (data[2] << 16) | (data[1] << 8) | data[0];
-    }
-
-    uint32_t cmd_jtag_dr32(uint32_t dr)
-    {
-        uint8_t data[4];
-        data[0] = dr & 0xFF;
-        data[1] = (dr >> 8) & 0xFF;
-        data[2] = (dr >> 16) & 0xFF;
-        data[3] = (dr >> 24) & 0xFF;
-        cmd_jtag_dr(data, 32);
-        return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-    }
-
     uint32_t arm_idcode()
     {
         cmd_jtag_ir(IR_IDCODE);
-        return cmd_jtag_dr32(0);
+        return cmd_jtag_dr<32>(0);
     }
 
     void dump_packet(const char *message, const packet_t &pkt)
@@ -897,7 +881,7 @@ public:
     uint64_t arm_xpacc_2(uint8_t ir, uint64_t dr)
     {
         cmd_jtag_ir(ir);
-        return cmd_jtag_dr35(dr);
+        return cmd_jtag_dr<35>(dr);
     }
 
     uint64_t arm_xpacc(uint8_t ir, uint64_t dr)
@@ -953,10 +937,15 @@ public:
         const uint64_t A = (addr >> 2) & 0x3;
         const uint64_t RW = write ? 0 : 1;
         const uint64_t cmd = (D << 3) | (A << 1) | RW;
-        if ( write )
+        /*if ( write )
         {
             printf("xpacc write cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
         }
+        else
+        {
+            if ( ir == IR_APACC )
+                printf("xpacc AP read cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
+        }*/
         const uint64_t result = arm_xpacc_2(ir, cmd);
         const uint8_t ack = result & 0x7;
 
@@ -999,7 +988,7 @@ public:
 
     void arm_write_dp(uint8_t addr, uint32_t value)
     {
-        printf("write_dp(0x%02X, 0x%08X)\n", addr, value);
+        //printf("write_dp(0x%02X, 0x%08X)\n", addr, value);
         arm_xpacc_ex(IR_DPACC, addr, value, xpacc_write);
     }
 
@@ -1052,30 +1041,61 @@ public:
         printf("idcode: 0x%08X %s\n", idcode, status);
     }
 
-    void arm_check_bypass(uint32_t value)
+    template <int bitcount>
+    void arm_check_bypass(uint64_t value)
     {
-        printf("\ncheck bypass(0x%08X):\n", value);
-        const uint32_t result = arm_bypass(value);
-        const char *status = (result == (value << 2)) ? "[ ok ]" : "[fail]";
-        printf("result: 0x%08X %s\n", result, status);
+        printf("\ncheck bypass%d(0x%08lX):\n", bitcount, value);
+        const auto result = arm_bypass<bitcount>(value);
+        const char *status = (result == ((value << 2)& bitmask<bitcount>())) ? "[ ok ]" : "[fail]";
+        printf("result: 0x%08lX %s\n", result, status);
     }
 
-    uint64_t cmd_jtag_dr35(uint64_t dr)
+    template <int bitcount>
+    uint64_t cmd_jtag_dr(uint64_t dr)
     {
-        uint8_t data[5] {};
-        data[0] = dr & 0xFF;
-        data[1] = (dr >> 8) & 0xFF;
-        data[2] = (dr >> 16) & 0xFF;
-        data[3] = (dr >> 24) &  0xFF;
-        data[4] = ((dr >> 32) & 0x07) << 5;
-        cmd_jtag_dr(data, 35);
-        return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24) | (uint64_t((data[4] >> 5) & 0x7) << 32);
+        constexpr int bytecount = (bitcount+7) / 8;
+        uint8_t data[bytecount];
+        for(int i = 0; i < bytecount; i++)
+        {
+            data[i] = dr & 0xFF;
+            dr = dr >> 8;
+        }
+
+        cmd_jtag_dr(data, bitcount);
+
+        uint64_t result = 0;
+        uint64_t mul = 1;
+        for(int i = 0; i < bytecount; i++)
+        {
+            result = result | (data[i] * mul);
+            mul = mul * 256;
+        }
+        return result;
     }
 
     uint32_t arm_bypass(uint32_t value)
     {
         cmd_jtag_ir(IR_BYPASS);
-        return cmd_jtag_dr32(value);
+        return cmd_jtag_dr<32>(value);
+    }
+
+    template <int bitcount>
+    static constexpr uint64_t bitmask()
+    {
+        return (uint64_t(1) << bitcount) - 1;
+    }
+
+    template <int bitcount>
+    uint64_t arm_bypass(uint64_t value)
+    {
+        if ( value > bitmask<bitcount>() ) throw nano::exception("bypass<"+std::to_string(bitcount)+"> value too big: " + std::to_string(value));
+        cmd_jtag_ir(IR_BYPASS);
+        return cmd_jtag_dr<bitcount>(value);
+    }
+
+    uint64_t arm_bypass35(uint64_t value)
+    {
+        return arm_bypass<35>(value);
     }
 
     uint32_t arm_status()
@@ -1119,8 +1139,6 @@ public:
         // write
         //arm_check_dpacc(0x8, -1, true);
 
-
-        uint32_t value;
         arm_clear_sticky(arm_status());
 
         /*
@@ -1145,13 +1163,16 @@ public:
 
         //arm_check_dpacc(0x8, 0);
 
-        //arm_check_bypass(0x01020304);
+        arm_check_bypass<32>(0x01020304);
+        arm_check_bypass<35>(0x101010101);
+        arm_check_bypass<38>(0x7FFFFFFFF);
+
 
         printf("\ntest arm_idr():\n");
         for(int i = 0; i < 256; i++)
         {
             try {
-               //*arm_write_dp(0x8, 0);
+                arm_write_dp(0x8, 0);
                 arm_read_dp(0x4);
                 auto status = arm_read_dp(0x4);
 
@@ -1161,7 +1182,7 @@ public:
                     break;
                 }
 
-                value = arm_idr(i);
+                auto value = arm_idr(i);
                 printf("idr(%d) = 0x%08X\n", i, value);
             } catch (const nano::exception &e) {
 
@@ -1171,7 +1192,6 @@ public:
             }
 
         }
-
 
         return 0;
     }

@@ -206,6 +206,7 @@ static void jtag_shift(uint8_t *data, uint8_t bitcount)
 
     if ( bit != 0 )
     {
+        for(uint8_t i = bit; i < 8; i++) output = output >> 1;
         *data = output;
     }
 
