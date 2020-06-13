@@ -127,6 +127,8 @@ void cmd_isp_io()
     }
 }
 
+constexpr uint8_t JTAG_DEFAULT_STATE = makebits(PA0/*RESET*/, PA1/*JDI*/, PA3/*TMS*/);
+
 #define JTCK avr::pin(PORTA, PA2)
 #define JTDI avr::pin(PORTA, PA1)
 #define JTDO avr::pin(PORTA, PINA, PA5)
@@ -154,62 +156,93 @@ static uint8_t jtag_shift_ir(uint8_t ir)
     {
         JTCK.set(1);
         JTCK.set(0);
-        ir = ir >> 1;
         output = (output >> 1) | (JTDO.value() ? 0x08 : 0);
         JTDI.set(ir & 1);
+        ir = ir >> 1;
     }
     JDBG.set(0);
     return output;
 }
 
-static uint8_t jtag_set_ir(uint8_t ir)
+/**
+ * на входе TMS=1
+ * на выходе TMS=1, 2-clk
+ */
+static void jtag_shift(uint8_t *data, uint8_t bitcount)
 {
-    jtag_tms(1); // ->select-dr
-    jtag_tms(1); // ->select-ir
-    jtag_tms(0); // ->capture-ir
-    //jtag_tms(0); // ->shift-ir
+    JTMS.set(0);
+    jtag_clk(); // capture
+    //jtag_clk(); // shift-ir
 
-    uint8_t output = jtag_shift_ir(ir);
-    uint8_t output2 = jtag_shift_ir(ir);
-
-    jtag_tms(1); // ->exit1-ir
-    jtag_tms(1); // ->update-ir
-
-    return (output & 0x0F) | (output2 << 4);
-}
-
-static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
-{
-    jtag_tms(1); // select dr-scan
-    jtag_tms(0); // capture dr
-    //jtag_tms(0); // shift-dr
-
-    uint8_t dr = data[0];
+    uint8_t dr = *data;
     uint8_t bit = 0;
     uint8_t output = 0;
     for(uint8_t i = 0; i < bitcount; i++)
     {
+        jtag_clk();
+
         JTDI.set(dr & 1);
         dr = dr >> 1;
-        jtag_tms(0);
+
         output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
+
         bit ++;
         if ( bit == 8 )
         {
-            data[0] = output;
-            data++;
-            dr = data[0];
+            *data++ = output;
+            dr = *data;
             bit = 0;
             output = 0;
         }
     }
+
+   // jtag_clk();
+
     if ( bit != 0 )
     {
-        data[0] = output;
+        *data = output;
     }
 
-    jtag_tms(1); // exit1-dr
-    jtag_tms(1); // update-dr
+
+    JTMS.set(1);
+    jtag_clk(); // exit1
+    JTDI.set(1); // default state
+    jtag_clk(); // update
+}
+
+/**
+ * на входе TMS=0 (idle)
+ * на выходе TMS=1, 2-clk
+ */
+static uint8_t jtag_set_ir(uint8_t ir)
+{
+    JTMS.set(1);
+    jtag_clk(); // ->select-dr
+    jtag_clk(); // ->select-ir
+    //jtag_tms(0); // ->capture-ir
+    //jtag_tms(0); // ->shift-ir
+
+    //uint8_t output = jtag_shift_ir(ir);
+    uint8_t output = ir;
+    jtag_shift(&output, 4); // TMS=1, 2-clk
+
+    //jtag_tms(1); // ->exit1-ir
+    //jtag_tms(1); // ->update-ir
+
+    return output;
+}
+
+/**
+ * на входе TMS=0 (idle) или TMS=1, 2-clk
+ * на выходе TMS=1, 2-clk
+ */
+static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
+{
+    JTMS.set(1);
+    jtag_clk(); // select dr-scan
+    //jtag_tms(0); // capture dr
+    //jtag_tms(0); // shift-dr
+    jtag_shift(data, bitcount); // TMS=1, 2-clk
 }
 
 static void cmd_jtag_test()
@@ -243,29 +276,55 @@ static void cmd_jtag_dr()
     send_packet();
 }
 
-static void arm_reset()
+inline void jtag_reset()
 {
-    JRST.set(0);
-    JTDI.set(0);
-    JTMS.set(0);
-    JTCK.set(0);
+    PORTA = JTAG_DEFAULT_STATE;
     JRST.set(1);
+
+}
+
+/**
+ * включает JTAG
+ * на выходе TMS=1, JRST=1, JDI=1
+ */
+inline void jtag_begin()
+{
+    jtag_reset();
+}
+
+/**
+ * выключает JTAG
+ * на выходе TMS=1, JRST=0, JDI=1
+ */
+inline void jtag_end()
+{
+    PORTA = JTAG_DEFAULT_STATE;
+}
+
+inline void arm_reset()
+{
+    jtag_reset();
 }
 
 static void cmd_arm_idcode()
 {
     if ( pkt.len != 5 ) return;
 
-    arm_reset();
+    jtag_begin();
+    jtag_tms(0); // Reset->idle
 
-    jtag_tms(0); // [Reset/Idle]->idle
+    JTMS.set(1);
+    jtag_clk(); // ->select-dr
+    jtag_clk(); // ->select-ir
+    uint8_t buf[2];
+    buf[0] = pkt.data[0] | 0xF0;
+    buf[1] = 0xFF;
+    jtag_shift(buf, 9); // TMS=1, 2-clk
 
-    const uint8_t ir = pkt.data[0] & 0x0F;
-    pkt.data[0] = jtag_set_ir(ir);
+    jtag_clk(); // select dr-scan
+    jtag_shift(&pkt.data[1], 32); // TMS=1, 2-clk
 
-    jtag_set_dr(&pkt.data[1], 32);
-
-    jtag_tms(0); // idle
+    jtag_end();
 
     send_packet();
 }
@@ -278,7 +337,7 @@ static void cmd_arm_xpacc()
 
     const uint8_t ir = pkt.data[0];
     const bool is_read = (pkt.data[1] & 1) == 1;
-    pkt.data[0] = jtag_set_ir(ir);
+    pkt.data[0] = jtag_set_ir(ir); // TMS=1, 2-clk
 
     jtag_set_dr(&pkt.data[1], 35);
     if ( is_read && (pkt.data[1] & 0x7) == 0b010 )
@@ -362,8 +421,8 @@ int main()
     DDRB = makebits(MOSI_BIT, PB7, SS_BIT, PB1);
     SPCR = makebits(SPIE, SPE, MSTR, SPI2X, SPR1, SPR0);
 
-    DDRA = makebits(PA0, PA1, PA2, PA3, PA4, /*PA5,*/ PA6, PA7); //0xFF;
-    PORTA = 1;
+    DDRA = makebits(PA0, PA1, PA2, PA3, PA4, /*PA5,*/ PA6, PA7);
+    PORTA = JTAG_DEFAULT_STATE;
 
     avr::pin(MCUCR, SE).set(true);
 
