@@ -132,6 +132,7 @@ void cmd_isp_io()
 #define JTDO avr::pin(PORTA, PINA, PA5)
 #define JTMS avr::pin(PORTA, PA3)
 #define JRST avr::pin(PORTA, PA4)
+#define JDBG avr::pin(PORTA, PA6)
 
 inline void jtag_clk()
 {
@@ -147,37 +148,38 @@ inline void jtag_tms(uint8_t tms)
 
 static uint8_t jtag_shift_ir(uint8_t ir)
 {
+    JDBG.set(1);
     uint8_t output = 0;
     for(uint8_t i = 0; i < 4; i++)
     {
-        JTDI.set(ir & 1);
+        JTCK.set(1);
+        JTCK.set(0);
         ir = ir >> 1;
-        jtag_tms(0);
-        output = (output >> 1) | (JTDO.value() ? 0x8 : 0);
+        output = (output >> 1) | (JTDO.value() ? 0x08 : 0);
+        JTDI.set(ir & 1);
     }
+    JDBG.set(0);
     return output;
 }
 
 static uint8_t jtag_set_ir(uint8_t ir)
 {
-    jtag_tms(0); // [Reset/Idle]->idle
     jtag_tms(1); // ->select-dr
     jtag_tms(1); // ->select-ir
     jtag_tms(0); // ->capture-ir
-    jtag_tms(0); // ->shift-ir
+    //jtag_tms(0); // ->shift-ir
 
     uint8_t output = jtag_shift_ir(ir);
+    uint8_t output2 = jtag_shift_ir(ir);
 
     jtag_tms(1); // ->exit1-ir
     jtag_tms(1); // ->update-ir
-    jtag_tms(0); // ->idle
 
-    return output;
+    return (output & 0x0F) | (output2 << 4);
 }
 
 static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
 {
-    jtag_tms(0); // idle
     jtag_tms(1); // select dr-scan
     jtag_tms(0); // capture dr
     //jtag_tms(0); // shift-dr
@@ -208,7 +210,6 @@ static void jtag_set_dr(uint8_t *data, uint8_t bitcount)
 
     jtag_tms(1); // exit1-dr
     jtag_tms(1); // update-dr
-    jtag_tms(0); // idle
 }
 
 static void cmd_jtag_test()
@@ -225,69 +226,66 @@ static void cmd_jtag_ir()
 {
     if ( pkt.len != 1 || pkt.data[0] > 0x0F ) return;
 
+    jtag_tms(0); // [Reset/Idle]->idle
     const uint8_t ir = pkt.data[0] & 0x0F;
-    pkt.data[0] = ir | (jtag_set_ir(ir) << 4);
+    pkt.data[0] = jtag_set_ir(ir);
+    jtag_tms(0); // ->idle
+
     send_packet();
 }
 
 static void cmd_jtag_dr()
 {
+    jtag_tms(0); // idle
     jtag_set_dr(&pkt.data[1], pkt.data[0]);
+    jtag_tms(0); // idle
+
     send_packet();
+}
+
+static void arm_reset()
+{
+    JRST.set(0);
+    JTDI.set(0);
+    JTMS.set(0);
+    JTCK.set(0);
+    JRST.set(1);
 }
 
 static void cmd_arm_idcode()
 {
     if ( pkt.len != 5 ) return;
 
-    JRST.set(0);
-    JTDI.set(0);
-    JTMS.set(0);
-    JTCK.set(0);
-    JRST.set(1);
+    arm_reset();
 
     jtag_tms(0); // [Reset/Idle]->idle
-    jtag_tms(1); // ->select-dr
-    jtag_tms(1); // ->select-ir
-    jtag_tms(0); // ->capture-ir
-    //jtag_tms(0); // ->shift-ir
 
-    pkt.data[0] = jtag_shift_ir(0b1110);
+    const uint8_t ir = pkt.data[0] & 0x0F;
+    pkt.data[0] = jtag_set_ir(ir);
 
-    jtag_tms(1); // ->exit1-ir
-    jtag_tms(1); // ->update-ir
-    jtag_tms(1); // ->select-dr
+    jtag_set_dr(&pkt.data[1], 32);
 
-    jtag_tms(0); // ->capture dr
-    //jtag_tms(0); // shift-dr
+    jtag_tms(0); // idle
 
-    uint8_t *data = &pkt.data[1];
-    uint8_t dr = data[0];
-    uint8_t bit = 0;
-    uint8_t output = 0;
-    for(uint8_t i = 0; i < 32; i++)
+    send_packet();
+}
+
+static void cmd_arm_xpacc()
+{
+    if ( pkt.len != 6 ) return;
+
+    jtag_tms(0); // [Reset/Idle]->idle
+
+    const uint8_t ir = pkt.data[0];
+    const bool is_read = (pkt.data[1] & 1) == 1;
+    pkt.data[0] = jtag_set_ir(ir);
+
+    jtag_set_dr(&pkt.data[1], 35);
+    if ( is_read && (pkt.data[1] & 0x7) == 0b010 )
     {
-        JTDI.set(dr & 1);
-        dr = dr >> 1;
-        jtag_tms(0);
-        output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
-        bit ++;
-        if ( bit == 8 )
-        {
-            data[0] = output;
-            data++;
-            dr = data[0];
-            bit = 0;
-            output = 0;
-        }
-    }
-    if ( bit != 0 )
-    {
-        data[0] = output;
+        jtag_set_dr(&pkt.data[1], 35);
     }
 
-    jtag_tms(1); // exit1-dr
-    jtag_tms(1); // update-dr
     jtag_tms(0); // idle
 
     send_packet();
@@ -323,6 +321,9 @@ void handle_packet()
         return;
     case 8:
         cmd_arm_idcode();
+        return;
+    case 9:
+        cmd_arm_xpacc();
         return;
     }
 }

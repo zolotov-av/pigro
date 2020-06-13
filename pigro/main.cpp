@@ -846,6 +846,91 @@ public:
         return cmd_jtag_dr32(0);
     }
 
+    void arm_idcode_v2()
+    {
+
+        printf("\ncheck arm_idcode_v2():\n");
+        packet_t pkt;
+        pkt.cmd = 8;
+        pkt.len = 5;
+        pkt.data[0] = 0b1110;
+        pkt.data[1] = 0;
+        pkt.data[2] = 0;
+        pkt.data[3] = 0;
+        pkt.data[4] = 0;
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("arm_idcode_v2() fail");
+
+        recv_packet(&pkt);
+        printf("arm_idcode_v2() recv: 0x%02X, 0x%02X-0x%02X-0x%02X-0x%02X\n", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4]);
+
+    }
+
+    uint64_t arm_xpacc(uint8_t ir, uint64_t dr)
+    {
+        printf("arm_xpacc():\n");
+        packet_t pkt;
+        pkt.cmd = 9;
+        pkt.len = 6;
+        if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_xpacc() pkt.len too big: " + std::to_string(pkt.len));
+        pkt.data[0] = ir;
+        pkt.data[1] = dr & 0xFF;
+        pkt.data[2] = (dr >> 8) & 0xFF;
+        pkt.data[3] = (dr >> 16) & 0xFF;
+        pkt.data[4] = (dr >> 24) &  0xFF;
+        pkt.data[5] = (dr >> 32) & 0xFF;
+
+        printf("arm_xpacc() send:");
+        for(uint8_t i = 0; i < pkt.len; i++)
+        {
+            printf(" 0x%02X", pkt.data[i]);
+        }
+        printf("\n");
+
+        auto status = send_packet(&pkt);
+        if ( !status ) throw nano::exception("arm_xpacc() fail");
+
+        recv_packet(&pkt);
+
+        printf("arm_xpacc() recv:");
+        for(uint8_t i = 0; i < pkt.len; i++)
+        {
+            printf(" 0x%02X", pkt.data[i]);
+        }
+        printf("\n");
+        if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong len: " + std::to_string(pkt.len));
+        return pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24) | (uint64_t(pkt.data[5]) << 32);
+    }
+
+    const char *ack_name(uint8_t ack)
+    {
+        switch (ack)
+        {
+        case 0b010: return "OK/FAULT";
+        case 0b001: return "WAIT";
+        default: return "unknown";
+        }
+    }
+
+    uint32_t arm_check_dpacc(uint8_t addr, uint32_t value = 0, bool write = false)
+    {
+        printf("\ncheck dpacc:\n");
+
+        const uint8_t ir = 0b1010;
+
+        uint8_t A = (addr >> 2) & 0x03;
+        uint64_t cmd = (uint64_t(value) << 3) | (A << 1) | (write ? 0 : 1);
+
+        uint64_t result = arm_xpacc(ir, cmd);
+        uint8_t ack = result & 0x7;
+        printf("ack: 0x%02X %s\n", ack, ack_name(ack));
+        if ( ack != 0b010 )
+        {
+            printf("arm_check_dpacc() ack!=OK/FAULT: 0x%02X\n", ack);
+        }
+        return result >> 3;
+    }
+
     void arm_check_idcode()
     {
         printf("\ncheck idcode:\n");
@@ -860,21 +945,6 @@ public:
         const uint32_t result = arm_bypass(value);
         const char *status = (result == (value << 1)) ? "[ ok ]" : "[fail]";
         printf("result: 0x%08X %s\n", result, status);
-    }
-
-    void arm_idcode_v2()
-    {
-        packet_t pkt;
-        pkt.cmd = 8;
-        pkt.len = 5;
-        pkt.data[1] = 0x01;
-        pkt.data[2] = 0xFF;
-        auto status = send_packet(&pkt);
-        if ( !status ) throw nano::exception("arm_idcode_v2() fail");
-
-        recv_packet(&pkt);
-        printf("arm_idcode_v2() recv: 0x%02X, 0x%02X-0x%02X-0x%02X-0x%02X\n", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4]);
-
     }
 
     struct DPACC
@@ -920,6 +990,14 @@ public:
         printf("test STM32/JTAG\n");
 
         cmd_jtag_reset();
+        arm_idcode_v2();
+
+        // write
+        arm_check_dpacc(0x8, 1 << 24, true);
+
+        uint32_t select = arm_check_dpacc(0x8, 0);
+        printf("select: 0x%08X\n", select);
+
 
         printf("\ntest bypass:\n");
         //cmd_jtag_reset();
