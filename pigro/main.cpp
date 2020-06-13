@@ -797,8 +797,7 @@ public:
         pkt.data[0] = ir;
 
         printf("cmd_jtag_ir() send: 0x%02X\n", ir);
-        auto status = send_packet(&pkt);
-        if ( !status ) throw nano::exception("cmd_jtag_ir() fail");
+        send_packet(&pkt);
 
         recv_packet(&pkt);
         printf("cmd_jtag_ir() recv: 0x%02X\n", pkt.data[0]);
@@ -817,24 +816,32 @@ public:
         for(uint8_t i = 0; i < bytecount; i++)
             pkt.data[i+1] = data[i];
 
+        /*
         printf("cmd_jtag_dr() send:");
         for(uint8_t i = 1; i < pkt.len; i++)
         {
             printf(" 0x%02X", pkt.data[i]);
         }
         printf(" (%d)\n", pkt.data[0]);
+        */
 
-        auto status = send_packet(&pkt);
-        if ( !status ) throw nano::exception("cmd_jtag_dr() fail");
+        send_packet(&pkt);
 
         recv_packet(&pkt);
+
+        /*
         printf("cmd_jtag_dr() recv:");
         for(uint8_t i = 1; i < pkt.len; i++)
         {
-            data[i-1] = pkt.data[i];
             printf(" 0x%02X", pkt.data[i]);
         }
         printf(" (%d)\n", pkt.data[0]);
+        */
+
+        for(uint8_t i = 1; i < pkt.len; i++)
+        {
+            data[i-1] = pkt.data[i];
+        }
     }
 
     uint32_t arm_data(uint8_t *data)
@@ -855,7 +862,7 @@ public:
 
     uint32_t arm_idcode()
     {
-        cmd_jtag_ir(0b1110);
+        cmd_jtag_ir(IR_IDCODE);
         return cmd_jtag_dr32(0);
     }
 
@@ -882,9 +889,15 @@ public:
         dump_packet("arm_idcode_v2() recv", pkt);
         if ( pkt.cmd != 8 || pkt.len != 5 ) throw nano::exception("arm_idcode_v2(): wrong reply");
         uint32_t idcode = pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24);
-        const char *status = (idcode == 0x3BA00477) ? "[ ok ]" : "[fail]";
+        const char *status = (idcode == CORTEX_M3_IDCODE) ? "[ ok ]" : "[fail]";
         printf("idcode: 0x%08X %s\n", idcode, status);
         return idcode;
+    }
+
+    uint64_t arm_xpacc_2(uint8_t ir, uint64_t dr)
+    {
+        cmd_jtag_ir(ir);
+        return cmd_jtag_dr35(dr);
     }
 
     uint64_t arm_xpacc(uint8_t ir, uint64_t dr)
@@ -935,24 +948,29 @@ public:
 
     uint32_t arm_xpacc_ex(uint8_t ir, uint8_t addr, uint32_t value, bool write)
     {
-        const uint64_t D = uint64_t(value) << 3;
-        const uint64_t A = (addr >> 2) & 0x03;
-        const uint64_t RW = (write ? 0 : 1);
-        const uint64_t cmd = D | A | RW;
-        const uint64_t result = arm_xpacc(ir, cmd);
+        if ( addr > 0x0F ) throw nano::exception("arm_xpacc_ex() wrong addr: " + std::to_string(addr));
+        const uint64_t D = value;
+        const uint64_t A = (addr >> 2) & 0x3;
+        const uint64_t RW = write ? 0 : 1;
+        const uint64_t cmd = (D << 3) | (A << 1) | RW;
+        if ( write )
+        {
+            printf("xpacc write cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
+        }
+        const uint64_t result = arm_xpacc_2(ir, cmd);
         const uint8_t ack = result & 0x7;
-
-        printf("ack: 0x%02X %s\n", ack, ack_name(ack));
 
         if ( ack == 0b010 )
         {
             return result >> 3;
         }
+
         if ( ack == 0b001 )
         {
             throw nano::exception("arm_xpacc_ex() ack==WAIT");
         }
 
+        printf("ack: 0x%02X %s\n", ack, ack_name(ack));
         throw nano::exception("arm_check_dpacc() wrong ack: " + std::to_string(ack));
     }
 
@@ -962,7 +980,16 @@ public:
     uint32_t arm_check_dpacc(uint8_t addr, uint32_t value = 0, bool write = false)
     {
         printf("\ncheck dpacc:\n");
-        return arm_xpacc_ex(IR_DPACC, addr, value, write);
+        if ( write )
+        {
+            printf("write value: 0x%08X\n", value);
+        }
+        uint32_t result = arm_xpacc_ex(IR_DPACC, addr, value, write);
+        if ( !write )
+        {
+            printf("read value: 0x%08X\n", result);
+        }
+        return result;
     }
 
     uint32_t arm_read_dp(uint8_t addr)
@@ -972,12 +999,22 @@ public:
 
     void arm_write_dp(uint8_t addr, uint32_t value)
     {
+        printf("write_dp(0x%02X, 0x%08X)\n", addr, value);
         arm_xpacc_ex(IR_DPACC, addr, value, xpacc_write);
     }
 
     uint32_t arm_read_ap(uint8_t addr)
     {
-        return arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read);
+        /*auto read1 = */arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read);
+        auto read2 = arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read); //
+        arm_read_dp(0x4);
+        auto status = arm_read_dp(0x4);
+        if ( is_error(status) )
+        {
+            arm_clear_sticky(status);
+            throw nano::exception("arm_read_ap() fail: " + std::to_string(read2));
+        }
+        return read2;
     }
 
     void arm_write_ap(uint8_t addr, uint32_t value)
@@ -987,21 +1024,31 @@ public:
 
     void arm_ap_select(uint8_t apsel, uint8_t addr)
     {
-        arm_write_dp(0x8, uint32_t(apsel) << 24 | (addr & 0xF0));
+        const uint32_t select = uint32_t(apsel) << 24 | (addr & 0xF0);
+        //printf("ap_select(): 0x%08X\n", select);
+        arm_write_dp(0x8, select);
+        arm_read_dp(0x4);
+        auto status = arm_read_dp(0x4);
+        if ( is_error(status) )
+        {
+            arm_clear_sticky(status);
+            throw nano::exception("arm_ap_select() fail");
+        }
     }
 
     uint32_t arm_idr(uint8_t apsel)
     {
         const uint8_t addr = 0xFC;
         arm_ap_select(apsel, addr);
-        return arm_read_ap(addr);
+        auto result = arm_read_ap(addr & 0x0F);
+        return result;
     }
 
     void arm_check_idcode()
     {
         printf("\ncheck idcode:\n");
         const uint32_t idcode = arm_idcode();
-        const char *status = (idcode == 0x3BA00477) ? "[ ok ]" : "[fail]";
+        const char *status = (idcode == CORTEX_M3_IDCODE) ? "[ ok ]" : "[fail]";
         printf("idcode: 0x%08X %s\n", idcode, status);
     }
 
@@ -1009,15 +1056,9 @@ public:
     {
         printf("\ncheck bypass(0x%08X):\n", value);
         const uint32_t result = arm_bypass(value);
-        const char *status = (result == (value << 1)) ? "[ ok ]" : "[fail]";
+        const char *status = (result == (value << 2)) ? "[ ok ]" : "[fail]";
         printf("result: 0x%08X %s\n", result, status);
     }
-
-    struct DPACC
-    {
-        uint32_t data;
-        uint8_t ack;
-    };
 
     uint64_t cmd_jtag_dr35(uint64_t dr)
     {
@@ -1033,44 +1074,104 @@ public:
 
     uint32_t arm_bypass(uint32_t value)
     {
-        cmd_jtag_ir(0b1111);
+        cmd_jtag_ir(IR_BYPASS);
         return cmd_jtag_dr32(value);
+    }
+
+    uint32_t arm_status()
+    {
+        arm_read_dp(0x4);
+        return arm_read_dp(0x4);
+    }
+
+    bool is_error(uint32_t status)
+    {
+        const uint32_t mask = (1 << 5) | (1 << 4) | (1 << 1);
+        return (status & mask) != 0;
+    }
+
+    void arm_clear_sticky(uint32_t status)
+    {
+        arm_write_dp(0x4, status);
     }
 
     int action_test_arm()
     {
         printf("test STM32/JTAG\n");
 
-        arm_idcode_v2();
+        //arm_idcode_v2();
 
         cmd_jtag_reset();
-
-        // write
-        arm_check_dpacc(0x8, 1 << 24, true);
-
-        uint32_t select = arm_check_dpacc(0x8, 0);
-        printf("select: 0x%08X\n", select);
-
-        printf("\ntest arm_idr():\n");
-        const auto value = arm_idr(0);
-        printf("\nIDR(0): 0x%08X\n", value);
-
-        printf("\ntest bypass:\n");
-        //cmd_jtag_reset();
-        arm_check_bypass(0x010203FE);
-
-        //cmd_jtag_reset();
         arm_check_idcode();
+        //arm_check_idcode();
+        //arm_check_idcode();
+        //arm_check_idcode();
 
+        /*arm_check_idcode();
 
-        printf("\ntest bypass 2:\n");
-        //cmd_jtag_reset();
         arm_check_bypass(0x01020304);
 
+        arm_check_bypass(0x010203FE);
+
+        arm_check_idcode();
+        arm_check_bypass(0x010203FE);*/
+
+        // write
+        //arm_check_dpacc(0x8, -1, true);
 
 
-        //arm_idcode_v2();
-        //arm_idcode_v2();
+        uint32_t value;
+        arm_clear_sticky(arm_status());
+
+        /*
+        arm_write_dp(0x8, 0);
+        value = arm_read_dp(0x8);
+        printf("select1: 0x%08X\n", value);
+
+        value = arm_read_dp(0x8);
+        printf("select2: 0x%08X\n", value);
+
+        value = arm_read_dp(0x4);
+        printf("status1: 0x%08X\n", value);
+
+        value = arm_read_dp(0x4);
+        printf("status2: 0x%08X\n", value);
+        */
+
+        //arm_check_dpacc(0x4, 0);
+        //arm_check_dpacc(0x4, 0);
+
+        //arm_check_dpacc(0x4, 0);
+
+        //arm_check_dpacc(0x8, 0);
+
+        //arm_check_bypass(0x01020304);
+
+        printf("\ntest arm_idr():\n");
+        for(int i = 0; i < 256; i++)
+        {
+            try {
+               //*arm_write_dp(0x8, 0);
+                arm_read_dp(0x4);
+                auto status = arm_read_dp(0x4);
+
+                if ( is_error(status) )
+                {
+                    printf("\nstatus: 0x%08X\n", status);
+                    break;
+                }
+
+                value = arm_idr(i);
+                printf("idr(%d) = 0x%08X\n", i, value);
+            } catch (const nano::exception &e) {
+
+                //arm_clear_sticky(arm_status());
+                printf("idr(%d) error: %s\n", i, e.message().c_str());
+                //break;
+            }
+
+        }
+
 
         return 0;
     }
