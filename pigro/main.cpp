@@ -135,6 +135,9 @@ private:
     AVR_Info avr;
     std::string hexfname;
 
+    // STM32
+    uint8_t arm_memap;
+
 public:
 
     PigroApp(const char *path): config("pigro.ini"), serial (new nano::serial(path))
@@ -778,6 +781,11 @@ public:
 
     static constexpr uint32_t CORTEX_M3_IDCODE = 0x3BA00477;
 
+    static constexpr uint32_t CSYSPWRUPACK = 1 << 31; // RO  System power-up acknowledge.
+    static constexpr uint32_t CSYSPWRUPREQ = 1 << 30; // R/W System power-up request.
+    static constexpr uint32_t CDBGPWRUPACK = 1 << 29; // Debug power-up acknowledge.
+    static constexpr uint32_t CDBGPWRUPREQ = 1 << 28; // R/W Debug power-up request.
+
     void cmd_jtag_reset()
     {
         packet_t pkt;
@@ -1115,6 +1123,55 @@ public:
         arm_write_dp(0x4, status);
     }
 
+    void arm_debug_enable()
+    {
+        uint32_t status = CSYSPWRUPREQ | CDBGPWRUPREQ;
+        arm_write_dp(0x4, status);
+        status = arm_status();
+
+        if ( (status & CDBGPWRUPACK) == 0 )
+        {
+            throw nano::exception("no debug power");
+        }
+        if ( (status & CSYSPWRUPACK) == 0 )
+        {
+            throw nano::exception("no system power");
+        }
+    }
+
+    void arm_find_memap()
+    {
+        printf("\nfind MEM-AP\n");
+        for(int i = 0; i < 256; i++)
+        {
+            try
+            {
+                const uint32_t idr = arm_idr(i);
+                const uint32_t test = (idr >> 16) & 0xFFF;
+                printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
+                if ( idr == 0 ) break;
+
+
+                if ( test == 0x477 )
+                {
+                    arm_memap = i;
+                    printf("MEM-AP: %d\n", arm_memap);
+                    return;
+                }
+
+            }
+            catch(const nano::exception &e)
+            {
+                printf("idr(%d) error: %s\n", i, e.message().c_str());
+                break;
+            }
+
+        }
+
+        throw nano::exception("MEM-AP not found");
+
+    }
+
     int action_test_arm()
     {
         printf("test STM32/JTAG\n");
@@ -1123,75 +1180,14 @@ public:
 
         cmd_jtag_reset();
         arm_check_idcode();
-        //arm_check_idcode();
-        //arm_check_idcode();
-        //arm_check_idcode();
-
-        /*arm_check_idcode();
-
-        arm_check_bypass(0x01020304);
-
-        arm_check_bypass(0x010203FE);
-
-        arm_check_idcode();
-        arm_check_bypass(0x010203FE);*/
-
-        // write
-        //arm_check_dpacc(0x8, -1, true);
-
-        arm_clear_sticky(arm_status());
-
-        /*
-        arm_write_dp(0x8, 0);
-        value = arm_read_dp(0x8);
-        printf("select1: 0x%08X\n", value);
-
-        value = arm_read_dp(0x8);
-        printf("select2: 0x%08X\n", value);
-
-        value = arm_read_dp(0x4);
-        printf("status1: 0x%08X\n", value);
-
-        value = arm_read_dp(0x4);
-        printf("status2: 0x%08X\n", value);
-        */
-
-        //arm_check_dpacc(0x4, 0);
-        //arm_check_dpacc(0x4, 0);
-
-        //arm_check_dpacc(0x4, 0);
-
-        //arm_check_dpacc(0x8, 0);
-
-        arm_check_bypass<32>(0x01020304);
-        arm_check_bypass<35>(0x101010101);
-        arm_check_bypass<38>(0x7FFFFFFFF);
+        arm_debug_enable();
+        arm_find_memap();
+        //arm_clear_sticky(arm_status());
 
 
-        printf("\ntest arm_idr():\n");
-        for(int i = 0; i < 256; i++)
-        {
-            try {
-                arm_write_dp(0x8, 0);
-                arm_read_dp(0x4);
-                auto status = arm_read_dp(0x4);
-
-                if ( is_error(status) )
-                {
-                    printf("\nstatus: 0x%08X\n", status);
-                    break;
-                }
-
-                auto value = arm_idr(i);
-                printf("idr(%d) = 0x%08X\n", i, value);
-            } catch (const nano::exception &e) {
-
-                //arm_clear_sticky(arm_status());
-                printf("idr(%d) error: %s\n", i, e.message().c_str());
-                //break;
-            }
-
-        }
+        //arm_check_bypass<32>(0x01020304);
+        //arm_check_bypass<35>(0x101010101);
+        //arm_check_bypass<38>(0x7FFFFFFFF);
 
         return 0;
     }
