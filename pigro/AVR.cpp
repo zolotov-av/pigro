@@ -51,7 +51,7 @@ AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path
     const uint16_t page_byte_size = avr.page_byte_size();
     const uint16_t page_mask = avr.page_mask();
     const uint16_t byte_mask = avr.byte_mask();
-    const uint16_t flash_size = avr.flash_size();
+    const uint32_t flash_size = avr.flash_size();
 
     AVR_Data pages;
     for(const auto &row : rows)

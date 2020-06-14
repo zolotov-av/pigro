@@ -136,7 +136,9 @@ private:
     std::string hexfname;
 
     // STM32
+    bool arm = false;
     uint8_t arm_memap;
+    static constexpr uint32_t arm_csw = 0x22000000;
 
 public:
 
@@ -403,26 +405,43 @@ public:
 
     void isp_check_firmware(const AVR_Data &pages)
     {
+        cmd_jtag_reset();
+        arm_check_idcode();
+        arm_debug_enable();
+        arm_find_memap();
+
+        /*
         auto signature = isp_chip_info();
         if ( signature != avr.signature )
         {
             warn("isp_check_firmware(): wrong chip signature");
-        }
+        }*/
+        uint32_t csw = arm_memap_csw();
+        printf("csw: 0x%08X\n", csw);
+        csw = (csw & ~0x7) | 0;
+        printf("new csw: 0x%08X\n", csw);
+        arm_memap_csw(csw);
 
+
+        uint8_t counter = 0;
         for(const auto &[page_addr, page] : pages)
         {
-            uint8_t counter = 0;
             const size_t size = page.data.size();
             for(size_t i = 0; i < size; i++)
             {
                 const uint16_t addr = (page_addr * 2) + i;
                 if ( counter == 0 ) printf("MEM[0x%04X]", addr);
-                uint8_t byte = isp_read_memory(addr);
+                fflush(stdout);
+                uint8_t byte = arm_mem_read8(0x08000000 + addr);
                 printf("%s", (page.data[i] == byte ? "." : "*" ));
+                fflush(stdout);
+                //printf("counter = %d\n", counter);
                 if ( counter == 0x1F ) printf("\n");
                 counter = (counter + 1) & 0x1F;
             }
         }
+        if ( counter != 0 )
+            printf("\n");
     }
 
     /**
@@ -430,6 +449,16 @@ public:
      */
     void isp_write_firmware(const AVR_Data &pages)
     {
+        cmd_jtag_reset();
+        arm_check_idcode();
+        arm_debug_enable();
+        arm_find_memap();
+
+        arm_fpec_unlock();
+
+        arm_fpec_mass_erase();
+
+        /*
         auto signature = isp_chip_info();
         if ( signature != avr.signature )
         {
@@ -438,25 +467,34 @@ public:
         if ( !avr.valid() || !avr.paged )
         {
             throw nano::exception("isp_write_firmware() reject: unsupported chip");
-        }
+        }*/
 
-        isp_chip_erase();
+        //isp_chip_erase();
+        uint8_t counter = 0;
         for(const auto &[page_addr, page] : pages)
         {
-            uint8_t counter = 0;
-            const size_t size = page.data.size();
+            const size_t size = page.data.size() / 2;
             for(size_t i = 0; i < size; i++)
             {
-                const uint16_t addr = (page_addr * 2) + i;
-                if ( counter == 0 ) printf("MEM[0x%04X]", addr);
-                isp_load_memory_page((page_addr * 2) + i, page.data[i]);
-                printf(".");
+                const uint32_t offset = i*2;
+                const uint32_t word_addr = page_addr * 2 + offset;
+                if ( counter == 0 ) printf("MEM[0x%04X]", word_addr);
+                fflush(stdout);
+                try {
+                    uint16_t word = page.data[offset] | (page.data[offset+1] << 8);
+                    arm_fpec_program(0x08000000 + word_addr, word);
+                    printf(".");
+                } catch (const nano::exception &e) {
+                    printf("*\n%s\n", e.message().c_str());
+                }
+                fflush(stdout);
                 if ( counter == 0x1F ) printf("\n");
                 counter = (counter + 1) & 0x1F;
-
             }
-            isp_write_memory_page(page_addr);
         }
+        if ( counter != 0 )
+            printf("\n");
+
     }
 
 
@@ -682,7 +720,14 @@ public:
             throw nano::exception("specify device");
         }
 
-        if ( auto dev = AVR::findDeviceByName(device); dev.has_value() )
+        if ( config.value("main", "type") == "arm" )
+        {
+            avr.page_word_size = 16;
+            avr.page_count = 2*1024;
+            avr.paged = true;
+            arm = true;
+        }
+        else if ( auto dev = AVR::findDeviceByName(device); dev.has_value() )
         {
             avr = *dev;
         }
@@ -705,14 +750,14 @@ public:
             std::cout << "hex_file: " << hexfname << "\n";
         }
 
-        if ( !avr.paged )
+        /*if ( !avr.paged )
         {
             warn("unsupported chip, only Write Page supported");
         }
         else if ( !avr.valid() )
         {
             warn("invalid or unsupported chip data, check database");
-        }
+        }*/
 
     }
 
@@ -758,7 +803,7 @@ public:
     int action_check()
     {
         AVR_Data pages = readHEX();
-        isp_check_fuses();
+        //isp_check_fuses();
         isp_check_firmware(pages);
         return 0;
     }
@@ -1002,10 +1047,9 @@ public:
 
     uint32_t arm_read_ap(uint8_t addr)
     {
-        /*auto read1 = */arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read);
-        auto read2 = arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read); //
-        arm_read_dp(0x4);
-        auto status = arm_read_dp(0x4);
+        arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read);
+        auto read2 = arm_read_dp(0x4);
+        auto status = arm_read_dp(0xC);
         if ( is_error(status) )
         {
             arm_clear_sticky(status);
@@ -1017,6 +1061,13 @@ public:
     void arm_write_ap(uint8_t addr, uint32_t value)
     {
         arm_xpacc_ex(IR_APACC, addr, value, xpacc_write);
+        arm_read_dp(0x4); // status
+        auto status = arm_read_dp(0xC);
+        if ( is_error(status) )
+        {
+            arm_clear_sticky(status);
+            throw nano::exception("arm_write_ap() fail: " + std::to_string(value));
+        }
     }
 
     void arm_ap_select(uint8_t apsel, uint8_t addr)
@@ -1172,6 +1223,182 @@ public:
 
     }
 
+    uint32_t arm_read_memap(uint8_t addr)
+    {
+        arm_ap_select(arm_memap, addr);
+        return arm_read_ap(addr & 0x0F);
+    }
+
+    void arm_write_memap(uint8_t addr, uint32_t value)
+    {
+        arm_ap_select(arm_memap, addr);
+        arm_write_ap(addr & 0x0F, value);
+    }
+
+    uint32_t arm_memap_csw()
+    {
+        return arm_read_memap(0x00);
+    }
+
+    void arm_memap_csw(uint32_t value)
+    {
+        arm_write_memap(0x00, value);
+    }
+
+    uint32_t arm_memap_tar()
+    {
+        return arm_read_memap(0x04);
+    }
+
+    void arm_memap_tar(uint32_t value)
+    {
+        arm_write_memap(0x04, value);
+    }
+
+    uint32_t arm_memap_drw()
+    {
+        return arm_read_memap(0x0C);
+    }
+
+    void arm_memap_drw(uint32_t value)
+    {
+        arm_write_memap(0x0C, value);
+    }
+
+    uint32_t arm_mem_read(uint32_t addr)
+    {
+        arm_memap_tar(addr);
+        return arm_memap_drw();
+    }
+
+    void arm_mem_write(uint32_t addr, uint32_t value)
+    {
+        arm_memap_tar(addr);
+        arm_memap_drw(value);
+    }
+
+    uint8_t arm_mem_read8(uint32_t addr)
+    {
+        arm_memap_csw(arm_csw | 2);
+        uint32_t data = arm_mem_read(addr & ~0x3);
+        switch( addr & 0x3 )
+        {
+        case 0: return data & 0xFF;
+        case 1: return (data >> 8) & 0xFF;
+        case 2: return (data >> 16) & 0xFF;
+        case 3: return (data >> 24) & 0xFF;
+        default:
+            throw nano::exception("arm_mem_read8() unexpected");
+        }
+    }
+
+    uint32_t arm_flash_size()
+    {
+        return arm_mem_read(0x1FFFF7E0) * 1024;
+    }
+
+    void arm_fpec_unlock()
+    {
+        arm_memap_csw(arm_csw | 2);
+
+        const uint32_t KEY1 = 0x45670123;
+        const uint32_t KEY2 = 0xCDEF89AB;
+        printf("\nunlock FPEC\n");
+        auto flash_cr = arm_mem_read(0x40022000 + 0x10);
+        if ( (flash_cr & (1 << 7)) == 0 )
+        {
+            printf("already unlocked\n");
+            return;
+        }
+
+        arm_mem_write(0x40022000 + 4, KEY1);
+        arm_mem_write(0x40022000 + 4, KEY2);
+
+        flash_cr = arm_mem_read(0x40022000 + 0x10);
+        if ( flash_cr & (1 << 7) )
+        {
+            throw nano::exception("arm_fpec_unlock() failed");
+        }
+
+        printf("FPEC unlocked\n");
+    }
+
+    void arm_fpec_mass_erase()
+    {
+        printf("\narm_fpec_mass_erase()\n");
+        arm_fpec_reset_sr();
+        arm_mem_write(0x40022000 + 0x10, (1 << 2)); // FLASH_CR_MER
+        arm_mem_write(0x40022000 + 0x10, (1 << 2) | (1 << 6)); // FLASH_CR_STRT
+        arm_fpec_check_sr();
+    }
+
+    void arm_fpec_reset_sr()
+    {
+        arm_memap_csw(arm_csw | 2);
+        arm_mem_write(0x40022000 + 0x0C, (1 << 2) | (1 << 4) | (1 << 5));
+    }
+
+    void arm_fpec_check_sr()
+    {
+        arm_memap_csw(arm_csw | 2);
+        auto flash_sr = arm_mem_read(0x40022000 + 0x0C);
+
+        if ( flash_sr & 1 )
+        {
+            printf("flash_sr: 0x%08X\n", flash_sr);
+            throw nano::exception("FPEC is busy");
+        }
+
+        if ( flash_sr & (1 << 2) )
+        {
+            printf("flash_sr: 0x%08X\n", flash_sr);
+            throw nano::exception("PGERR: Programming error (cell already programmed)");
+        }
+
+        if ( flash_sr & (1 << 4) )
+        {
+            printf("flash_sr: 0x%08X\n", flash_sr);
+            throw nano::exception("WRPRTERR: Write protection error");
+        }
+
+        if ( flash_sr & (1 << 5) )
+        {
+            //printf("EOP: Flash operation (programming / erase) is completed\n");
+            return;
+        }
+
+        printf("flash_sr: 0x%08X\n", flash_sr);
+        printf("FPEC status unknown\n");
+    }
+
+    void arm_fpec_program(uint32_t addr, uint16_t value)
+    {
+        //printf("\narm_fpec_program(0x%08X, 0x%04X)\n", addr, value);
+        if ( addr & 1 ) throw nano::exception("arm_fpec_program() unaligned address");
+
+        //printf("flash_cr: 0x%08X\n", arm_mem_read(0x40022000 + 0x10));
+        arm_mem_write(0x40022000 + 0x10, 1); // FLASH_CR_PG
+        //printf("flash_cr: 0x%08X\n", arm_mem_read(0x40022000 + 0x10));
+
+        arm_fpec_reset_sr();
+
+        arm_memap_csw(arm_csw | 1);
+        uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
+        //printf("mem_write(0x%08X, 0x%08X)\n", addr, data);
+        arm_mem_write(addr, data);
+
+        //arm_memap_csw(arm_csw | 2);
+        //printf("flash_cr: 0x%08X\n", arm_mem_read(0x40022000 + 0x10));
+        arm_fpec_check_sr();
+    }
+
+    void arm_dump_mem(uint32_t addr)
+    {
+        arm_memap_csw(arm_csw | 2);
+        const uint32_t value = arm_mem_read(addr);
+        printf("MEM[0x%08X]: 0x%08X\n", addr, value);
+    }
+
     int action_test_arm()
     {
         printf("test STM32/JTAG\n");
@@ -1182,6 +1409,45 @@ public:
         arm_check_idcode();
         arm_debug_enable();
         arm_find_memap();
+
+        printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);
+        printf("ram end: 0x%04X\n", 8*1024-1);
+
+        //arm_csw = 0x22000000; // arm_memap_csw();
+        //printf("orig csw: 0x%08X\n", arm_csw);
+        //arm_csw = arm_csw & ~0x7;
+        //arm_memap_csw(arm_csw | 2);
+
+        //arm_fpec_unlock();
+
+        /*
+        arm_fpec_mass_erase();
+        arm_fpec_program(0x08000000, 0x0102);
+        arm_fpec_program(0x08000002, 0x0304);
+        arm_fpec_program(0x08000004, 0x0506);
+        arm_fpec_program(0x08000006, 0x0708);
+        arm_fpec_program(0x08000008, 0x090A);
+        arm_fpec_program(0x0800000A, 0x0B0C);
+        */
+
+        for(int i = 0; i < 4; i++)
+        {
+            uint32_t addr = 0x08000000 + i*4;
+            arm_memap_csw(arm_csw | 2);
+            uint32_t value = arm_mem_read(addr);
+            printf("MEM[0x%08X]: 0x%08X\n", addr, value);
+        }
+
+        printf("csw: 0x%08X\n", arm_memap_csw());
+
+        arm_memap_csw(arm_csw | 2);
+        printf("write mem:\n");
+        arm_mem_write(0x40010800, 0x44444442);
+
+        uint32_t value = arm_mem_read(0xE0042000);
+        printf("MEM[0xE0042000]: 0x%08X\n", value);
+        arm_dump_mem(0x40010800);
+
         //arm_clear_sticky(arm_status());
 
 
@@ -1252,14 +1518,14 @@ int real_main(int argc, char *argv[])
 
     if ( action != AT_ACT_ARM )
     {
-        app.isp_program_enable();
+        //app.isp_program_enable();
     }
 
     app.execute(action);
 
     if ( action != AT_ACT_ARM )
     {
-        app.cmd_isp_reset(1);
+        //app.cmd_isp_reset(1);
     }
 
     return 0;
