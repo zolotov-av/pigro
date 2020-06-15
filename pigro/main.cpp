@@ -913,19 +913,48 @@ public:
         printf("\n");
     }
 
+    template <uint8_t bitcount>
+    uint32_t arm_io(uint8_t ir, uint64_t value)
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        if ( bytecount + 2 > PACKET_MAXLEN ) throw nano::exception("arm_io() packet to long: " + std::to_string(bitcount));
+        packet_t pkt;
+        pkt.cmd = 8;
+        pkt.len = bytecount + 2;
+        pkt.data[0] = ir;
+        pkt.data[1] = bitcount;
+        for(int i = 0; i < bytecount; i++)
+        {
+            pkt.data[i+2] = value & 0xFF;
+            value = value >> 8;
+        }
+
+        dump_packet("arm_io() send", pkt);
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        dump_packet("arm_io() recv", pkt);
+        if ( pkt.cmd != 8 ) throw nano::exception("arm_io() wrong reply: cmd=" + std::to_string(pkt.cmd));
+        if ( pkt.len != bytecount + 2 ) throw nano::exception("arm_io() wrong len: " + std::to_string(pkt.len));
+
+        uint64_t result = 0;
+        uint64_t mul = 1;
+        for(int i = 0; i < bytecount; i++)
+        {
+            result = result | (pkt.data[i+2] * mul);
+            mul = mul * 256;
+        }
+        return result;
+    }
+
+    uint32_t arm_io32(uint8_t ir, uint32_t value)
+    {
+        return arm_io<32>(ir, value);
+    }
+
     uint32_t arm_idcode_v2()
     {
         printf("\ncheck arm_idcode_v2():\n");
-        packet_t pkt {};
-        pkt.cmd = 8;
-        pkt.len = 5;
-        pkt.data[0] = IR_IDCODE;
-        dump_packet("arm_idcode_v2() send", pkt);
-        send_packet(&pkt);
-        recv_packet(&pkt);
-        dump_packet("arm_idcode_v2() recv", pkt);
-        if ( pkt.cmd != 8 || pkt.len != 5 ) throw nano::exception("arm_idcode_v2(): wrong reply");
-        uint32_t idcode = pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24);
+        uint32_t idcode = arm_io32(IR_IDCODE, 0);
         const char *status = (idcode == CORTEX_M3_IDCODE) ? "[ ok ]" : "[fail]";
         printf("idcode: 0x%08X %s\n", idcode, status);
         return idcode;
@@ -937,7 +966,7 @@ public:
         return cmd_jtag_dr<35>(dr);
     }
 
-    uint64_t arm_xpacc(uint8_t ir, uint64_t dr)
+    uint64_t arm_xpacc(uint8_t ir, uint64_t value)
     {
         printf("arm_xpacc():\n");
         packet_t pkt;
@@ -945,32 +974,25 @@ public:
         pkt.len = 6;
         if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_xpacc() pkt.len too big: " + std::to_string(pkt.len));
         pkt.data[0] = ir;
-        pkt.data[1] = dr & 0xFF;
-        pkt.data[2] = (dr >> 8) & 0xFF;
-        pkt.data[3] = (dr >> 16) & 0xFF;
-        pkt.data[4] = (dr >> 24) &  0xFF;
-        pkt.data[5] = (dr >> 32) & 0xFF;
+        pkt.data[1] = value & 0x7;
+        value = value >> 3;
+        pkt.data[2] = value & 0xFF;
+        pkt.data[3] = (value >> 8) & 0xFF;
+        pkt.data[4] = (value >> 16) & 0xFF;
+        pkt.data[5] = (value >> 24) & 0xFF;
 
-        printf("arm_xpacc() send:");
-        for(uint8_t i = 0; i < pkt.len; i++)
-        {
-            printf(" 0x%02X", pkt.data[i]);
-        }
-        printf("\n");
-
-        auto status = send_packet(&pkt);
-        if ( !status ) throw nano::exception("arm_xpacc() fail");
+        dump_packet("arm_xpacc() send", pkt);
+        send_packet(&pkt);
 
         recv_packet(&pkt);
+        dump_packet("arm_xpacc() recv", pkt);
 
-        printf("arm_xpacc() recv:");
-        for(uint8_t i = 0; i < pkt.len; i++)
-        {
-            printf(" 0x%02X", pkt.data[i]);
-        }
-        printf("\n");
+        if ( pkt.cmd != 9 ) throw nano::exception("arm_xpacc() wrong reply: " + std::to_string(pkt.cmd));
+        if ( pkt.len == 1 ) throw nano::exception("arm_xpacc() JTAG failed: ir_ack=" + std::to_string(pkt.data[0]));
         if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong len: " + std::to_string(pkt.len));
-        return pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24) | (uint64_t(pkt.data[5]) << 32);
+        const uint8_t ack = pkt.data[1] & 0x7;
+        const uint32_t data = pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
+        return uint64_t(data) << 3 | ack;
     }
 
     const char *ack_name(uint8_t ack)
@@ -1013,36 +1035,65 @@ public:
         }
 
         printf("ack: 0x%02X %s\n", ack, ack_name(ack));
-        throw nano::exception("arm_check_dpacc() wrong ack: " + std::to_string(ack));
+        throw nano::exception("arm_xpacc_ex() wrong ack: " + std::to_string(ack));
+    }
+
+    uint32_t arm_xpacc_ex_v2(uint8_t ir, uint8_t addr, uint32_t value, bool write)
+    {
+        if ( addr > 0x0F ) throw nano::exception("arm_xpacc_ex_v2() wrong addr: " + std::to_string(addr));
+        const uint64_t D = value;
+        const uint64_t A = (addr >> 2) & 0x3;
+        const uint64_t RW = write ? 0 : 1;
+        const uint64_t cmd = (D << 3) | (A << 1) | RW;
+        /*if ( write )
+        {
+            printf("xpacc write cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
+        }
+        else
+        {
+            if ( ir == IR_APACC )
+                printf("xpacc AP read cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
+        }*/
+        const uint64_t result = arm_xpacc(ir, cmd);
+        const uint8_t ack = result & 0x7;
+
+        if ( ack == 0b010 )
+        {
+            return result >> 3;
+        }
+
+        if ( ack == 0b001 )
+        {
+            throw nano::exception("arm_xpacc_ex() ack==WAIT");
+        }
+
+        printf("ack: 0x%02X %s\n", ack, ack_name(ack));
+        throw nano::exception("arm_xpacc_ex() wrong ack: " + std::to_string(ack));
     }
 
     static constexpr bool xpacc_read = false;
     static constexpr bool xpacc_write = true;
-
-    uint32_t arm_check_dpacc(uint8_t addr, uint32_t value = 0, bool write = false)
-    {
-        printf("\ncheck dpacc:\n");
-        if ( write )
-        {
-            printf("write value: 0x%08X\n", value);
-        }
-        uint32_t result = arm_xpacc_ex(IR_DPACC, addr, value, write);
-        if ( !write )
-        {
-            printf("read value: 0x%08X\n", result);
-        }
-        return result;
-    }
 
     uint32_t arm_read_dp(uint8_t addr)
     {
         return arm_xpacc_ex(IR_DPACC, addr, 0, xpacc_read);
     }
 
+    uint32_t arm_read_dp_v2(uint8_t addr)
+    {
+        return arm_xpacc_ex_v2(IR_DPACC, addr, 0, xpacc_read);
+    }
+
     void arm_write_dp(uint8_t addr, uint32_t value)
     {
         //printf("write_dp(0x%02X, 0x%08X)\n", addr, value);
         arm_xpacc_ex(IR_DPACC, addr, value, xpacc_write);
+    }
+
+    void arm_write_dp_v2(uint8_t addr, uint32_t value)
+    {
+        //printf("write_dp(0x%02X, 0x%08X)\n", addr, value);
+        arm_xpacc_ex_v2(IR_DPACC, addr, value, xpacc_write);
     }
 
     uint32_t arm_read_ap(uint8_t addr)
@@ -1159,8 +1210,8 @@ public:
 
     uint32_t arm_status()
     {
-        arm_read_dp(0x4);
-        return arm_read_dp(0x4);
+        //arm_read_dp(0x4);
+        return arm_read_dp_v2(0x4);
     }
 
     bool is_error(uint32_t status)
@@ -1179,6 +1230,7 @@ public:
         uint32_t status = CSYSPWRUPREQ | CDBGPWRUPREQ;
         arm_write_dp(0x4, status);
         status = arm_status();
+        printf("status: 0x%08X\n", status);
 
         if ( (status & CDBGPWRUPACK) == 0 )
         {
@@ -1294,7 +1346,8 @@ public:
 
     uint32_t arm_flash_size()
     {
-        return arm_mem_read(0x1FFFF7E0) * 1024;
+        arm_memap_csw(arm_csw | 2);
+        return (arm_mem_read(0x1FFFF7E0) & 0xFFFF) * 1024;
     }
 
     void arm_fpec_unlock()
@@ -1405,13 +1458,14 @@ public:
 
         //arm_idcode_v2();
 
+        arm_idcode_v2();
         cmd_jtag_reset();
         arm_check_idcode();
+        cmd_jtag_reset();
         arm_debug_enable();
         arm_find_memap();
 
         printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);
-        printf("ram end: 0x%04X\n", 8*1024-1);
 
         //arm_csw = 0x22000000; // arm_memap_csw();
         //printf("orig csw: 0x%08X\n", arm_csw);
@@ -1441,8 +1495,8 @@ public:
         printf("csw: 0x%08X\n", arm_memap_csw());
 
         arm_memap_csw(arm_csw | 2);
-        printf("write mem:\n");
-        arm_mem_write(0x40010800, 0x44444442);
+        //printf("write mem:\n");
+        //arm_mem_write(0x40010800, 0x44444442);
 
         uint32_t value = arm_mem_read(0xE0042000);
         printf("MEM[0xE0042000]: 0x%08X\n", value);

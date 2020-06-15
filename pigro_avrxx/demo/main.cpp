@@ -158,11 +158,11 @@ static void cmd_jtag_dr()
 
 static void cmd_arm_idcode()
 {
-    if ( pkt.len != 5 ) return;
+    if ( pkt.len < 3 || pkt.len * 8 < pkt.data[1] ) return;
 
     JTAG::tms(0); // Reset->idle
-    pkt.data[0] = JTAG::arm_io(pkt.data[0], &pkt.data[1], 32);
-    JTAG::end();
+    pkt.data[0] = JTAG::arm_io(pkt.data[0], &pkt.data[2], pkt.data[1]);
+    JTAG::tms(0); // idle
 
     send_packet();
 }
@@ -172,8 +172,14 @@ static void cmd_arm_xpacc()
     if ( pkt.len != 6 ) return;
 
     JTAG::tms(0); // [Reset/Idle]->idle
-    pkt.data[0] = JTAG::arm_xpacc(pkt.data[0], &pkt.data[1]);
+    uint8_t ir_ack = JTAG::arm_xpacc(pkt.data[0], &pkt.data[1]);
     JTAG::tms(0); // idle
+
+    if ( ir_ack != 1 )
+    {
+        pkt.len = 1;
+        pkt.data[0] = ir_ack;
+    }
 
     send_packet();
 }
