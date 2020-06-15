@@ -160,11 +160,8 @@ static void cmd_arm_idcode()
 {
     if ( pkt.len != 5 ) return;
 
-    JTAG::begin();
     JTAG::tms(0); // Reset->idle
-
     pkt.data[0] = JTAG::arm_io(pkt.data[0], &pkt.data[1], 32);
-
     JTAG::end();
 
     send_packet();
@@ -175,17 +172,7 @@ static void cmd_arm_xpacc()
     if ( pkt.len != 6 ) return;
 
     JTAG::tms(0); // [Reset/Idle]->idle
-
-    const uint8_t ir = pkt.data[0];
-    const bool is_read = (pkt.data[1] & 1) == 1;
-    pkt.data[0] = JTAG::set_ir(ir); // TMS=1, 2-clk
-
-    JTAG::set_dr(&pkt.data[1], 35);
-    if ( is_read && (pkt.data[1] & 0x7) == 0b010 )
-    {
-        JTAG::set_dr(&pkt.data[1], 35);
-    }
-
+    pkt.data[0] = JTAG::arm_xpacc(pkt.data[0], &pkt.data[1]);
     JTAG::tms(0); // idle
 
     send_packet();

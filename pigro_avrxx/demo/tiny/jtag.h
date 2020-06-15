@@ -174,6 +174,36 @@ namespace tiny
             return ir_ack;
         }
 
+        static void set_dr_xpacc(uint8_t *data)
+        {
+            JTMS.set(1);
+            clk(); // ->select-dr
+
+            transaction t;
+
+            t.shift_xr<3>(data[0]);
+            t.shift_xr<8>(data[1]);
+            t.shift_xr<8>(data[2]);
+            t.shift_xr<8>(data[3]);
+            t.shift_xr<8>(data[4]);
+            t.shift_xr<1>(0);
+        }
+
+        static uint8_t arm_xpacc(uint8_t ir, uint8_t *data)
+        {
+            const bool is_read = data[0] & 1;
+            const uint8_t ir_ack = set_ir(ir);
+            set_dr_xpacc(data);
+            if ( is_read )
+            {
+                set_ir(0b1010);
+                data[0] = 0b111;
+                set_dr_xpacc(data);
+            }
+            return ir_ack;
+        }
+
+
     };
 
 }
