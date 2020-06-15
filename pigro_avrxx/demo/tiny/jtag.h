@@ -58,6 +58,48 @@ namespace tiny
         }
 
         /**
+         * Сдвигает несколько битов в shift-ir/shift-dr
+         */
+        static uint8_t shift_xr(uint8_t data, uint8_t bitcount)
+        {
+            uint8_t output = 0;
+            while ( bitcount > 0 )
+            {
+                clk();
+
+                JTDI.set(data & 1);
+                data = data >> 1;
+
+                output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
+
+                bitcount--;
+            }
+            return output;
+        }
+
+        /**
+         * Сдвигает несколько битов в shift-ir/shift-dr
+         */
+        template <uint8_t bitcount>
+        static uint8_t shift_xr(uint8_t data)
+        {
+            uint8_t count = bitcount;
+            uint8_t output = 0;
+            while ( count > 0 )
+            {
+                clk();
+
+                JTDI.set(data & 1);
+                data = data >> 1;
+
+                output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
+
+                count--;
+            }
+            return output;
+        }
+
+        /**
          * на входе TMS=1
          * на выходе TMS=1, 2-clk
          */
@@ -66,33 +108,18 @@ namespace tiny
             JTMS.set(0);
             clk(); // capture
 
-            uint8_t dr = *data;
-            uint8_t bit = 0;
-            uint8_t output = 0;
-            for(uint8_t i = 0; i < bitcount; i++)
+            // вытолкнуть целые байты
+            while ( bitcount > 8 )
             {
-                clk();
-
-                JTDI.set(dr & 1);
-                dr = dr >> 1;
-
-                output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
-
-                bit ++;
-                if ( bit == 8 )
-                {
-                    *data++ = output;
-                    dr = *data;
-                    bit = 0;
-                    output = 0;
-                }
+                *data = shift_xr<8>(*data);
+                data++;
+                bitcount -= 8;
             }
 
-            if ( bit != 0 )
-            {
-                for(uint8_t i = bit; i < 8; i++) output = output >> 1;
-                *data = output;
-            }
+            // вытолкнуть остаток
+            uint8_t output = shift_xr(*data, bitcount);
+            for(uint8_t i = bitcount; i < 8; i++) output = output >> 1;
+            *data = output;
 
             JTMS.set(1);
             clk(); // exit1
