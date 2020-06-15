@@ -57,75 +57,69 @@ namespace tiny
             PORTA = JTAG_DEFAULT_STATE;
         }
 
-        /**
-         * Сдвигает несколько битов в shift-ir/shift-dr
-         */
-        static uint8_t shift_xr(uint8_t data, uint8_t bitcount)
+        class transaction
         {
-            uint8_t output = 0;
-            while ( bitcount > 0 )
+        public:
+
+            transaction()
             {
-                clk();
-
-                JTDI.set(data & 1);
-                data = data >> 1;
-
-                output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
-
-                bitcount--;
-            }
-            return output;
-        }
-
-        /**
-         * Сдвигает несколько битов в shift-ir/shift-dr
-         */
-        template <uint8_t bitcount>
-        static uint8_t shift_xr(uint8_t data)
-        {
-            uint8_t count = bitcount;
-            uint8_t output = 0;
-            while ( count > 0 )
-            {
-                clk();
-
-                JTDI.set(data & 1);
-                data = data >> 1;
-
-                output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
-
-                count--;
-            }
-            return output;
-        }
-
-        /**
-         * на входе TMS=1
-         * на выходе TMS=1, 2-clk
-         */
-        static void shift(uint8_t *data, uint8_t bitcount)
-        {
-            JTMS.set(0);
-            clk(); // capture
-
-            // вытолкнуть целые байты
-            while ( bitcount > 8 )
-            {
-                *data = shift_xr<8>(*data);
-                data++;
-                bitcount -= 8;
+                JTMS.set(0);
+                clk(); // capture
             }
 
-            // вытолкнуть остаток
-            uint8_t output = shift_xr(*data, bitcount);
-            for(uint8_t i = bitcount; i < 8; i++) output = output >> 1;
-            *data = output;
+            /**
+             * Сдвигает несколько битов в shift-ir/shift-dr
+             */
+            static uint8_t shift_xr(uint8_t data, uint8_t bitcount)
+            {
+                uint8_t output = 0;
+                while ( bitcount > 0 )
+                {
+                    clk();
 
-            JTMS.set(1);
-            clk(); // exit1
-            JTDI.set(1); // default state
-            clk(); // update
-        }
+                    JTDI.set(data & 1);
+                    data = data >> 1;
+
+                    output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
+
+                    bitcount--;
+                }
+                return output;
+            }
+
+            /**
+             * Сдвигает несколько битов в shift-ir/shift-dr
+             */
+            template <uint8_t bitcount>
+            static uint8_t shift_xr(uint8_t data)
+            {
+                uint8_t count = bitcount;
+                uint8_t output = 0;
+                while ( count > 0 )
+                {
+                    clk();
+
+                    JTDI.set(data & 1);
+                    data = data >> 1;
+
+                    output = (output >> 1) | (JTDO.value() ? 0x80 : 0);
+
+                    count--;
+                }
+                return output;
+            }
+
+            ~transaction()
+            {
+                JTMS.set(1);
+                clk(); // exit1
+                JTDI.set(1); // default state
+                clk(); // update
+            }
+        };
+
+        ///////////////////////////////////////////////////////////////////
+        /// STM32 Debug Port
 
         /**
          * на входе TMS=0 (idle)
@@ -136,11 +130,13 @@ namespace tiny
             JTMS.set(1);
             clk(); // ->select-dr
             clk(); // ->select-ir
-            uint8_t buf[2];
-            buf[0] = ir | 0xF0;
-            buf[1] = 0xFF;
-            shift(buf, 9); // TMS=1, 2-clk
-            return buf[0];
+
+            transaction t;
+
+            uint8_t output = t.shift_xr<4>(ir);
+            t.shift_xr<5>(0xFF);
+
+            return output;
         }
 
         /**
@@ -151,7 +147,31 @@ namespace tiny
         {
             JTMS.set(1);
             clk(); // ->select-dr
-            shift(data, bitcount+1); // TMS=1, 2-clk
+
+            transaction t;
+
+            // вытолкнуть целые байты
+            while ( bitcount > 8 )
+            {
+                *data = t.shift_xr<8>(*data);
+                data++;
+                bitcount -= 8;
+            }
+
+            // вытолкнуть остаток
+            uint8_t output = t.shift_xr(*data, bitcount);
+            for(uint8_t i = bitcount; i < 8; i++) output = output >> 1;
+            *data = output;
+
+            t.shift_xr<1>(0);
+
+        }
+
+        static uint8_t arm_io(uint8_t ir, uint8_t *data, uint8_t bitcount)
+        {
+            uint8_t ir_ack = set_ir(ir);
+            set_dr(data, bitcount);
+            return ir_ack;
         }
 
     };

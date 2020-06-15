@@ -163,17 +163,7 @@ static void cmd_arm_idcode()
     JTAG::begin();
     JTAG::tms(0); // Reset->idle
 
-    JTMS.set(1);
-    JTAG::clk(); // ->select-dr
-    JTAG::clk(); // ->select-ir
-    uint8_t buf[2];
-    buf[0] = pkt.data[0] | 0xF0;
-    buf[1] = 0xFF;
-    JTAG::shift(buf, 9); // TMS=1, 2-clk
-    pkt.data[0] = buf[0];
-
-    JTAG::clk(); // select dr-scan
-    JTAG::shift(&pkt.data[1], 32); // TMS=1, 2-clk
+    pkt.data[0] = JTAG::arm_io(pkt.data[0], &pkt.data[1], 32);
 
     JTAG::end();
 
