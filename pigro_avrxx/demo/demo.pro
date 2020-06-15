@@ -4,7 +4,8 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += \
-        main.cpp
+        main.cpp \
+        tiny/jtag.cpp
 
 
 INCLUDEPATH += $$PWD/../avrxx
@@ -21,3 +22,6 @@ QMAKE_POST_LINK += avr-objdump -d ${TARGET} > ${TARGET}.dump
 QMAKE_CLEAN += $${TARGET}.hex $${TARGET}.dump
 
 QMAKE_CXXFLAGS += -Wa,-adhln=temp.s
+
+HEADERS += \
+    tiny/jtag.h
