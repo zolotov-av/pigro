@@ -1511,22 +1511,22 @@ public:
 
     void arm_fpec_unlock()
     {
-        arm_memap_csw(arm_csw | 2);
-
-        const uint32_t KEY1 = 0x45670123;
-        const uint32_t KEY2 = 0xCDEF89AB;
         printf("\nunlock FPEC\n");
-        auto flash_cr = arm_mem_read(0x40022000 + 0x10);
+
+        constexpr uint32_t KEY1 = 0x45670123;
+        constexpr uint32_t KEY2 = 0xCDEF89AB;
+
+        auto flash_cr = arm_fpec_read_reg(0x10);
         if ( (flash_cr & (1 << 7)) == 0 )
         {
             printf("already unlocked\n");
             return;
         }
 
-        arm_mem_write(0x40022000 + 4, KEY1);
-        arm_mem_write(0x40022000 + 4, KEY2);
+        arm_fpec_write_reg(0x04, KEY1);
+        arm_fpec_write_reg(0x04, KEY2);
 
-        flash_cr = arm_mem_read(0x40022000 + 0x10);
+        flash_cr = arm_fpec_read_reg(0x10);
         if ( flash_cr & (1 << 7) )
         {
             throw nano::exception("arm_fpec_unlock() failed");
@@ -1551,21 +1551,19 @@ public:
     {
         printf("\narm_fpec_mass_erase()\n");
         arm_fpec_reset_sr();
-        arm_mem_write(0x40022000 + 0x10, (1 << 2)); // FLASH_CR_MER
-        arm_mem_write(0x40022000 + 0x10, (1 << 2) | (1 << 6)); // FLASH_CR_STRT
+        arm_fpec_write_reg(0x10, (1 << 2)); // FLASH_CR_MER
+        arm_fpec_write_reg(0x10, (1 << 2) | (1 << 6)); // FLASH_CR_STRT
         arm_fpec_check_sr();
     }
 
     void arm_fpec_reset_sr()
     {
-        arm_memap_csw(arm_csw | 2);
-        arm_mem_write(0x40022000 + 0x0C, (1 << 2) | (1 << 4) | (1 << 5));
+        arm_fpec_write_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
     }
 
     void arm_fpec_check_sr()
     {
-        arm_memap_csw(arm_csw | 2);
-        auto flash_sr = arm_mem_read(0x40022000 + 0x0C);
+        uint32_t flash_sr = arm_fpec_read_reg(0x0C);
 
         if ( flash_sr & 1 )
         {
