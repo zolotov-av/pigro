@@ -976,7 +976,7 @@ public:
 
     uint32_t arm_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
     {
-        printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
+        //printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
         if ( reg > 0x0F ) throw nano::exception("arm_xpacc_ex() wrong register: " + std::to_string(reg));
         packet_t pkt;
         pkt.cmd = 9;
@@ -989,11 +989,11 @@ public:
         pkt.data[4] = (value >> 16) & 0xFF;
         pkt.data[5] = (value >> 24) & 0xFF;
 
-        dump_packet("arm_xpacc() send", pkt);
+        //dump_packet("arm_xpacc() send", pkt);
         send_packet(&pkt);
 
         recv_packet(&pkt);
-        dump_packet("arm_xpacc() recv", pkt);
+        //dump_packet("arm_xpacc() recv", pkt);
 
         if ( pkt.cmd != 9 ) throw nano::exception("arm_xpacc() wrong reply: " + std::to_string(pkt.cmd));
         if ( pkt.len == 1 ) throw nano::exception("arm_xpacc() JTAG failed: ir_ack=" + std::to_string(pkt.data[0]));
@@ -1009,6 +1009,44 @@ public:
         if ( ack & (1 << 5) ) throw nano::exception("arm_xpacc() command failure");
         if ( ack == ACK_WAIT ) throw nano::exception("arm_xpacc() status WAIT");
         throw nano::exception("arm_xpacc() status wrong ack");
+    }
+
+    uint32_t arm_apacc(uint8_t ap, uint8_t reg, uint32_t value, bool write)
+    {
+        //printf("arm_apacc(ap=0x%02X, reg=0x%02X, value=0x%08X, %s):\n", ap, reg, value, action(write));
+        if ( reg & 0x03 ) throw nano::exception("arm_apacc() wrong register: " + std::to_string(reg));
+        packet_t pkt;
+        pkt.cmd = 10;
+        pkt.len = 6;
+        if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_apacc() pkt.len too big: " + std::to_string(pkt.len));
+        pkt.data[0] = ap;
+        pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
+        pkt.data[2] = value & 0xFF;
+        pkt.data[3] = (value >> 8) & 0xFF;
+        pkt.data[4] = (value >> 16) & 0xFF;
+        pkt.data[5] = (value >> 24) & 0xFF;
+
+        //dump_packet("arm_apacc() send", pkt);
+        send_packet(&pkt);
+
+        recv_packet(&pkt);
+        //dump_packet("arm_apacc() recv", pkt);
+
+        if ( pkt.cmd != 10 ) throw nano::exception("arm_apacc() wrong reply: " + std::to_string(pkt.cmd));
+        if ( pkt.len == 1 ) throw nano::exception("arm_apacc() JTAG failed: ir_ack=" + std::to_string(pkt.data[0]));
+        if ( pkt.len != 6 ) throw nano::exception("arm_apacc() wrong reply length: " + std::to_string(pkt.len));
+
+        const uint8_t ack = pkt.data[1];
+        const uint32_t data = pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
+
+        if ( ack == ACK_OKFAULT ) return data;
+
+        if ( ack & (1 << 6) ) throw nano::exception("arm_apacc() select ap failure");
+        if ( ack & (1 << 3) ) throw nano::exception("arm_apacc() command WAIT");
+        if ( ack & (1 << 4) ) throw nano::exception("arm_apacc() command wrong ack");
+        if ( ack & (1 << 5) ) throw nano::exception("arm_apacc() command failure");
+        if ( ack == ACK_WAIT ) throw nano::exception("arm_apacc() status WAIT");
+        throw nano::exception("arm_apacc() status wrong ack");
     }
 
     const char *ack_name(uint8_t ack)
@@ -1081,6 +1119,9 @@ public:
 
     uint32_t arm_read_ap(uint8_t addr)
     {
+        //return arm_xpacc(IR_APACC, addr, 0, xpacc_read);
+
+
         arm_xpacc_ex(IR_APACC, addr, 0, xpacc_read);
         auto read2 = arm_read_dp(0x4);
         auto status = arm_read_dp(0xC);
@@ -1090,6 +1131,7 @@ public:
             throw nano::exception("arm_read_ap() fail: " + std::to_string(read2));
         }
         return read2;
+
     }
 
     void arm_write_ap(uint8_t addr, uint32_t value)
@@ -1120,10 +1162,13 @@ public:
 
     uint32_t arm_idr(uint8_t apsel)
     {
+        return arm_apacc(apsel, 0xFC, 0, xpacc_read);
+        /*
         const uint8_t addr = 0xFC;
         arm_ap_select(apsel, addr);
         auto result = arm_read_ap(addr & 0x0F);
         return result;
+        */
     }
 
     void arm_check_idcode()
@@ -1260,14 +1305,20 @@ public:
 
     uint32_t arm_read_memap(uint8_t addr)
     {
+        return arm_apacc(arm_memap, addr, 0, xpacc_read);
+        /*
         arm_ap_select(arm_memap, addr);
         return arm_read_ap(addr & 0x0F);
+        */
     }
 
     void arm_write_memap(uint8_t addr, uint32_t value)
     {
+        arm_apacc(arm_memap, addr, value, xpacc_write);
+        /*
         arm_ap_select(arm_memap, addr);
         arm_write_ap(addr & 0x0F, value);
+        */
     }
 
     uint32_t arm_memap_csw()

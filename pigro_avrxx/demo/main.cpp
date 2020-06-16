@@ -184,6 +184,23 @@ static void cmd_arm_xpacc()
     send_packet();
 }
 
+static void cmd_arm_apacc()
+{
+    if ( pkt.len != 6 ) return;
+
+    JTAG::tms(0); // [Reset/Idle]->idle
+    uint8_t ir_ack = JTAG::arm_apacc(pkt.data[0], &pkt.data[1]);
+    JTAG::tms(0); // idle
+
+    if ( ir_ack != 1 )
+    {
+        pkt.len = 1;
+        pkt.data[0] = ir_ack;
+    }
+
+    send_packet();
+}
+
 /**
  * Обработка команд
  */
@@ -217,6 +234,9 @@ void handle_packet()
         return;
     case 9:
         cmd_arm_xpacc();
+        return;
+    case 10:
+        cmd_arm_apacc();
         return;
     }
 }

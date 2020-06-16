@@ -254,11 +254,30 @@ namespace tiny
 
             if ( ack == ACK_WAIT )
             {
-                data[0] = ack | (1 << 3);
+                data[0] |= (1 << 3);
                 return 1;
             }
 
-            data[0] = ack | (1 << 4);
+            data[0] |= (1 << 4);
+            return 1;
+        }
+
+        static uint8_t arm_apacc(uint8_t ap, uint8_t *data)
+        {
+            // SELECT AP
+            const uint8_t reg = data[0];
+            uint8_t temp[5] = {write_reg(0x8), uint8_t(reg & 0xF0), 0, 0, ap};
+            if ( uint8_t ir_ack = arm_xpacc(IR_DPACC, temp); ir_ack != 1 ) return ir_ack;
+            if ( temp[0] & (1 << 5) )
+            {
+                memcpy<5>(data, temp);
+                data[0] |= (1 << 6);
+                return 1;
+            }
+
+            // EXEC AP
+            data[0] = reg >> 1;
+            if ( uint8_t ir_ack = arm_xpacc(IR_APACC, data); ir_ack != 1 ) return ir_ack;
             return 1;
         }
 
