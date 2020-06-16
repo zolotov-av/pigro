@@ -121,6 +121,15 @@ namespace tiny
         ///////////////////////////////////////////////////////////////////
         /// STM32 Debug Port
 
+        static constexpr uint8_t IR_BYPASS = 0b1111;
+        static constexpr uint8_t IR_IDCODE = 0b1110;
+        static constexpr uint8_t IR_DPACC = 0b1010;
+        static constexpr uint8_t IR_APACC = 0b1011;
+        static constexpr uint8_t IR_ABORT = 0b1000;
+
+        static constexpr uint8_t ACK_OKFAULT = 0b010;
+        static constexpr uint8_t ACK_WAIT = 0b001;
+
         /**
          * на входе TMS=0 (idle)
          * на выходе TMS=1, 2-clk
@@ -189,18 +198,69 @@ namespace tiny
             t.shift_xr<1>(0);
         }
 
-        static uint8_t arm_xpacc(uint8_t ir, uint8_t *data)
+        template <uint8_t count>
+        static void memcpy(uint8_t *dest, uint8_t *src)
         {
-            const uint8_t ir_ack1 = set_ir(ir);
-            if ( ir_ack1 != 1 ) return ir_ack1;
-            set_dr_xpacc(data);
-            const uint8_t ir_ack2 = set_ir(0b1010);
-            if ( ir_ack2 != 1 ) return ir_ack2;
-            data[0] = 0b111;
-            set_dr_xpacc(data);
-            return 1;
+            for(uint8_t i = 0; i < count; i++)
+                dest[i] = src[i];
         }
 
+        static uint8_t xpacc_io(uint8_t ir, uint8_t *data)
+        {
+            const uint8_t ir_ack = set_ir(ir);
+            set_dr_xpacc(data);
+            return ir_ack;
+        }
+
+        static bool xpacc_is_error(const uint8_t *data)
+        {
+            constexpr uint8_t mask = (1 << 5) | (1 << 4) | (1 << 1);
+            return (data[0] != ACK_OKFAULT) || (data[1] & mask);
+        }
+
+        static constexpr uint8_t read_reg(uint8_t reg)
+        {
+            return ((reg / 4) << 1) | 1;
+        }
+
+        static constexpr uint8_t write_reg(uint8_t reg)
+        {
+            return ((reg / 4) << 1) | 0;
+        }
+
+        static uint8_t arm_xpacc(uint8_t ir, uint8_t *data)
+        {
+            // send command
+            if ( uint8_t ir_ack = xpacc_io(ir, data); ir_ack != 1 ) return ir_ack;
+
+            // send read status, recv command reply
+            data[0] = read_reg(0x4);
+            if ( uint8_t ir_ack = xpacc_io(IR_DPACC, data); ir_ack != 1 ) return ir_ack;
+
+            // send read rdbuff, recv status reply
+            uint8_t status[5] = {read_reg(0xC)};
+            if ( uint8_t ir_ack = xpacc_io(IR_DPACC, status); ir_ack != 1 ) return ir_ack;
+
+            const uint8_t ack = data[0];
+
+            if ( ack == ACK_OKFAULT && !xpacc_is_error(status) )
+            {
+                return 1;
+            }
+
+            memcpy<5>(data, status);
+
+            data[0] |= (1 << 5);
+
+            if ( ack == ACK_WAIT )
+            {
+                data[0] = ack | (1 << 3);
+                return 1;
+            }
+
+            data[0] = ack | (1 << 4);
+            return 1;
+        }
 
     };
 

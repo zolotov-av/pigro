@@ -824,6 +824,9 @@ public:
     static constexpr uint8_t IR_APACC = 0b1011;
     static constexpr uint8_t IR_ABORT = 0b1000;
 
+    static constexpr uint8_t ACK_OKFAULT = 0b010;
+    static constexpr uint8_t ACK_WAIT = 0b001;
+
     static constexpr uint32_t CORTEX_M3_IDCODE = 0x3BA00477;
 
     static constexpr uint32_t CSYSPWRUPACK = 1 << 31; // RO  System power-up acknowledge.
@@ -966,16 +969,21 @@ public:
         return cmd_jtag_dr<35>(dr);
     }
 
-    uint64_t arm_xpacc(uint8_t ir, uint64_t value)
+    const char *action(bool write)
     {
-        printf("arm_xpacc():\n");
+        return write ? "write" : "read";
+    }
+
+    uint32_t arm_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
+    {
+        printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
+        if ( reg > 0x0F ) throw nano::exception("arm_xpacc_ex() wrong register: " + std::to_string(reg));
         packet_t pkt;
         pkt.cmd = 9;
         pkt.len = 6;
         if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_xpacc() pkt.len too big: " + std::to_string(pkt.len));
         pkt.data[0] = ir;
-        pkt.data[1] = value & 0x7;
-        value = value >> 3;
+        pkt.data[1] = ((reg / 4) << 1) | (write ? 0 : 1);
         pkt.data[2] = value & 0xFF;
         pkt.data[3] = (value >> 8) & 0xFF;
         pkt.data[4] = (value >> 16) & 0xFF;
@@ -989,10 +997,18 @@ public:
 
         if ( pkt.cmd != 9 ) throw nano::exception("arm_xpacc() wrong reply: " + std::to_string(pkt.cmd));
         if ( pkt.len == 1 ) throw nano::exception("arm_xpacc() JTAG failed: ir_ack=" + std::to_string(pkt.data[0]));
-        if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong len: " + std::to_string(pkt.len));
-        const uint8_t ack = pkt.data[1] & 0x7;
+        if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong reply length: " + std::to_string(pkt.len));
+
+        const uint8_t ack = pkt.data[1];
         const uint32_t data = pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
-        return uint64_t(data) << 3 | ack;
+
+        if ( ack == ACK_OKFAULT ) return data;
+
+        if ( ack & (1 << 3) ) throw nano::exception("arm_xpacc() command WAIT");
+        if ( ack & (1 << 4) ) throw nano::exception("arm_xpacc() command wrong ack");
+        if ( ack & (1 << 5) ) throw nano::exception("arm_xpacc() command failure");
+        if ( ack == ACK_WAIT ) throw nano::exception("arm_xpacc() status WAIT");
+        throw nano::exception("arm_xpacc() status wrong ack");
     }
 
     const char *ack_name(uint8_t ack)
@@ -1038,39 +1054,6 @@ public:
         throw nano::exception("arm_xpacc_ex() wrong ack: " + std::to_string(ack));
     }
 
-    uint32_t arm_xpacc_ex_v2(uint8_t ir, uint8_t addr, uint32_t value, bool write)
-    {
-        if ( addr > 0x0F ) throw nano::exception("arm_xpacc_ex_v2() wrong addr: " + std::to_string(addr));
-        const uint64_t D = value;
-        const uint64_t A = (addr >> 2) & 0x3;
-        const uint64_t RW = write ? 0 : 1;
-        const uint64_t cmd = (D << 3) | (A << 1) | RW;
-        /*if ( write )
-        {
-            printf("xpacc write cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
-        }
-        else
-        {
-            if ( ir == IR_APACC )
-                printf("xpacc AP read cmd: 0x%09lX D=%08lX A=%02lX RW=%02lX\n", cmd, D, A, RW);
-        }*/
-        const uint64_t result = arm_xpacc(ir, cmd);
-        const uint8_t ack = result & 0x7;
-
-        if ( ack == 0b010 )
-        {
-            return result >> 3;
-        }
-
-        if ( ack == 0b001 )
-        {
-            throw nano::exception("arm_xpacc_ex() ack==WAIT");
-        }
-
-        printf("ack: 0x%02X %s\n", ack, ack_name(ack));
-        throw nano::exception("arm_xpacc_ex() wrong ack: " + std::to_string(ack));
-    }
-
     static constexpr bool xpacc_read = false;
     static constexpr bool xpacc_write = true;
 
@@ -1081,7 +1064,7 @@ public:
 
     uint32_t arm_read_dp_v2(uint8_t addr)
     {
-        return arm_xpacc_ex_v2(IR_DPACC, addr, 0, xpacc_read);
+        return arm_xpacc(IR_DPACC, addr, 0, xpacc_read);
     }
 
     void arm_write_dp(uint8_t addr, uint32_t value)
@@ -1093,7 +1076,7 @@ public:
     void arm_write_dp_v2(uint8_t addr, uint32_t value)
     {
         //printf("write_dp(0x%02X, 0x%08X)\n", addr, value);
-        arm_xpacc_ex_v2(IR_DPACC, addr, value, xpacc_write);
+        arm_xpacc(IR_DPACC, addr, value, xpacc_write);
     }
 
     uint32_t arm_read_ap(uint8_t addr)
@@ -1210,7 +1193,6 @@ public:
 
     uint32_t arm_status()
     {
-        //arm_read_dp(0x4);
         return arm_read_dp_v2(0x4);
     }
 
@@ -1228,7 +1210,8 @@ public:
     void arm_debug_enable()
     {
         uint32_t status = CSYSPWRUPREQ | CDBGPWRUPREQ;
-        arm_write_dp(0x4, status);
+        arm_write_dp_v2(0x4, status);
+
         status = arm_status();
         printf("status: 0x%08X\n", status);
 
