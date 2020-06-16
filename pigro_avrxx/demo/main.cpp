@@ -201,6 +201,119 @@ static void cmd_arm_apacc()
     send_packet();
 }
 
+static void cmd_arm_config()
+{
+    if ( pkt.len == 2 && pkt.data[0] == 1 )
+    {
+        JTAG::memap = pkt.data[1];
+        send_packet();
+        return;
+    }
+
+    if ( pkt.len == 5 && pkt.data[0] == 2 )
+    {
+        JTAG::set_mem_addr(&pkt.data[1]);
+        send_packet();
+        return;
+    }
+
+
+}
+
+static void cmd_arm_read()
+{
+    if ( pkt.len == 4 )
+    {
+        uint32_t value;
+        bool ok = JTAG::arm_mem_read32(JTAG::mem_addr, value);
+        JTAG::mem_addr += 4;
+        if ( ok )
+        {
+            pkt.data[0] = value & 0xFF;
+            pkt.data[1] = (value >> 8) & 0xFF;
+            pkt.data[2] = (value >> 16) & 0xFF;
+            pkt.data[3] = (value >> 24) & 0xFF;
+            send_packet();
+            return;
+        }
+
+        pkt.len = 0;
+        send_packet();
+        return;
+    }
+
+    if ( pkt.len == 2 )
+    {
+        uint16_t value;
+        bool ok = JTAG::arm_mem_read16(JTAG::mem_addr, value);
+        JTAG::mem_addr += 2;
+        if ( ok )
+        {
+            pkt.data[0] = value & 0xFF;
+            pkt.data[1] = (value >> 8) & 0xFF;
+            send_packet();
+            return;
+        }
+
+        pkt.len = 0;
+        send_packet();
+        return;
+
+    }
+}
+
+static void cmd_arm_write()
+{
+    if ( pkt.len == 4 )
+    {
+        const uint32_t value = pkt.data[0] | (uint32_t(pkt.data[1]) << 8) | (uint32_t(pkt.data[2]) << 16) | (uint32_t(pkt.data[3]) << 24);
+        bool ok = JTAG::arm_mem_write32(JTAG::mem_addr, value);
+        JTAG::mem_addr += 4;
+        if ( !ok )
+        {
+            pkt.len = 0;
+        }
+        send_packet();
+        return;
+    }
+
+    if ( pkt.len == 2 )
+    {
+        const uint16_t value = pkt.data[0] | (uint16_t(pkt.data[1]) << 8);
+        bool ok = JTAG::arm_mem_write16(JTAG::mem_addr, value);
+        JTAG::mem_addr += 2;
+        if ( !ok )
+        {
+            pkt.len = 0;
+        }
+        send_packet();
+        return;
+    }
+}
+
+static void cmd_arm_fpec()
+{
+    if ( pkt.len == 4 )
+    {
+        const uint16_t word0 = pkt.data[0] | (pkt.data[1] << 8);
+        const uint16_t word1 = pkt.data[2] | (pkt.data[3] << 8);
+
+        uint8_t status0, status1;
+        bool ok0 = JTAG::arm_fpec_program(JTAG::mem_addr, word0, status0);
+        bool ok1 = JTAG::arm_fpec_program(JTAG::mem_addr+2, word1, status1);
+        JTAG::mem_addr += 4;
+
+        if ( !ok0 || !ok1 )
+        {
+            pkt.len = 2;
+            pkt.data[0] = status0 | (ok0 << 7);
+            pkt.data[1] = status1 | (ok1 << 7);
+        }
+        send_packet();
+        return;
+    }
+}
+
 /**
  * Обработка команд
  */
@@ -237,6 +350,18 @@ void handle_packet()
         return;
     case 10:
         cmd_arm_apacc();
+        return;
+    case 11:
+        cmd_arm_config();
+        return ;
+    case 12:
+        cmd_arm_read();
+        return;
+    case 13:
+        cmd_arm_write();
+        return;
+    case 14:
+        cmd_arm_fpec();
         return;
     }
 }

@@ -281,6 +281,125 @@ namespace tiny
             return 1;
         }
 
+        ///////////////////////////////////////////////////////////////////
+        /// STM32 MEM-AP
+
+        static inline uint8_t memap;
+        static inline uint32_t mem_addr;
+
+        static constexpr uint32_t default_csw = 0x22000000;
+
+        static void set_mem_addr(uint8_t *data)
+        {
+            mem_addr = data[0] | (uint32_t(data[1]) << 8) | (uint32_t(data[2]) << 16) | (uint32_t(data[3]) << 24);
+        }
+
+        static bool arm_read_memap_reg(uint8_t reg, uint32_t &value)
+        {
+            uint8_t data[5];
+            data[0] = (reg & 0xFC) | 0b10;
+            data[1] = value & 0xFF;
+            data[2] = (value >> 8) & 0xFF;
+            data[3] = (value >> 16) & 0xFF;
+            data[4] = (value >> 24) & 0xFF;
+            if ( arm_apacc(memap, data) != 1 ) return false;
+            if ( data[0] & 0xFC ) return false;
+            value = data[1] | (uint32_t(data[2]) << 8) | (uint32_t(data[3]) << 16) | (uint32_t(data[4]) << 24);
+            return true;
+        }
+
+        static bool arm_write_memap_reg(uint8_t reg, const uint32_t &value)
+        {
+            uint8_t data[5];
+            data[0] = (reg & 0xFC) | 0b00;
+            data[1] = value & 0xFF;
+            data[2] = (value >> 8) & 0xFF;
+            data[3] = (value >> 16) & 0xFF;
+            data[4] = (value >> 24) & 0xFF;
+            if ( arm_apacc(memap, data) != 1 ) return false;
+            return (data[0] & 0xFC) == 0;
+        }
+
+        static bool arm_mem_read32(const uint32_t &addr, uint32_t &value)
+        {
+            if ( ! arm_write_memap_reg(0x00, default_csw | 2) ) return false;
+            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
+            if ( ! arm_read_memap_reg(0x0C, value) ) return false;
+            return true;
+        }
+
+        static bool arm_mem_read16(const uint32_t &addr, uint16_t &value)
+        {
+            if ( ! arm_write_memap_reg(0x00, default_csw | 1) ) return false;
+            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
+            uint32_t output;
+            if ( ! arm_read_memap_reg(0x0C, output) ) return false;
+            value = (addr & 0x02) ? (output >> 16) : output;
+            return true;
+        }
+
+        static bool arm_mem_write32(const uint32_t &addr, const uint32_t &value)
+        {
+            if ( ! arm_write_memap_reg(0x00, default_csw | 2) ) return false;
+            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
+            if ( ! arm_write_memap_reg(0x0C, value) ) return false;
+            return true;
+        }
+
+        static bool arm_mem_write16(const uint32_t &addr, const uint16_t &value)
+        {
+            if ( ! arm_write_memap_reg(0x00, default_csw | 1) ) return false;
+            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
+            uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
+            if ( ! arm_write_memap_reg(0x0C, data) ) return false;
+            return true;
+        }
+
+        static bool get_fpec_reg(uint8_t reg, uint32_t &value)
+        {
+            return arm_mem_read32(0x40022000 + reg, value);
+        }
+
+        static bool set_fpec_reg(uint8_t reg, const uint32_t &value)
+        {
+            return arm_mem_write32(0x40022000 + reg, value);
+        }
+
+        static bool arm_fpec_reset_sr()
+        {
+            return set_fpec_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
+        }
+
+        static bool arm_fpec_check_sr(uint8_t &status)
+        {
+            status = 0;
+            uint32_t flash_sr;
+            if ( !get_fpec_reg(0x0C, flash_sr) ) return false;
+
+            uint8_t mask = 1 | (1 << 2) | (1 << 4);
+            if ( flash_sr & mask )
+            {
+                status = flash_sr;
+                return false;
+            }
+
+            if ( flash_sr & (1 << 5) )
+            {
+                return true;
+            }
+
+            status = flash_sr;
+            return false;
+        }
+
+        static bool arm_fpec_program(const uint32_t &addr, const uint16_t &value, uint8_t &status)
+        {
+            status = 1 << 6;
+            if ( !arm_fpec_reset_sr() ) return false;
+            if ( !arm_mem_write16(addr, value) ) return false;
+            return arm_fpec_check_sr(status);
+        }
+
     };
 
 }

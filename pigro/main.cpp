@@ -424,17 +424,27 @@ public:
 
 
         uint8_t counter = 0;
+        uint32_t memaddr = 0x08000000;
+        arm_set_memaddr(memaddr);
         for(const auto &[page_addr, page] : pages)
         {
-            const size_t size = page.data.size();
+            const size_t size = page.data.size() / 4;
             for(size_t i = 0; i < size; i++)
             {
-                const uint16_t addr = (page_addr * 2) + i;
-                if ( counter == 0 ) printf("MEM[0x%04X]", addr);
-                fflush(stdout);
-                uint8_t byte = arm_mem_read8(0x08000000 + addr);
-                printf("%s", (page.data[i] == byte ? "." : "*" ));
-                fflush(stdout);
+                const uint16_t offset = i * 4;
+                const uint32_t addr = 0x08000000 + page_addr * 2 + offset;
+                if ( counter == 0 ) printf("MEM[0x%08X]", addr);
+                if ( addr != memaddr )
+                {
+                    arm_set_memaddr(addr);
+                    memaddr = addr;
+                }
+                //fflush(stdout);
+                uint32_t hex_value = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
+                uint32_t device_value = arm_read_mem32();
+                memaddr += 4;
+                printf("%s", (device_value == hex_value ? "." : "*" ));
+                //fflush(stdout);
                 //printf("counter = %d\n", counter);
                 if ( counter == 0x1F ) printf("\n");
                 counter = (counter + 1) & 0x1F;
@@ -470,31 +480,60 @@ public:
         }*/
 
         //isp_chip_erase();
+
+        arm_fpec_write_reg(0x10, 1); // FLASH_CR_PG
+
+        printf("flash_cr: 0x%08X\n", arm_fpec_read_reg(0x10));
+
         uint8_t counter = 0;
+        uint32_t memaddr = 0x08000000;
+        arm_set_memaddr(memaddr);
         for(const auto &[page_addr, page] : pages)
         {
-            const size_t size = page.data.size() / 2;
+            const size_t size = page.data.size() / 4;
             for(size_t i = 0; i < size; i++)
             {
-                const uint32_t offset = i*2;
-                const uint32_t word_addr = page_addr * 2 + offset;
-                if ( counter == 0 ) printf("MEM[0x%04X]", word_addr);
-                fflush(stdout);
-                try {
-                    uint16_t word = page.data[offset] | (page.data[offset+1] << 8);
-                    arm_fpec_program(0x08000000 + word_addr, word);
-                    printf(".");
-                } catch (const nano::exception &e) {
-                    printf("*\n%s\n", e.message().c_str());
+                const uint32_t offset = i * 4;
+                const uint32_t addr = 0x08000000 + page_addr * 2 + offset;
+                if ( counter == 0 ) printf("MEM[0x%08X]", addr);
+                if ( addr != memaddr )
+                {
+                    arm_set_memaddr(addr);
+                    memaddr = addr;
                 }
-                fflush(stdout);
-                if ( counter == 0x1F ) printf("\n");
+                //fflush(stdout);
+                try
+                {
+                    //uint32_t addr0 = addr;
+                    //uint32_t addr1 = addr + 2;
+
+                    //uint16_t word0 = page.data[offset] | (page.data[offset+1] << 8);
+                    //uint16_t word1 = page.data[offset+2] | (page.data[offset+3] << 8);
+                    uint32_t word = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
+                    //arm_fpec_program(addr0, word0);
+                    //arm_fpec_program(addr1, word1);
+                    arm_fpec_program_v2(word);
+                    memaddr += 4;
+                    printf(".");
+                }
+                catch (const nano::exception &e)
+                {
+                    printf("*\n%s\n", e.message().c_str());
+                    throw;
+                }
+                //fflush(stdout);
+                if ( counter == 0x1F )
+                {
+                    printf("\n");
+                    //printf("\nflash_cr: 0x%08X\n", arm_fpec_read_reg(0x10));
+                }
                 counter = (counter + 1) & 0x1F;
             }
         }
         if ( counter != 0 )
             printf("\n");
 
+        arm_fpec_write_reg(0x10, 0); // FLASH_CR_PG
     }
 
 
@@ -1171,6 +1210,92 @@ public:
         */
     }
 
+    void arm_set_memap(uint8_t ap)
+    {
+        printf("arm_set_memap(0x%02X)\n", ap);
+        packet_t pkt;
+        pkt.cmd = 11;
+        pkt.len = 2;
+        pkt.data[0] = 1;
+        pkt.data[1] = ap;
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        if ( pkt.len != 2 || pkt.data[1] != ap ) throw nano::exception("arm_set_memap() failed");
+    }
+
+    void arm_set_memaddr(uint32_t addr)
+    {
+        printf("arm_set_memaddr(0x%08X)\n", addr);
+        packet_t pkt;
+        pkt.cmd = 11;
+        pkt.len = 5;
+        pkt.data[0] = 2;
+        pkt.data[1] = addr & 0xFF;
+        pkt.data[2] = (addr >> 8) & 0xFF;
+        pkt.data[3] = (addr >> 16) & 0xFF;
+        pkt.data[4] = (addr >> 24) & 0xFF;
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        //dump_packet("arm_set_memaddr() recv:", pkt);
+        if ( pkt.len != 5 ) throw nano::exception("arm_set_memaddr() wrong length: " + std::to_string(pkt.len));
+        uint32_t output = pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24);
+        if ( output != addr ) throw nano::exception("arm_set_memaddr() failed");
+    }
+
+    uint32_t arm_read_mem32()
+    {
+        //printf("arm_read_mem32()\n");
+        packet_t pkt;
+        pkt.cmd = 12;
+        pkt.len = 4;
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        //dump_packet("arm_read_mem32() recv", pkt);
+        if ( pkt.len != 4 ) throw nano::exception("arm_read_mem32() wrong length: " + std::to_string(pkt.len));
+        return pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
+    }
+
+    uint16_t arm_read_mem16()
+    {
+        packet_t pkt;
+        pkt.cmd = 12;
+        pkt.len = 2;
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        if ( pkt.len != 2 ) throw nano::exception("arm_read_mem16() wrong length: " + std::to_string(pkt.len));
+        return pkt.data[0] | (pkt.data[1] << 8);
+    }
+
+    void arm_write_mem32(uint32_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 13;
+        pkt.len = 4;
+        pkt.data[0] = value & 0xFF;
+        pkt.data[1] = (value >> 8) & 0xFF;
+        pkt.data[2] = (value >> 16) & 0xFF;
+        pkt.data[3] = (value >> 24) & 0xFF;
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        if ( pkt.len != 4 ) throw nano::exception("arm_write_mem32() wrong length: " + std::to_string(pkt.len));
+        uint32_t output = pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
+        if ( output != value ) throw nano::exception("arm_write_mem32() failed");
+    }
+
+    void arm_write_mem16(uint16_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 13;
+        pkt.len = 2;
+        pkt.data[0] = value & 0xFF;
+        pkt.data[1] = (value >> 8) & 0xFF;
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        if ( pkt.len != 2 ) throw nano::exception("arm_write_mem16() wrong length: " + std::to_string(pkt.len));
+        uint16_t output = pkt.data[0] | (pkt.data[1] << 8);
+        if ( output != value ) throw nano::exception("arm_write_mem16() failed");
+    }
+
     void arm_check_idcode()
     {
         printf("\ncheck idcode:\n");
@@ -1410,6 +1535,18 @@ public:
         printf("FPEC unlocked\n");
     }
 
+    uint32_t arm_fpec_read_reg(uint8_t reg)
+    {
+        arm_set_memaddr(0x40022000 + reg);
+        return arm_read_mem32();
+    }
+
+    void arm_fpec_write_reg(uint8_t reg, const uint32_t &value)
+    {
+        arm_set_memaddr(0x40022000 + reg);
+        arm_write_mem32(value);
+    }
+
     void arm_fpec_mass_erase()
     {
         printf("\narm_fpec_mass_erase()\n");
@@ -1477,6 +1614,25 @@ public:
         //arm_memap_csw(arm_csw | 2);
         //printf("flash_cr: 0x%08X\n", arm_mem_read(0x40022000 + 0x10));
         arm_fpec_check_sr();
+    }
+
+    void arm_fpec_program_v2(uint32_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 14;
+        pkt.len = 4;
+        pkt.data[0] = value & 0xFF;
+        pkt.data[1] = (value >> 8) & 0xFF;
+        pkt.data[2] = (value >> 16) & 0xFF;
+        pkt.data[3] = (value >> 24) & 0xFF;
+        //dump_packet("\narm_fpec_program_v2() send", pkt);
+        send_packet(&pkt);
+        recv_packet(&pkt);
+        //dump_packet("arm_fpec_program_v2() recv", pkt);
+        if ( pkt.cmd != 14 ) throw nano::exception("arm_fpec_program_v2() wrong cmd=" + std::to_string(pkt.cmd));
+        if ( pkt.len != 4 ) throw nano::exception("arm_fpec_program_v2() wrong length: " + std::to_string(pkt.len));
+        const uint32_t data = pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
+        if ( data != value ) throw nano::exception("arm_fpec_program_v2() failed");
     }
 
     void arm_dump_mem(uint32_t addr)
