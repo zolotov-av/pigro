@@ -289,22 +289,32 @@ namespace tiny
 
         static constexpr uint32_t default_csw = 0x22000000;
 
+        static constexpr uint32_t readint(const uint8_t *data)
+        {
+            return uint32_t(data[0]) | (uint32_t(data[1]) << 8) | (uint32_t(data[2]) << 16) | (uint32_t(data[3]) << 24);
+        }
+
+        static constexpr void writeint(uint8_t *data, uint32_t value)
+        {
+            data[0] = value & 0xFF;
+            data[1] = (value >> 8) & 0xFF;
+            data[2] = (value >> 16) & 0xFF;
+            data[3] = (value >> 24) & 0xFF;
+        }
+
         static void set_mem_addr(uint8_t *data)
         {
-            mem_addr = data[0] | (uint32_t(data[1]) << 8) | (uint32_t(data[2]) << 16) | (uint32_t(data[3]) << 24);
+            mem_addr = readint(data);
         }
 
         static bool arm_read_memap_reg(uint8_t reg, uint32_t &value)
         {
             uint8_t data[5];
             data[0] = (reg & 0xFC) | 0b10;
-            /*data[1] = value & 0xFF;
-            data[2] = (value >> 8) & 0xFF;
-            data[3] = (value >> 16) & 0xFF;
-            data[4] = (value >> 24) & 0xFF;*/
+            writeint(&data[1], 0); // value ?
             if ( arm_apacc(memap, data) != 1 ) return false;
             if ( data[0] & 0xFC ) return false;
-            value = data[1] | (uint32_t(data[2]) << 8) | (uint32_t(data[3]) << 16) | (uint32_t(data[4]) << 24);
+            value = readint(&data[1]);
             return true;
         }
 
@@ -312,10 +322,7 @@ namespace tiny
         {
             uint8_t data[5];
             data[0] = (reg & 0xFC) | 0b00;
-            data[1] = value & 0xFF;
-            data[2] = (value >> 8) & 0xFF;
-            data[3] = (value >> 16) & 0xFF;
-            data[4] = (value >> 24) & 0xFF;
+            writeint(&data[1], value);
             if ( arm_apacc(memap, data) != 1 ) return false;
             return (data[0] & 0xFC) == 0;
         }
