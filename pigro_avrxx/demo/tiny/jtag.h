@@ -149,6 +149,10 @@ namespace tiny
         using error_t = uint8_t;
 
         /**
+         * Transmit instruction register
+         *
+         * Execute sequence: select-dr, select-ir, capture-ir, shift-ir, exit1-ir, update-ir
+         *
          * на входе TMS=0 (idle)
          * на выходе TMS=1, 2-clk
          */
@@ -202,9 +206,16 @@ namespace tiny
         }
 
         /**
+         * Transmit data register
+         *
+         * Execute sequence: select-dr, capture-dr, shift-dr, exit1-dr, update-dr
+         *
+         * @param register (bits[3:2] = reg[3:2]) and command (bits[1])
+         * @param buffer (in <-> out)
+         *
          * @return ACK-code
          */
-        static error_t set_dr_xpacc(uint8_t cmd, uint32_t *value)
+        static error_t set_dr_xpacc(uint8_t reg_cmd, uint32_t *value)
         {
             JTMS.set(1);
             clk(); // ->select-dr
@@ -212,7 +223,7 @@ namespace tiny
             transaction t;
 
             uint8_t *data = reinterpret_cast<uint8_t*>(value);
-            const uint8_t ack = t.shift_xr<3>(cmd) >> 5;
+            const uint8_t ack = t.shift_xr<3>( reg_cmd >> 1 ) >> 5;
             data[0] = t.shift_xr<8>(data[0]);
             data[1] = t.shift_xr<8>(data[1]);
             data[2] = t.shift_xr<8>(data[2]);
@@ -242,15 +253,15 @@ namespace tiny
          * Execute i/o instruction (DPACC or APACC)
          *
          * @param ir-code
-         * @param register (bits[2:1]) and command (bits[0])
+         * @param register (bits[3:2] = reg[3:2]) and command (bits[1])
          * @param buffer (in <-> out)
          *
          * @return 0x10 on I/O failure, on success return ACK-code
          */
-        static error_t xpacc_io(uint8_t ir, uint8_t cmd, uint32_t *data)
+        static error_t xpacc_io(uint8_t ir, uint8_t reg_cmd, uint32_t *data)
         {
             if ( set_ir(ir) != 1 ) return 0x10;
-            return set_dr_xpacc(cmd, data);
+            return set_dr_xpacc(reg_cmd, data);
         }
 
         /**
@@ -276,12 +287,15 @@ namespace tiny
         /**
          * Execute read/write transaction (DPACC or APACC)
          *
+         * @param ir-code
+         * @param register (bits[3:2] = reg[3:2]) and command (bits[1]: 1 - read, 0 - write)
+         *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static error_t arm_xpacc(uint8_t ir, uint8_t cmd, uint32_t *data)
+        static error_t arm_xpacc(uint8_t ir, uint8_t reg_cmd, uint32_t *data)
         {
             // send command
-            if ( xpacc_io(ir, cmd, data) == 0x10 ) return 0x10;
+            if ( xpacc_io(ir, reg_cmd, data) == 0x10 ) return 0x10;
 
             // send read status, recv command reply
             const uint8_t ack = xpacc_io_read(IR_DPACC, 0x4, data);
@@ -346,7 +360,7 @@ namespace tiny
          * Execute read/write transaction (APACC)
          *
          * @param AP number
-         * @param register (bits[3:2]) and command (bits[1], 1 - read, 0 -write)
+         * @param register (bits[3:2] = reg[3:2]) and command (bits[1]: 1 - read, 0 - write)
          * @param data to send/recv
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
@@ -361,7 +375,7 @@ namespace tiny
             }
 
             // EXEC AP
-            return arm_xpacc(IR_APACC, reg_cmd >> 1, data);
+            return arm_xpacc(IR_APACC, reg_cmd, data);
         }
 
         /**
@@ -407,7 +421,7 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool arm_write_memap_reg(uint8_t reg, uint32_t value)
+        static error_t arm_write_memap_reg(uint8_t reg, uint32_t value)
         {
             return arm_apacc_write(memap, reg, &value);
         }
@@ -417,12 +431,12 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool arm_mem_read32(uint32_t addr, uint32_t &value)
+        static error_t arm_mem_read32(uint32_t addr, uint32_t &value)
         {
-            if ( ! arm_write_memap_reg(0x00, default_csw | 2) ) return false;
-            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
-            if ( ! arm_read_memap_reg(0x0C, value) ) return false;
-            return true;
+            if ( auto err = arm_write_memap_reg(0x00, default_csw | 2) ) return err;
+            if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
+            if ( auto err = arm_read_memap_reg(0x0C, value) ) return err;
+            return 0;
         }
 
         /**
@@ -430,14 +444,14 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool arm_mem_read16(uint32_t addr, uint16_t &value)
+        static error_t arm_mem_read16(uint32_t addr, uint16_t &value)
         {
-            if ( ! arm_write_memap_reg(0x00, default_csw | 1) ) return false;
-            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
+            if ( auto err = arm_write_memap_reg(0x00, default_csw | 1) ) return err;
+            if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
             uint32_t output;
-            if ( ! arm_read_memap_reg(0x0C, output) ) return false;
+            if ( auto err = arm_read_memap_reg(0x0C, output) ) return err;
             value = (addr & 2) ? (output >> 16) : output;
-            return true;
+            return 0;
         }
 
         /**
@@ -445,12 +459,12 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool arm_mem_write32(uint32_t addr, uint32_t value)
+        static error_t arm_mem_write32(uint32_t addr, uint32_t value)
         {
-            if ( ! arm_write_memap_reg(0x00, default_csw | 2) ) return false;
-            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
-            if ( ! arm_write_memap_reg(0x0C, value) ) return false;
-            return true;
+            if ( auto err = arm_write_memap_reg(0x00, default_csw | 2) ) return err;
+            if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
+            if ( auto err = arm_write_memap_reg(0x0C, value) ) return err;
+            return 0;
         }
 
         /**
@@ -458,12 +472,12 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool arm_mem_write16(uint32_t addr, uint16_t value)
+        static error_t arm_mem_write16(uint32_t addr, uint16_t value)
         {
-            if ( ! arm_write_memap_reg(0x00, default_csw | 1) ) return false;
-            if ( ! arm_write_memap_reg(0x04, addr) ) return false;
+            if ( auto err = arm_write_memap_reg(0x00, default_csw | 1) ) return err;
+            if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
             const uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
-            if ( ! arm_write_memap_reg(0x0C, data) ) return false;
+            if ( auto err = arm_write_memap_reg(0x0C, data) ) return err;
             return true;
         }
 
@@ -472,7 +486,7 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool get_fpec_reg(uint8_t reg, uint32_t &value)
+        static error_t get_fpec_reg(uint8_t reg, uint32_t &value)
         {
             return arm_mem_read32(0x40022000 + reg, value);
         }
@@ -482,7 +496,7 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool set_fpec_reg(uint8_t reg, uint32_t value)
+        static error_t set_fpec_reg(uint8_t reg, uint32_t value)
         {
             return arm_mem_write32(0x40022000 + reg, value);
         }
@@ -492,7 +506,7 @@ namespace tiny
          *
          * @return 0 on success, 0x2X on command failure where X is ACK-code
          */
-        static bool arm_fpec_reset_sr()
+        static error_t arm_fpec_reset_sr()
         {
             return set_fpec_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
         }
@@ -500,28 +514,34 @@ namespace tiny
         /**
          * Check errors in FLASH_SR register
          *
-         * @return 0 on success, 0x2X on command failure where X is ACK-code
+         * @return FLASH_SR with additional flags
+         *     bit[6] - fail to read FLASH_SR register (all other bits invalid)
+         *     bit[7] - unknown error
+         *     return 0 on success
          */
         static uint8_t arm_fpec_check_sr()
         {
             uint32_t flash_sr;
-            if ( !get_fpec_reg(0x0C, flash_sr) ) return (1 << 6);
+            if ( get_fpec_reg(0x0C, flash_sr) ) return (1 << 6);
 
             constexpr uint8_t error_mask = 1 | (1 << 2) | (1 << 4);
             if ( flash_sr & error_mask ) return flash_sr;
             if ( flash_sr & (1 << 5) ) return 0;
-            return flash_sr;
+            return flash_sr | (1 << 7);
         }
 
         /**
          * Write to flash memory
          *
-         * @return 0 on success, 0x2X on command failure where X is ACK-code
+         * @return 0 on success or FLASH_SR with additional flags:
+         *     bit[6] - fail to read FLASH_SR register (all other bits invalid)
+         *     bit[7] - unknown error
+         *     return 0 on success
          */
         static uint8_t arm_fpec_program(uint32_t addr, uint16_t value)
         {
-            if ( !arm_fpec_reset_sr() ) return (1 << 6);
-            if ( !arm_mem_write16(addr, value) ) return (1 << 6);
+            if ( arm_fpec_reset_sr() ) return (1 << 7);
+            if ( arm_mem_write16(addr, value) ) return (1 << 7);
             return arm_fpec_check_sr();
         }
 

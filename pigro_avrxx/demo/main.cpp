@@ -134,6 +134,13 @@ static void cmd_jtag_test()
     JTAG::reset();
 }
 
+static void send_error(JTAG::error_t error)
+{
+    pkt.len = 1;
+    pkt.data[1] = error;
+    send_packet();
+}
+
 static void cmd_jtag_ir()
 {
     if ( pkt.len != 1 || pkt.data[0] > 0x0F ) return;
@@ -211,16 +218,11 @@ static void cmd_arm_read()
     if ( pkt.len == 4 )
     {
         uint32_t value;
-        bool ok = JTAG::arm_mem_read32(JTAG::mem_addr, value);
+        auto error = JTAG::arm_mem_read32(JTAG::mem_addr, value);
         JTAG::mem_addr += 4;
-        if ( ok )
-        {
-            *reinterpret_cast<uint32_t*>(pkt.data) = value;
-            send_packet();
-            return;
-        }
+        if ( error ) return send_error(error);
 
-        pkt.len = 0;
+        *reinterpret_cast<uint32_t*>(pkt.data) = value;
         send_packet();
         return;
     }
@@ -228,17 +230,11 @@ static void cmd_arm_read()
     if ( pkt.len == 2 )
     {
         uint16_t value;
-        bool ok = JTAG::arm_mem_read16(JTAG::mem_addr, value);
+        auto error = JTAG::arm_mem_read16(JTAG::mem_addr, value);
         JTAG::mem_addr += 2;
-        if ( ok )
-        {
-            pkt.data[0] = value & 0xFF;
-            pkt.data[1] = (value >> 8) & 0xFF;
-            send_packet();
-            return;
-        }
+        if ( error ) return send_error(error);
 
-        pkt.len = 0;
+        *reinterpret_cast<uint16_t*>(pkt.data) = value;
         send_packet();
         return;
 
@@ -249,26 +245,20 @@ static void cmd_arm_write()
 {
     if ( pkt.len == 4 )
     {
-        const uint32_t value = pkt.data[0] | (uint32_t(pkt.data[1]) << 8) | (uint32_t(pkt.data[2]) << 16) | (uint32_t(pkt.data[3]) << 24);
-        bool ok = JTAG::arm_mem_write32(JTAG::mem_addr, value);
+        auto error = JTAG::arm_mem_write32(JTAG::mem_addr, *reinterpret_cast<uint32_t*>(pkt.data));
         JTAG::mem_addr += 4;
-        if ( !ok )
-        {
-            pkt.len = 0;
-        }
+        if ( error ) return send_error(error);
+
         send_packet();
         return;
     }
 
     if ( pkt.len == 2 )
     {
-        const uint16_t value = pkt.data[0] | (uint16_t(pkt.data[1]) << 8);
-        bool ok = JTAG::arm_mem_write16(JTAG::mem_addr, value);
+        auto error = JTAG::arm_mem_write16(JTAG::mem_addr, *reinterpret_cast<uint16_t*>(pkt.data));
         JTAG::mem_addr += 2;
-        if ( !ok )
-        {
-            pkt.len = 0;
-        }
+        if ( error ) return send_error(error);
+
         send_packet();
         return;
     }
@@ -278,10 +268,10 @@ static void cmd_arm_fpec()
 {
     if ( pkt.len == 4 )
     {
-        const uint16_t word0 = pkt.data[0] | (pkt.data[1] << 8);
-        const uint16_t word1 = pkt.data[2] | (pkt.data[3] << 8);
+        const uint16_t word0 = *reinterpret_cast<uint16_t*>(&pkt.data[0]);
+        const uint16_t word1 = *reinterpret_cast<uint16_t*>(&pkt.data[2]);
 
-        uint8_t status0 = JTAG::arm_fpec_program(JTAG::mem_addr, word0);
+        uint8_t status0 = JTAG::arm_fpec_program(JTAG::mem_addr+0, word0);
         uint8_t status1 = JTAG::arm_fpec_program(JTAG::mem_addr+2, word1);
         JTAG::mem_addr += 4;
 
