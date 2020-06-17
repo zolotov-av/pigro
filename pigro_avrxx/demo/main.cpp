@@ -172,14 +172,8 @@ static void cmd_arm_xpacc()
     if ( pkt.len != 6 ) return;
 
     JTAG::tms(0); // [Reset/Idle]->idle
-    uint8_t ir_ack = JTAG::arm_xpacc(pkt.data[0], &pkt.data[1]);
+    pkt.data[1] = JTAG::arm_xpacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
     JTAG::tms(0); // idle
-
-    if ( ir_ack != 1 )
-    {
-        pkt.len = 1;
-        pkt.data[0] = ir_ack;
-    }
 
     send_packet();
 }
@@ -189,14 +183,8 @@ static void cmd_arm_apacc()
     if ( pkt.len != 6 ) return;
 
     JTAG::tms(0); // [Reset/Idle]->idle
-    uint8_t ir_ack = JTAG::arm_apacc(pkt.data[0], &pkt.data[1]);
+    pkt.data[1] = JTAG::arm_apacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
     JTAG::tms(0); // idle
-
-    if ( ir_ack != 1 )
-    {
-        pkt.len = 1;
-        pkt.data[0] = ir_ack;
-    }
 
     send_packet();
 }
@@ -212,12 +200,10 @@ static void cmd_arm_config()
 
     if ( pkt.len == 5 && pkt.data[0] == 2 )
     {
-        JTAG::set_mem_addr(&pkt.data[1]);
+        JTAG::mem_addr = *reinterpret_cast<uint32_t*>(&pkt.data[1]);
         send_packet();
         return;
     }
-
-
 }
 
 static void cmd_arm_read()
@@ -229,10 +215,7 @@ static void cmd_arm_read()
         JTAG::mem_addr += 4;
         if ( ok )
         {
-            pkt.data[0] = value & 0xFF;
-            pkt.data[1] = (value >> 8) & 0xFF;
-            pkt.data[2] = (value >> 16) & 0xFF;
-            pkt.data[3] = (value >> 24) & 0xFF;
+            *reinterpret_cast<uint32_t*>(pkt.data) = value;
             send_packet();
             return;
         }

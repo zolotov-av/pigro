@@ -183,102 +183,156 @@ namespace tiny
             return ir_ack;
         }
 
-        static void set_dr_xpacc(uint8_t *data)
+        static uint8_t set_dr_xpacc(uint8_t cmd, uint32_t *value)
         {
             JTMS.set(1);
             clk(); // ->select-dr
 
             transaction t;
 
-            data[0] = t.shift_xr<3>(data[0]) >> 5;
+            uint8_t *data = reinterpret_cast<uint8_t*>(value);
+            const uint8_t ack = t.shift_xr<3>(cmd) >> 5;
+            data[0] = t.shift_xr<8>(data[0]);
             data[1] = t.shift_xr<8>(data[1]);
             data[2] = t.shift_xr<8>(data[2]);
             data[3] = t.shift_xr<8>(data[3]);
-            data[4] = t.shift_xr<8>(data[4]);
             t.shift_xr<1>(0);
+
+            return ack;
         }
 
-        template <uint8_t count>
-        static void memcpy(uint8_t *dest, uint8_t *src)
+        static constexpr uint8_t request_read(uint8_t reg)
         {
-            for(uint8_t i = 0; i < count; i++)
-                dest[i] = src[i];
+            return ((reg >> 2) << 1) | 1;
         }
 
-        static uint8_t xpacc_io(uint8_t ir, uint8_t *data)
+        static constexpr uint8_t request_write(uint8_t reg)
         {
-            const uint8_t ir_ack = set_ir(ir);
-            set_dr_xpacc(data);
-            return ir_ack;
+            return ((reg >> 2) << 1) | 0;
         }
 
-        static bool xpacc_is_error(const uint8_t *data)
+        static constexpr bool is_error_status(uint32_t status)
         {
-            constexpr uint8_t mask = (1 << 5) | (1 << 4) | (1 << 1);
-            return (data[0] != ACK_OKFAULT) || (data[1] & mask);
+            constexpr uint8_t error_mask = (1 << 5) | (1 << 4) | (1 << 1);
+            return status & error_mask;
         }
 
-        static constexpr uint8_t read_reg(uint8_t reg)
+        /**
+         * @return 0x10 on I/O failure, on success return ACK
+         */
+        static uint8_t xpacc_io(uint8_t ir, uint8_t cmd, uint32_t *data)
         {
-            return ((reg / 4) << 1) | 1;
+            if ( set_ir(ir) != 1 ) return 0x10;
+            return set_dr_xpacc(cmd, data);
         }
 
-        static constexpr uint8_t write_reg(uint8_t reg)
+        /**
+         * @return 0x10 on I/O failure, on success return ACK
+         */
+        static uint8_t xpacc_read(uint8_t ir, uint8_t reg, uint32_t *data)
         {
-            return ((reg / 4) << 1) | 0;
+            return xpacc_io(ir, request_read(reg), data);
         }
 
-        static uint8_t arm_xpacc(uint8_t ir, uint8_t *data)
+        /**
+         * @return 0x10 on I/O failure, on success return ACK
+         */
+        static uint8_t xpacc_write(uint8_t ir, uint8_t reg, uint32_t *data)
+        {
+            return xpacc_io(ir, request_write(reg), data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_xpacc(uint8_t ir, uint8_t cmd, uint32_t *data)
         {
             // send command
-            if ( uint8_t ir_ack = xpacc_io(ir, data); ir_ack != 1 ) return ir_ack;
+            if ( xpacc_io(ir, cmd, data) == 0x10 ) return 0x10;
 
             // send read status, recv command reply
-            data[0] = read_reg(0x4);
-            if ( uint8_t ir_ack = xpacc_io(IR_DPACC, data); ir_ack != 1 ) return ir_ack;
+            const uint8_t ack = xpacc_read(IR_DPACC, 0x4, data);
+            if ( ack == 0x10 ) return 0x10;
 
             // send read rdbuff, recv status reply
-            uint8_t status[5] = {read_reg(0xC)};
-            if ( uint8_t ir_ack = xpacc_io(IR_DPACC, status); ir_ack != 1 ) return ir_ack;
+            uint32_t status;
+            const uint8_t status_ack = xpacc_read(IR_DPACC, 0xC, &status);
+            if ( status_ack == 0x10 ) return 0x10;
 
-            const uint8_t ack = data[0];
-
-            if ( ack == ACK_OKFAULT && !xpacc_is_error(status) )
+            if ( ack == ACK_OKFAULT && status_ack == ACK_OKFAULT && !is_error_status(status) )
             {
-                return 1;
+                return ack;
             }
 
-            memcpy<5>(data, status);
+            *data = status;
 
-            data[0] |= (1 << 5);
-
-            if ( ack == ACK_WAIT )
-            {
-                data[0] |= (1 << 3);
-                return 1;
-            }
-
-            data[0] |= (1 << 4);
-            return 1;
+            return ack | 0x20;
         }
 
-        static uint8_t arm_apacc(uint8_t ap, uint8_t *data)
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_xpacc_read(uint8_t ir, uint8_t reg, uint32_t *data)
+        {
+            return arm_xpacc(ir, request_read(reg), data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_xpacc_write(uint8_t ir, uint8_t reg, uint32_t *data)
+        {
+            return arm_xpacc(ir, request_write(reg), data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_dp_read(uint8_t reg, uint32_t *data)
+        {
+            return arm_xpacc_read(IR_DPACC, reg, data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_dp_write(uint8_t reg, uint32_t *data)
+        {
+            return arm_xpacc_write(IR_DPACC, reg, data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_apacc(uint8_t ap, uint8_t reg_cmd, uint32_t *data)
         {
             // SELECT AP
-            const uint8_t reg = data[0];
-            uint8_t temp[5] = {write_reg(0x8), uint8_t(reg & 0xF0), 0, 0, ap};
-            if ( uint8_t ir_ack = arm_xpacc(IR_DPACC, temp); ir_ack != 1 ) return ir_ack;
-            if ( temp[0] & (1 << 5) )
+            uint32_t temp = (uint32_t(ap) << 24) | (reg_cmd & 0xF0);
+            uint8_t status = arm_dp_write(0x8, &temp);
+            if ( status != ACK_OKFAULT )
             {
-                memcpy<5>(data, temp);
-                data[0] |= (1 << 6);
-                return 1;
+                *data = temp;
+                return status | 0x40;
             }
 
             // EXEC AP
-            data[0] = reg >> 1;
-            if ( uint8_t ir_ack = arm_xpacc(IR_APACC, data); ir_ack != 1 ) return ir_ack;
-            return 1;
+            return arm_xpacc(IR_APACC, reg_cmd >> 1, data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_apacc_read(uint8_t ap, uint8_t reg, uint32_t *data)
+        {
+            return arm_apacc(ap, reg | 0b10, data);
+        }
+
+        /**
+         * @return 0x2X on command failure, on success return ACK_OKFAULT
+         */
+        static uint8_t arm_apacc_write(uint8_t ap, uint8_t reg, uint32_t *data)
+        {
+            return arm_apacc(ap, reg | 0b00, data);
         }
 
         ///////////////////////////////////////////////////////////////////
@@ -289,42 +343,14 @@ namespace tiny
 
         static constexpr uint32_t default_csw = 0x22000000;
 
-        static constexpr uint32_t readint(const uint8_t *data)
-        {
-            return uint32_t(data[0]) | (uint32_t(data[1]) << 8) | (uint32_t(data[2]) << 16) | (uint32_t(data[3]) << 24);
-        }
-
-        static constexpr void writeint(uint8_t *data, uint32_t value)
-        {
-            data[0] = value & 0xFF;
-            data[1] = (value >> 8) & 0xFF;
-            data[2] = (value >> 16) & 0xFF;
-            data[3] = (value >> 24) & 0xFF;
-        }
-
-        static void set_mem_addr(uint8_t *data)
-        {
-            mem_addr = readint(data);
-        }
-
         static bool arm_read_memap_reg(uint8_t reg, uint32_t &value)
         {
-            uint8_t data[5];
-            data[0] = (reg & 0xFC) | 0b10;
-            writeint(&data[1], 0); // value ?
-            if ( arm_apacc(memap, data) != 1 ) return false;
-            if ( data[0] & 0xFC ) return false;
-            value = readint(&data[1]);
-            return true;
+            return arm_apacc_read(memap, reg, &value);
         }
 
         static bool arm_write_memap_reg(uint8_t reg, uint32_t value)
         {
-            uint8_t data[5];
-            data[0] = (reg & 0xFC) | 0b00;
-            writeint(&data[1], value);
-            if ( arm_apacc(memap, data) != 1 ) return false;
-            return (data[0] & 0xFC) == 0;
+            return arm_apacc_write(memap, reg, &value);
         }
 
         static bool arm_mem_read32(uint32_t addr, uint32_t &value)
