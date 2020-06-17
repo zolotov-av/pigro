@@ -478,7 +478,7 @@ namespace tiny
             if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
             const uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
             if ( auto err = arm_write_memap_reg(0x0C, data) ) return err;
-            return true;
+            return 0;
         }
 
         /**
