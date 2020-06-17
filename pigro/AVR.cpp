@@ -4,21 +4,11 @@
 #include <nano/IniReader.h>
 #include <cstdlib>
 
-/**
- * Конверировать шестнадцатеричную цифру в число
- */
-static uint8_t at_hex_digit(char ch)
-{
-    if ( ch >= '0' && ch <= '9' ) return ch - '0';
-    if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
-    if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
-    throw nano::exception("wrong hex digit");
-}
 
 /**
  * Первести шестнадцатеричное число из строки в целочисленное значение
  */
-static uint32_t at_hex_to_int(const char *s)
+uint32_t at_hex_to_int(const char *s)
 {
     if ( s[0] == '0' && (s[1] == 'x' || s[1] == 'X') ) s += 2;
 
@@ -32,16 +22,6 @@ static uint32_t at_hex_to_int(const char *s)
         r = r * 0x10 + hex;
     }
     return r;
-}
-
-AVR::DeviceCode AVR::parseDeviceCode(const std::string &code)
-{
-    if ( code.empty() ) throw nano::exception("wrong device code: " + code);
-    const uint32_t hex = at_hex_to_int(code.c_str());
-    const uint8_t b000 = hex >> 16;
-    const uint8_t b001 = hex >> 8;
-    const uint8_t b002 = hex;
-    return {b000, b001, b002};
 }
 
 AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path)
@@ -82,64 +62,116 @@ AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path
     return pages;
 }
 
-static bool parse_bool(const std::string &value)
+AVR::~AVR()
 {
-    if ( value == "yes" || value == "true" ) return true;
-    if ( value == "no" || value == "false" ) return false;
-    throw nano::exception("wrong boolean value: " + value);
+
 }
 
-static std::optional<AVR::DeviceInfo> findInFile(const std::string &name, const std::string &path)
+void AVR::isp_chip_info()
 {
-    try
+    auto info = isp_read_chip_info();
+    printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", info[0], info[1], info[2]);
+    if ( info != chip_info().signature )
     {
-        nano::IniReader ini(path);
-        if ( ini.haveSection(name) )
-        {
-            AVR::DeviceInfo avr;
-            avr.signature = AVR::parseDeviceCode(ini.value(name, "device_code"));
-            avr.page_word_size = atoi(ini.value(name, "page_size").c_str());
-            avr.page_count = atoi(ini.value(name, "page_count").c_str());
-            avr.paged = parse_bool(ini.value(name, "paged", "yes"));
-            return avr;
-        }
-
-        return {};
+        warn("isp_check_firmware(): wrong chip signature");
     }
-    catch (const nano::exception &e)
+
+}
+
+void AVR::isp_check_firmware(const PigroDriver::FirmwareData &)
+{
+    printf("AVR::isp_check_firmware(...)\n");
+    throw nano::exception("not implemented yet...");
+}
+
+void AVR::isp_read_fuse()
+{
+    uint8_t fuse_lo = isp_read_fuse_low();  // cmd_isp_io(0x50000000) & 0xFF;
+    uint8_t fuse_hi = isp_read_fuse_high(); // cmd_isp_io(0x58080000) & 0xFF;
+    uint8_t fuse_ex = isp_read_fuse_ext();  // cmd_isp_io(0x50080000) & 0xFF;
+
+    const char *status;
+
+    if ( auto s = get_option("fuse_low"); !s.empty() )
     {
-        return {};
+        const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+        status = (x == fuse_lo) ? " ok " : "diff";
+    }
+    else status = " NA ";
+    printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
+
+    if ( auto s = get_option("fuse_high"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+        status = (x == fuse_hi) ? " ok " : "diff";
+    }
+    else status = " NA ";
+    printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
+
+    if ( auto s = get_option("fuse_ext"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+        status = (x == fuse_ex) ? " ok " : "diff";
+    }
+    else status = " NA ";
+    printf("fuse ext:  0x%02X [%s]\n", fuse_ex, status);
+
+}
+
+void AVR::isp_write_fuse()
+{
+    if ( auto s = get_option("fuse_low"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+        isp_write_fuse_low(x);
+    }
+
+    if ( auto s = get_option("fuse_high"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+        isp_write_fuse_high(x);
+    }
+
+    if ( auto s = get_option("fuse_ext"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+        isp_write_fuse_ext(x);
     }
 }
 
-std::optional<AVR::DeviceInfo> AVR::findDeviceByName(const std::string &name)
+void AVR::isp_check_fuses()
 {
-    if ( auto device = findInFile(name, "./pigro.ini"); device.has_value() )
+    if ( auto s = get_option("fuse_low"); !s.empty() )
     {
-        return device;
+        const uint8_t fuse_lo = isp_read_fuse_low();
+        const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+        const char *status = (x == fuse_lo) ? " ok " : "diff";
+        printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
     }
 
-    const std::string home = getenv("HOME");
-
-    if ( auto device = findInFile(name, home + "/.pigro/devices.ini"); device.has_value() )
+    if ( auto s = get_option("fuse_high"); !s.empty() )
     {
-        return device;
+        const uint8_t fuse_hi = isp_read_fuse_high();
+        const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+        const char *status = (x == fuse_hi) ? " ok " : "diff";
+        printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
     }
 
-    if ( auto device = findInFile(name, home + "~/.pigro/" + name + ".ini"); device.has_value() )
+    if ( auto s = get_option("fuse_ext"); !s.empty() )
     {
-        return device;
+        const uint8_t fuse_ext = isp_read_fuse_ext();
+        const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+        const char *status = (x == fuse_ext) ? " ok " : "diff";
+        printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
     }
 
-    if ( auto device = findInFile(name, "/usr/share/pigro/devices.ini"); device.has_value() )
-    {
-        return device;
-    }
+}
 
-    if ( auto device = findInFile(name, "/usr/share/pigro/" + name + ".ini"); device.has_value() )
-    {
-        return device;
-    }
+void AVR::isp_chip_erase()
+{
+    isp_program_enable();
 
-    return {};
+    unsigned int r = cmd_isp_io(0xAC800000);
+    bool status = ((r >> 16) & 0xFF) == 0xAC;
+    if ( !status ) throw nano::exception("isp_chip_erase() error");
 }
