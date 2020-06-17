@@ -298,10 +298,10 @@ namespace tiny
         {
             uint8_t data[5];
             data[0] = (reg & 0xFC) | 0b10;
-            data[1] = value & 0xFF;
+            /*data[1] = value & 0xFF;
             data[2] = (value >> 8) & 0xFF;
             data[3] = (value >> 16) & 0xFF;
-            data[4] = (value >> 24) & 0xFF;
+            data[4] = (value >> 24) & 0xFF;*/
             if ( arm_apacc(memap, data) != 1 ) return false;
             if ( data[0] & 0xFC ) return false;
             value = data[1] | (uint32_t(data[2]) << 8) | (uint32_t(data[3]) << 16) | (uint32_t(data[4]) << 24);
@@ -370,34 +370,22 @@ namespace tiny
             return set_fpec_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
         }
 
-        static bool arm_fpec_check_sr(uint8_t &status)
+        static uint8_t arm_fpec_check_sr()
         {
-            status = 0;
             uint32_t flash_sr;
-            if ( !get_fpec_reg(0x0C, flash_sr) ) return false;
+            if ( !get_fpec_reg(0x0C, flash_sr) ) return (1 << 6);
 
-            uint8_t mask = 1 | (1 << 2) | (1 << 4);
-            if ( flash_sr & mask )
-            {
-                status = flash_sr;
-                return false;
-            }
-
-            if ( flash_sr & (1 << 5) )
-            {
-                return true;
-            }
-
-            status = flash_sr;
-            return false;
+            constexpr uint8_t error_mask = 1 | (1 << 2) | (1 << 4);
+            if ( flash_sr & error_mask ) return flash_sr;
+            if ( flash_sr & (1 << 5) ) return 0;
+            return flash_sr;
         }
 
-        static bool arm_fpec_program(const uint32_t &addr, const uint16_t &value, uint8_t &status)
+        static uint8_t arm_fpec_program(uint32_t addr, uint16_t value)
         {
-            status = 1 << 6;
-            if ( !arm_fpec_reset_sr() ) return false;
-            if ( !arm_mem_write16(addr, value) ) return false;
-            return arm_fpec_check_sr(status);
+            if ( !arm_fpec_reset_sr() ) return (1 << 6);
+            if ( !arm_mem_write16(addr, value) ) return (1 << 6);
+            return arm_fpec_check_sr();
         }
 
     };

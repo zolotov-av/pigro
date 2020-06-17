@@ -298,17 +298,17 @@ static void cmd_arm_fpec()
         const uint16_t word0 = pkt.data[0] | (pkt.data[1] << 8);
         const uint16_t word1 = pkt.data[2] | (pkt.data[3] << 8);
 
-        uint8_t status0, status1;
-        bool ok0 = JTAG::arm_fpec_program(JTAG::mem_addr, word0, status0);
-        bool ok1 = JTAG::arm_fpec_program(JTAG::mem_addr+2, word1, status1);
+        uint8_t status0 = JTAG::arm_fpec_program(JTAG::mem_addr, word0);
+        uint8_t status1 = JTAG::arm_fpec_program(JTAG::mem_addr+2, word1);
         JTAG::mem_addr += 4;
 
-        if ( !ok0 || !ok1 )
+        if ( status0 || status1 )
         {
             pkt.len = 2;
-            pkt.data[0] = status0 | (ok0 << 7);
-            pkt.data[1] = status1 | (ok1 << 7);
+            pkt.data[0] = status0;
+            pkt.data[1] = status1;
         }
+
         send_packet();
         return;
     }
