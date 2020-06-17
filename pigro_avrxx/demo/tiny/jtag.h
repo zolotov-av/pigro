@@ -308,7 +308,7 @@ namespace tiny
             return true;
         }
 
-        static bool arm_write_memap_reg(uint8_t reg, const uint32_t &value)
+        static bool arm_write_memap_reg(uint8_t reg, uint32_t value)
         {
             uint8_t data[5];
             data[0] = (reg & 0xFC) | 0b00;
@@ -320,7 +320,7 @@ namespace tiny
             return (data[0] & 0xFC) == 0;
         }
 
-        static bool arm_mem_read32(const uint32_t &addr, uint32_t &value)
+        static bool arm_mem_read32(uint32_t addr, uint32_t &value)
         {
             if ( ! arm_write_memap_reg(0x00, default_csw | 2) ) return false;
             if ( ! arm_write_memap_reg(0x04, addr) ) return false;
@@ -328,17 +328,17 @@ namespace tiny
             return true;
         }
 
-        static bool arm_mem_read16(const uint32_t &addr, uint16_t &value)
+        static bool arm_mem_read16(uint32_t addr, uint16_t &value)
         {
             if ( ! arm_write_memap_reg(0x00, default_csw | 1) ) return false;
             if ( ! arm_write_memap_reg(0x04, addr) ) return false;
             uint32_t output;
             if ( ! arm_read_memap_reg(0x0C, output) ) return false;
-            value = (addr & 0x02) ? (output >> 16) : output;
+            value = (addr & 2) ? (output >> 16) : output;
             return true;
         }
 
-        static bool arm_mem_write32(const uint32_t &addr, const uint32_t &value)
+        static bool arm_mem_write32(uint32_t addr, uint32_t value)
         {
             if ( ! arm_write_memap_reg(0x00, default_csw | 2) ) return false;
             if ( ! arm_write_memap_reg(0x04, addr) ) return false;
@@ -346,11 +346,11 @@ namespace tiny
             return true;
         }
 
-        static bool arm_mem_write16(const uint32_t &addr, const uint16_t &value)
+        static bool arm_mem_write16(uint32_t addr, uint16_t value)
         {
             if ( ! arm_write_memap_reg(0x00, default_csw | 1) ) return false;
             if ( ! arm_write_memap_reg(0x04, addr) ) return false;
-            uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
+            const uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
             if ( ! arm_write_memap_reg(0x0C, data) ) return false;
             return true;
         }
@@ -360,7 +360,7 @@ namespace tiny
             return arm_mem_read32(0x40022000 + reg, value);
         }
 
-        static bool set_fpec_reg(uint8_t reg, const uint32_t &value)
+        static bool set_fpec_reg(uint8_t reg, uint32_t value)
         {
             return arm_mem_write32(0x40022000 + reg, value);
         }
