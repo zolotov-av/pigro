@@ -235,12 +235,12 @@ namespace tiny
 
         static constexpr uint8_t request_read(uint8_t reg)
         {
-            return ((reg >> 2) << 1) | 1;
+            return (reg & 0xFC) | 0b10;
         }
 
         static constexpr uint8_t request_write(uint8_t reg)
         {
-            return ((reg >> 2) << 1) | 0;
+            return (reg & 0xFC) | 0b00;
         }
 
         static constexpr bool is_error_status(uint32_t status)
@@ -368,10 +368,10 @@ namespace tiny
         {
             // SELECT AP
             uint32_t temp = (uint32_t(ap) << 24) | (reg_cmd & 0xF0);
-            if ( uint8_t status = arm_dp_write(0x8, &temp) )
+            if ( auto error = arm_dp_write(0x8, &temp) )
             {
                 *data = temp;
-                return status | 0x40;
+                return error | 0x40;
             }
 
             // EXEC AP

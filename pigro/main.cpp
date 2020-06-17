@@ -1013,6 +1013,38 @@ public:
         return write ? "write" : "read";
     }
 
+    /**
+     * Error code
+     *
+     * First hex-digit is error code itself.
+     * Second hex-digit is ACK-code
+     *
+     * ACK-codes (see ARM Debug Interface Architecture Specification):
+     *   0x01 (ACK_WAIT)
+     *   0x02 (ACK_OKFAULT)
+     *   ... other is a fault (reserved codes)
+     *
+     * 0x00 - success
+     * 0x1X - I/O failure (unexpected reply from shift-ir)
+     * 0x2X - command failure (CTRL/STAT reports some sticky flags)
+     * 0x4X - select failure (write to SELECT register)
+     */
+    using error_t = uint8_t;
+
+    void check_error(std::string func, error_t error)
+    {
+        if ( error == 0 ) return /* ok */;
+        if ( error & 0x40 ) throw nano::exception(func + " select failure (write to SELECT register)");
+        if ( error & 0x20 ) throw nano::exception(func + " command failure (CTRL/STAT reports some sticky flags)");
+        if ( error & 0x10 ) throw nano::exception(func + " I/O failure (unexpected reply from shift-ir)");
+        if ( error & 0xF0 ) throw nano::exception(func + " unknown error");
+
+        const uint8_t ack = error & 0x0F;
+        if ( ack == ACK_OKFAULT ) return /* ok */;
+        if ( ack == ACK_WAIT ) throw nano::exception(func + " ACK_WAIT");
+        throw nano::exception(func + " wrong ACK=" + std::to_string(ack));
+    }
+
     uint32_t arm_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
     {
         //printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
@@ -1022,7 +1054,7 @@ public:
         pkt.len = 6;
         if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_xpacc() pkt.len too big: " + std::to_string(pkt.len));
         pkt.data[0] = ir;
-        pkt.data[1] = ((reg / 4) << 1) | (write ? 0 : 1);
+        pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
         pkt.data[2] = value & 0xFF;
         pkt.data[3] = (value >> 8) & 0xFF;
         pkt.data[4] = (value >> 16) & 0xFF;
@@ -1035,19 +1067,11 @@ public:
         //dump_packet("arm_xpacc() recv", pkt);
 
         if ( pkt.cmd != 9 ) throw nano::exception("arm_xpacc() wrong reply: " + std::to_string(pkt.cmd));
-        if ( pkt.len == 1 ) throw nano::exception("arm_xpacc() JTAG failed: ir_ack=" + std::to_string(pkt.data[0]));
         if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong reply length: " + std::to_string(pkt.len));
 
-        const uint8_t ack = pkt.data[1];
-        const uint32_t data = pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
+        check_error("arm_xpacc()", pkt.data[1]);
 
-        if ( ack == ACK_OKFAULT ) return data;
-
-        if ( ack & (1 << 3) ) throw nano::exception("arm_xpacc() command WAIT");
-        if ( ack & (1 << 4) ) throw nano::exception("arm_xpacc() command wrong ack");
-        if ( ack & (1 << 5) ) throw nano::exception("arm_xpacc() command failure");
-        if ( ack == ACK_WAIT ) throw nano::exception("arm_xpacc() status WAIT");
-        throw nano::exception("arm_xpacc() status wrong ack");
+        return pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
     }
 
     uint32_t arm_apacc(uint8_t ap, uint8_t reg, uint32_t value, bool write)
@@ -1072,20 +1096,11 @@ public:
         //dump_packet("arm_apacc() recv", pkt);
 
         if ( pkt.cmd != 10 ) throw nano::exception("arm_apacc() wrong reply: " + std::to_string(pkt.cmd));
-        if ( pkt.len == 1 ) throw nano::exception("arm_apacc() JTAG failed: ir_ack=" + std::to_string(pkt.data[0]));
         if ( pkt.len != 6 ) throw nano::exception("arm_apacc() wrong reply length: " + std::to_string(pkt.len));
 
-        const uint8_t ack = pkt.data[1];
-        const uint32_t data = pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
+        check_error("arm_apacc()", pkt.data[1]);
 
-        if ( ack == ACK_OKFAULT ) return data;
-
-        if ( ack & (1 << 6) ) throw nano::exception("arm_apacc() select ap failure");
-        if ( ack & (1 << 3) ) throw nano::exception("arm_apacc() command WAIT");
-        if ( ack & (1 << 4) ) throw nano::exception("arm_apacc() command wrong ack");
-        if ( ack & (1 << 5) ) throw nano::exception("arm_apacc() command failure");
-        if ( ack == ACK_WAIT ) throw nano::exception("arm_apacc() status WAIT");
-        throw nano::exception("arm_apacc() status wrong ack");
+        return pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
     }
 
     const char *ack_name(uint8_t ack)
