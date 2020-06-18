@@ -496,7 +496,11 @@ public:
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
 
+    uint32_t page_size() const override;
+    uint32_t page_count() const override;
+
     void action_test() override;
+    void parse_device_info(const nano::options &) override;
     void isp_chip_info() override;
     void isp_check_firmware(const FirmwareData &) override;
     void isp_write_firmware(const FirmwareData &) override;

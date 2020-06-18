@@ -53,6 +53,8 @@ class AVR: public PigroDriver
 {
 public:
 
+    DeviceInfo avr;
+
     AVR(PigroLink *link): PigroDriver(link) { }
     ~AVR() override;
 
@@ -149,10 +151,20 @@ public:
         return {b000, b001, b002};
     }
 
+    static DeviceCode parseDeviceCode(const std::string &code)
+    {
+        if ( code.empty() ) throw nano::exception("wrong device code: " + code);
+        const uint32_t hex = at_hex_to_int(code.c_str());
+        const uint8_t b000 = hex >> 16;
+        const uint8_t b001 = hex >> 8;
+        const uint8_t b002 = hex;
+        return {b000, b001, b002};
+    }
+
     bool check_chip_info()
     {
         auto info = isp_read_chip_info();
-        bool status = (info == chip_info().signature);
+        bool status = (info == parseDeviceCode(chip_info().value("device_code")));
         const char *status_str = status ? "[ ok ]" : "[diff]";
         printf("chip signature: 0x%02X, 0x%02X, 0x%02X %s\n", info[0], info[1], info[2], status_str);
         return status;
@@ -293,8 +305,11 @@ public:
         }
     }
 
+    uint32_t page_size() const override;
+    uint32_t page_count() const override;
 
     void action_test() override;
+    void parse_device_info(const nano::options &info) override;
     void isp_chip_info() override;
     void isp_check_firmware(const FirmwareData &) override;
     void isp_write_firmware(const FirmwareData &) override;
@@ -310,6 +325,6 @@ using AVR_Page = PigroDriver::PageData;
 
 using AVR_Data = PigroDriver::FirmwareData;
 
-AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path);
+AVR::FirmwareData avr_load_from_hex(uint32_t page_size, const std::string &path);
 
 #endif // AVR_H

@@ -3,6 +3,7 @@
 
 #include <nano/string.h>
 #include <nano/TextReader.h>
+#include <nano/config.h>
 
 #include <map>
 
@@ -17,14 +18,9 @@ namespace nano
     template <int linesize = 512>
     class IniReader
     {
-    private:
-
-        using options = std::map<std::string, std::string>;
-        using sections = std::map<std::string, options>;
+    public:
 
         sections data;
-
-    public:
 
         IniReader() = default;
         IniReader(const IniReader &) = delete;
@@ -66,51 +62,6 @@ namespace nano
                 data[current_section][std::string(key)] = std::string(value);
             }
 
-        }
-
-        bool haveSection(const std::string &section) const
-        {
-            return data.find(section) != data.end();
-        }
-
-        bool haveOption(const std::string &section, const std::string &option) const
-        {
-            if ( auto s = data.find(section); s != data.end() )
-            {
-                const auto &options = s->second;
-                return options.find(option) != options.end();
-            }
-
-            return false;
-        }
-
-        std::string value(const std::string &section, const std::string &option, std::string_view defaultValue = {}) const
-        {
-            if ( auto s = data.find(section); s != data.end() )
-            {
-                const auto &options = s->second;
-                if ( auto opt = options.find(option); opt != options.end() )
-                {
-                    return opt->second;
-                }
-            }
-
-            return std::string(defaultValue);
-        }
-
-        void setValue(const std::string &section, const std::string &option, const std::string &value)
-        {
-            data[section][option] = value;
-        }
-
-        void dumpSections() const
-        {
-            std::cout << "sections:\n";
-            for(const auto &t : data)
-            {
-                std::cout << "  " << t.first << "\n";
-            }
-            std::cout << std::flush;
         }
 
     };

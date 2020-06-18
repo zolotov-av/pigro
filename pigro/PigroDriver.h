@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <nano/exception.h>
+#include <nano/config.h>
 
 #include "DeviceInfo.h"
 #include "PigroLink.h"
@@ -20,18 +21,6 @@ protected:
     PigroLink *link;
 
 public:
-
-    static DeviceCode parseDeviceCode(const std::string &code)
-    {
-        if ( code.empty() ) throw nano::exception("wrong device code: " + code);
-        const uint32_t hex = at_hex_to_int(code.c_str());
-        const uint8_t b000 = hex >> 16;
-        const uint8_t b001 = hex >> 8;
-        const uint8_t b002 = hex;
-        return {b000, b001, b002};
-    }
-
-    static std::optional<DeviceInfo> findDeviceByName(const std::string &name);
 
     struct PageData
     {
@@ -53,12 +42,12 @@ public:
         return link->get_option(name, default_value);
     }
 
-    const DeviceInfo& chip_info() const
+    const nano::options& chip_info() const
     {
         return link->chip_info();
     }
 
-    void info(const char *msg)
+    inline void info(const char *msg)
     {
         if ( verbose() )
         {
@@ -66,12 +55,12 @@ public:
         }
     }
 
-    void warn(const char *msg)
+    inline void warn(const char *msg)
     {
         fprintf(stderr, "warn: %s\n", msg);
     }
 
-    void error(const char *msg)
+    inline void error(const char *msg)
     {
         fprintf(stderr, "error: %s\n", msg);
     }
@@ -102,7 +91,11 @@ public:
         printf("\n");
     }
 
+    virtual uint32_t page_size() const = 0;
+    virtual uint32_t page_count() const = 0;
+
     virtual void action_test() = 0;
+    virtual void parse_device_info(const nano::options &info) = 0;
     virtual void isp_chip_info() = 0;
     virtual void isp_check_firmware(const FirmwareData &) = 0;
     virtual void isp_write_firmware(const FirmwareData &) = 0;

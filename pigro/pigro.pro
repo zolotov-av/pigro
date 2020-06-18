@@ -9,6 +9,9 @@ SOURCES += \
     DeviceInfo.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
+    nano/config.cpp \
+    nano/ini.cpp \
+    nano/map.cpp \
     nano/string.cpp \
     nano/IniReader.cpp \
     nano/TextReader.cpp \
@@ -23,6 +26,9 @@ HEADERS += \
     DeviceInfo.h \
     PigroDriver.h \
     PigroLink.h \
+    nano/config.h \
+    nano/ini.h \
+    nano/map.h \
     nano/string.h \
     nano/IniReader.h \
     nano/TextReader.h \

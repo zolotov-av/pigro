@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <string>
+#include <nano/config.h>
+
 #include "DeviceInfo.h"
 
 constexpr auto PACKET_MAXLEN = 6;
@@ -22,7 +24,7 @@ public:
 
     virtual std::string get_option(const std::string &name, const std::string &default_value = {}) = 0;
 
-    virtual const DeviceInfo& chip_info() const = 0;
+    virtual const nano::options& chip_info() const = 0;
 
     /**
      * Отправить пакет данных

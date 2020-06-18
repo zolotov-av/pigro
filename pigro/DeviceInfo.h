@@ -2,6 +2,9 @@
 #define DEVICEINFO_H
 
 #include <array>
+#include <optional>
+#include <nano/config.h>
+#include <nano/ini.h>
 
 using DeviceCode = std::array<uint8_t, 3>;
 
@@ -56,6 +59,62 @@ struct DeviceInfo
     uint16_t word_mask() const { return page_word_size - 1; }
     uint16_t byte_mask() const { return page_byte_size() - 1; }
     uint16_t page_mask() const { return 0xFFFF ^ word_mask(); }
+
+    /**
+     * Загрузить описание чипа из файла
+     */
+    static std::optional<nano::options> LoadFromFile(const std::string &name, const std::string &path)
+    {
+        try
+        {
+            nano::config ini = nano::ini::loadFromFile(path);
+            if ( ini.haveSection(name) )
+            {
+                return ini.section(name);
+            }
+
+            return {};
+        }
+        catch (const nano::exception &e)
+        {
+            return {};
+        }
+    }
+
+    /**
+     * Найти описание чипа по имени
+     */
+    static std::optional<nano::options> LoadByName(const std::string &name)
+    {
+        if ( auto device = LoadFromFile(name, "pigro.ini"); device.has_value() )
+        {
+            return device;
+        }
+
+        const std::string home = getenv("HOME");
+
+        if ( auto device = LoadFromFile(name, home + "/.pigro/devices.ini"); device.has_value() )
+        {
+            return device;
+        }
+
+        if ( auto device = LoadFromFile(name, home + "/.pigro/" + name + ".ini"); device.has_value() )
+        {
+            return device;
+        }
+
+        if ( auto device = LoadFromFile(name, "/usr/share/pigro/devices.ini"); device.has_value() )
+        {
+            return device;
+        }
+
+        if ( auto device = LoadFromFile(name, "/usr/share/pigro/" + name + ".ini"); device.has_value() )
+        {
+            return device;
+        }
+
+        return {};
+    }
 };
 
 

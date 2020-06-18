@@ -12,6 +12,17 @@ ARM::~ARM()
 
 }
 
+uint32_t ARM::page_size() const
+{
+    return 1024;
+}
+
+uint32_t ARM::page_count() const
+{
+    // TODO
+    return 64;
+}
+
 void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");
@@ -56,19 +67,20 @@ void ARM::action_test()
     arm_debug_disable();
 }
 
+void ARM::parse_device_info(const nano::options &)
+{
+
+}
+
 void ARM::isp_chip_info()
 {
     printf("\nARM::isp_chip_info()\n\n");
 
-    not_implemented_yet(__func__);
-
-    /*
     arm_debug_enable();
 
-    // ...
+    warn("ARM::isp_chip_info() not implemented yet");
 
     arm_debug_disable();
-    */
 }
 
 void ARM::isp_check_firmware(const PigroDriver::FirmwareData &pages)

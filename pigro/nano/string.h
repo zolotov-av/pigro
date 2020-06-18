@@ -6,6 +6,8 @@
 namespace nano
 {
 
+    using string = std::string;
+
     std::string_view trim(std::string_view text);
 
 }

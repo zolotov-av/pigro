@@ -20,9 +20,12 @@
 #include <nano/exception.h>
 #include <nano/serial.h>
 #include <nano/IniReader.h>
+#include <nano/config.h>
 
+#include "IntelHEX.h"
 #include "AVR.h"
 #include "ARM.h"
+#include "DeviceInfo.h"
 #include "PigroLink.h"
 
 constexpr uint8_t PKT_ACK = 1;
@@ -41,23 +44,6 @@ enum PigroAction {
     AT_ACT_ADC,
     AT_ACT_TEST
 };
-
-/**
-* Имя hex-файла
-*/
-const char *fname;
-
-/**
-* FUSE-биты
-*/
-std::string fuse_bits_s;
-
-/**
-* Нужно ли выводить дополнительный отладочный вывод или быть тихим?
-*/
-bool m_verbose = false;
-
-static class PigroApp *papp = nullptr;
 
 /**
 * Отобразить подсказку
@@ -79,19 +65,28 @@ class PigroApp: public PigroLink
 {
 private:
 
+    /**
+     * Нужно ли выводить дополнительный отладочный вывод или быть тихим?
+     */
+    bool m_verbose = false;
     bool nack_support = false;
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
-    nano::IniReader<512> config;
+    nano::config config;
     nano::serial *serial = nullptr;
-    DeviceInfo m_chip_info;
+    nano::options m_chip_info;
+    std::string device_type;
     std::string hexfname;
+
+    IntelHEX hex;
+    DeviceInfo chip;
+
 
     PigroDriver *driver = nullptr;
 
 public:
 
-    PigroApp(const char *path): config("pigro.ini"), serial (new nano::serial(path))
+    PigroApp(const char *path, bool verbose): m_verbose(verbose), config(nano::IniReader<512>("pigro.ini").data), serial (new nano::serial(path))
     {
     }
 
@@ -111,7 +106,7 @@ public:
         return config.value("main", name, default_value);
     }
 
-    const DeviceInfo& chip_info() const override
+    const nano::options& chip_info() const override
     {
         return m_chip_info;
     }
@@ -173,7 +168,7 @@ public:
         fprintf(stderr, "error: %s\n", msg);
     }
 
-    void checkVersion()
+    void checkProtoVersion()
     {
         packet_t pkt;
         pkt.cmd = 1;
@@ -211,7 +206,10 @@ public:
 
     void dumpProtoVersion()
     {
-        printf("proto version: %d.%d\n", protoVersionMajor, protoVersionMinor);
+        if ( verbose() )
+        {
+            printf("proto version: %d.%d\n", protoVersionMajor, protoVersionMinor);
+        }
     }
 
     /**
@@ -275,6 +273,11 @@ public:
      */
     int action_erase()
     {
+        if ( verbose() )
+        {
+            info("erase device's frimware");
+        }
+
         loadConfig();
 
         driver->isp_chip_erase();
@@ -298,52 +301,46 @@ public:
         std::string device = config.value("main", "device");
         if ( device.empty() )
         {
-            throw nano::exception("specify device");
+            throw nano::exception("specify device (pigro.ini)");
         }
 
-        if ( auto dev = AVR::findDeviceByName(device); dev.has_value() )
+        hexfname = config.value("main", "hex");
+        if ( hexfname.empty() )
         {
-            m_chip_info = *dev;
+            throw nano::exception("specify hex file name (pigro.ini)");
+        }
+
+        if ( auto dev = DeviceInfo::LoadByName(device); dev.has_value() )
+        {
+            m_chip_info = std::move(*dev);
         }
         else
         {
             throw nano::exception("device not found: " + device);
         }
 
-        hexfname = config.value("main", "hex", fname);
-
+        device_type = m_chip_info.value("type", "avr");
         if ( verbose() )
         {
-            std::cout << "device: " << device << "\n";
-            if ( m_chip_info.paged )
-            {
-                std::cout << "page_size: " << int(m_chip_info.page_word_size) << " words\n";
-                std::cout << "page_count: " << int(m_chip_info.page_count) << "\n";
-            }
-            std::cout << "flash_size: " << ((m_chip_info.flash_size()+1023) / 1024) << "k\n";
+            std::cout << "device: " << device << " (" << device_type << ")\n";
+            std::cout << "device name: " << m_chip_info.value("name") << "\n";
+            //std::cout << "flash_size: " << ((m_chip_info.flash_size()+1023) / 1024) << "k\n";
             std::cout << "hex_file: " << hexfname << "\n";
+
         }
+
 
         if ( driver ) delete driver;
-        driver = lookupDriver(chip_info().type);
-
-        if ( !chip_info().paged )
-        {
-            warn("unsupported chip, only Write Page supported");
-        }
-        else if ( !chip_info().valid() )
-        {
-            warn("invalid or unsupported chip data, check database");
-        }
-
+        driver = lookupDriver(device_type);
+        driver->parse_device_info(m_chip_info);
     }
 
     AVR_Data readHEX()
     {
         loadConfig();
 
-        auto pages = avr_load_from_hex(m_chip_info, hexfname);
-        printf("page usages: %ld / %d\n", pages.size(), m_chip_info.page_count);
+        auto pages = avr_load_from_hex(driver->page_size(), hexfname);
+        printf("page usages: %ld / %d\n", pages.size(), driver->page_count());
         return pages;
     }
 
@@ -401,36 +398,47 @@ int real_main(int argc, char *argv[])
 	
     PigroAction action;
 
-	if ( strcmp(argv[1], "info") == 0 ) action = AT_ACT_INFO;
-	else if ( strcmp(argv[1], "check") == 0 ) action = AT_ACT_CHECK;
-	else if ( strcmp(argv[1], "write") == 0 ) action = AT_ACT_WRITE;
-	else if ( strcmp(argv[1], "erase") == 0 ) action = AT_ACT_ERASE;
-	else if ( strcmp(argv[1], "rfuse") == 0 ) action = AT_ACT_READ_FUSE;
-    else if ( strcmp(argv[1], "wfuse") == 0 ) action = AT_ACT_WRITE_FUSE;
-	else if ( strcmp(argv[1], "wfuse_lo") == 0 ) action = AT_ACT_WRITE_FUSE_LO;
-	else if ( strcmp(argv[1], "wfuse_hi") == 0 ) action = AT_ACT_WRITE_FUSE_HI;
-    else if ( strcmp(argv[1], "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
-    else if ( strcmp(argv[1], "arm") == 0 ) action = AT_ACT_TEST;
-    else if ( strcmp(argv[1], "test") == 0 ) action = AT_ACT_TEST;
+    bool verbose = false;
+    for(int i = 1; i < argc; i++)
+    {
+        if ( strcmp(argv[i], "-v") == 0 )
+        {
+            verbose = true;
+        }
+        else if ( strcmp(argv[i], "-q") == 0 )
+        {
+            verbose = false;
+        }
+    }
+
+    const char *action_arg = nullptr;
+    for(int i = 1; i < argc; i++)
+    {
+        if ( argv[i][0] != '-' )
+        {
+            action_arg = argv[i];
+        }
+    }
+
+    if ( action_arg == nullptr ) return help();
+
+    if ( strcmp(action_arg, "info") == 0 ) action = AT_ACT_INFO;
+    else if ( strcmp(action_arg, "check") == 0 ) action = AT_ACT_CHECK;
+    else if ( strcmp(action_arg, "write") == 0 ) action = AT_ACT_WRITE;
+    else if ( strcmp(action_arg, "erase") == 0 ) action = AT_ACT_ERASE;
+    else if ( strcmp(action_arg, "rfuse") == 0 ) action = AT_ACT_READ_FUSE;
+    else if ( strcmp(action_arg, "wfuse") == 0 ) action = AT_ACT_WRITE_FUSE;
+    else if ( strcmp(action_arg, "wfuse_lo") == 0 ) action = AT_ACT_WRITE_FUSE_LO;
+    else if ( strcmp(action_arg, "wfuse_hi") == 0 ) action = AT_ACT_WRITE_FUSE_HI;
+    else if ( strcmp(action_arg, "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
+    else if ( strcmp(action_arg, "arm") == 0 ) action = AT_ACT_TEST;
+    else if ( strcmp(action_arg, "test") == 0 ) action = AT_ACT_TEST;
 	else return help();
 	
-    if ( argc > 2 )
-	{
-        fuse_bits_s = argv[2];
-	}
-	
-    fname = argc > 2 ? argv[2] : "firmware.hex";
-    m_verbose = argc > 3 && strcmp(argv[3], "verbose") == 0;
-    if ( m_verbose )
-	{
-		printf("firmware file: %s\n", fname);
-	}
 
-    PigroApp app("/dev/ttyUSB0");
-    app.checkVersion();
+    PigroApp app("/dev/ttyUSB0", verbose);
+    app.checkProtoVersion();
     app.dumpProtoVersion();
-    papp = &app;
-
     app.execute(action);
 
     return 0;

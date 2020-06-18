@@ -1,7 +1,6 @@
 #include "AVR.h"
 
 #include "IntelHEX.h"
-#include <nano/IniReader.h>
 #include <cstdlib>
 
 
@@ -24,14 +23,29 @@ uint32_t at_hex_to_int(const char *s)
     return r;
 }
 
-AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path)
+AVR::FirmwareData avr_load_from_hex(uint32_t page_size, const std::string &path)
 {
+    if ( page_size > 0x10000 ) throw nano::exception("avr_load_from_hex(): page_size too large");
+    if ( !DeviceInfo::is_power_of_two(page_size) ) throw nano::exception("avr_load_from_hex(): page_size is not power of two");
+
     const auto rows = IntelHEX(path).rows;
 
-    const uint16_t page_byte_size = avr.page_byte_size();
-    const uint16_t page_mask = avr.page_mask();
-    const uint16_t byte_mask = avr.byte_mask();
-    const uint32_t flash_size = avr.flash_size();
+    /*
+    uint32_t flash_size() const { return page_byte_size() * page_count; }
+    uint32_t eeprom_size() const { return eeprom_page_size * eeprom_page_count; }
+
+    uint16_t page_byte_size() const { return page_word_size * 2; }
+    uint16_t word_mask() const { return page_word_size - 1; }
+    uint16_t byte_mask() const { return page_byte_size() - 1; }
+    uint16_t page_mask() const { return 0xFFFF ^ word_mask(); }
+    */
+
+    const uint16_t page_byte_size = page_size;
+    const uint16_t page_word_size = page_size / 2;
+    const uint16_t word_mask = page_word_size - 1;
+    const uint16_t page_mask = 0xFFFF ^ word_mask;
+    const uint16_t byte_mask = page_byte_size - 1;
+    //const uint32_t flash_size = page_byte_size * page_count;
 
     AVR_Data pages;
     for(const auto &row : rows)
@@ -43,7 +57,7 @@ AVR::FirmwareData avr_load_from_hex(const AVR_Info &avr, const std::string &path
             for(uint16_t i = 0; i < row.length(); i++)
             {
                 const uint16_t addr = row_addr + i;
-                if ( addr >= flash_size ) throw nano::exception("image too big");
+                //if ( addr >= flash_size ) throw nano::exception("image too big");
                 const uint16_t page_addr = (addr / 2) & page_mask;
                 const uint16_t offset = addr & byte_mask;
                 AVR_Page &page = pages[page_addr];
@@ -67,11 +81,50 @@ AVR::~AVR()
 
 }
 
+uint32_t AVR::page_size() const
+{
+    return avr.page_byte_size();
+}
+
+uint32_t AVR::page_count() const
+{
+    return avr.page_count;
+}
+
 void AVR::action_test()
 {
     printf("\nAVR::action_test()\n\n");
 
     throw nano::exception(std::string(__func__) + " not implemented");
+}
+
+void AVR::parse_device_info(const nano::options &options)
+{
+    printf("AVR::parse_device_info()\n");
+    avr.type = options.value("type", "avr");
+    avr.signature = parseDeviceCode(options.value("device_code"));
+    avr.page_word_size = atoi(options.value("page_size").c_str());
+    avr.page_count = atoi(options.value("page_count").c_str());
+    avr.paged = nano::parse_bool(options.value("paged", "yes"));
+
+    if ( verbose() )
+    {
+        if ( avr.paged )
+        {
+            std::cout << "page_size: " << int(avr.page_word_size) << " words\n";
+            std::cout << "page_count: " << int(avr.page_count) << "\n";
+        }
+        std::cout << "flash_size: " << ((avr.flash_size()+1023) / 1024) << "k\n";
+    }
+
+    if ( !avr.paged )
+    {
+        warn("unsupported chip, only Write Page supported");
+    }
+    else if ( !avr.valid() )
+    {
+        warn("invalid or unsupported chip data, check database");
+    }
 }
 
 void AVR::isp_chip_info()
@@ -123,7 +176,7 @@ void AVR::isp_write_firmware(const PigroDriver::FirmwareData &pages)
         throw nano::exception("isp_write_firmware() reject: wrong chip signature");
     }
 
-    if ( !chip_info().valid() || !chip_info().paged )
+    if ( !avr.valid() || !avr.paged )
     {
         throw nano::exception("isp_write_firmware() reject: unsupported chip");
     }
