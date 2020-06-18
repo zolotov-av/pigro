@@ -259,16 +259,14 @@ public:
         }
     }
 
+    void action_test() override;
     void isp_chip_info() override;
     void isp_check_firmware(const FirmwareData &) override;
+    void isp_write_firmware(const FirmwareData &) override;
+    void isp_chip_erase() override;
     void isp_read_fuse() override;
     void isp_write_fuse() override;
     void isp_check_fuses() override;
-
-    /**
-     * Стереть прошивку
-     */
-    void isp_chip_erase() override;
 
 };
 

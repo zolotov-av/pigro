@@ -67,21 +67,79 @@ AVR::~AVR()
 
 }
 
+void AVR::action_test()
+{
+    printf("\nAVR::action_test()\n\n");
+
+    throw nano::exception(std::string(__func__) + " not implemented yet");
+}
+
 void AVR::isp_chip_info()
 {
     auto info = isp_read_chip_info();
     printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", info[0], info[1], info[2]);
     if ( info != chip_info().signature )
     {
-        warn("isp_check_firmware(): wrong chip signature");
+        warn("isp_chip_info(): wrong chip signature");
     }
 
 }
 
-void AVR::isp_check_firmware(const PigroDriver::FirmwareData &)
+void AVR::isp_check_firmware(const PigroDriver::FirmwareData &pages)
 {
-    printf("AVR::isp_check_firmware(...)\n");
-    throw nano::exception("not implemented yet...");
+    printf("\nAVR::isp_check_firmware(...)\n");
+
+    auto signature = isp_read_chip_info();
+    if ( signature != chip_info().signature )
+    {
+        warn("isp_check_firmware(): wrong chip signature");
+    }
+
+    for(const auto &[page_addr, page] : pages)
+    {
+        uint8_t counter = 0;
+        const size_t size = page.data.size();
+        for(size_t i = 0; i < size; i++)
+        {
+            const uint16_t addr = (page_addr * 2) + i;
+            if ( counter == 0 ) printf("MEM[0x%04X]", addr);
+            uint8_t byte = isp_read_memory(addr);
+            printf("%s", (page.data[i] == byte ? "." : "*" ));
+            if ( counter == 0x1F ) printf("\n");
+            counter = (counter + 1) & 0x1F;
+        }
+    }
+}
+
+void AVR::isp_write_firmware(const PigroDriver::FirmwareData &pages)
+{
+    auto signature = isp_read_chip_info();
+    if ( signature != chip_info().signature )
+    {
+        throw nano::exception("isp_write_firmware() reject: wrong chip signature");
+    }
+    if ( !chip_info().valid() || !chip_info().paged )
+    {
+        throw nano::exception("isp_write_firmware() reject: unsupported chip");
+    }
+
+    isp_chip_erase();
+    for(const auto &[page_addr, page] : pages)
+    {
+        uint8_t counter = 0;
+        const size_t size = page.data.size();
+        for(size_t i = 0; i < size; i++)
+        {
+            const uint16_t addr = (page_addr * 2) + i;
+            if ( counter == 0 ) printf("MEM[0x%04X]", addr);
+            isp_load_memory_page((page_addr * 2) + i, page.data[i]);
+            printf(".");
+            if ( counter == 0x1F ) printf("\n");
+            counter = (counter + 1) & 0x1F;
+
+        }
+        isp_write_memory_page(page_addr);
+    }
 }
 
 void AVR::isp_read_fuse()

@@ -229,40 +229,13 @@ public:
     }
 
     /**
-     * Команда "Chip Erase"
-     *
-     * Отправить команду стирания чипа, чип уже должен быть переведен в режим
-     * программирования.
-     */
-    void isp_chip_erase()
-    {
-        if ( verbose() )
-        {
-            info("erase device's firmware");
-        }
-        driver->isp_chip_erase();
-    }
-
-    void isp_check_firmware(const AVR_Data &pages)
-    {
-        driver->isp_check_firmware(pages);
-    }
-
-    /**
-     * Записать прошивку
-     */
-    void isp_write_firmware(const AVR_Data &pages)
-    {
-        driver->isp_write_firmware(pages);
-    }
-
-    /**
      * @brief Действие - вывести информацию об устройстве
      * @return
      */
     int action_info()
     {
         loadConfig();
+
         driver->isp_chip_info();
         return 0;
     }
@@ -277,9 +250,8 @@ public:
         {
             info("read device's fuses");
         }
+
         driver->isp_read_fuse();
-
-
         return 0;
     }
 
@@ -289,6 +261,7 @@ public:
         {
             info("write device's fuses");
         }
+
         driver->isp_write_fuse();
         return 0;
     }
@@ -298,6 +271,8 @@ public:
      */
     int action_erase()
     {
+        loadConfig();
+
         driver->isp_chip_erase();
         return 0;
     }
@@ -380,7 +355,7 @@ public:
     {
         AVR_Data pages = readHEX();
         //isp_check_fuses();
-        isp_check_firmware(pages);
+        driver->isp_check_firmware(pages);
         return 0;
     }
 
@@ -390,13 +365,14 @@ public:
     int action_write()
     {
         AVR_Data pages = readHEX();
-        isp_write_firmware(pages);
+        driver->isp_write_firmware(pages);
         return 0;
     }
 
     int action_test()
     {
         loadConfig();
+
         driver->action_test();
         return 0;
     }

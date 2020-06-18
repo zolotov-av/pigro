@@ -84,14 +84,14 @@ public:
         printf("\n");
     }
 
-    virtual void action_test() { }
-    virtual void isp_chip_info() { }
-    virtual void isp_check_firmware(const FirmwareData &) { }
-    virtual void isp_write_firmware(const FirmwareData &) { }
-    virtual void isp_chip_erase() { }
-    virtual void isp_read_fuse() { }
-    virtual void isp_write_fuse() { }
-    virtual void isp_check_fuses() { }
+    virtual void action_test() = 0;
+    virtual void isp_chip_info() = 0;
+    virtual void isp_check_firmware(const FirmwareData &) = 0;
+    virtual void isp_write_firmware(const FirmwareData &) = 0;
+    virtual void isp_chip_erase() = 0;
+    virtual void isp_read_fuse() = 0;
+    virtual void isp_write_fuse() = 0;
+    virtual void isp_check_fuses() = 0;
 
 };
 

@@ -409,6 +409,11 @@ public:
         printf("FPEC unlocked\n");
     }
 
+    void arm_fpec_lock()
+    {
+        printf("TODO: implement arm_fpec_lock()\n");
+    }
+
     void arm_fpec_reset_sr()
     {
         arm_fpec_write_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
@@ -462,22 +467,15 @@ public:
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
 
-    /**
-     * Проверить прошивку в устройстве
-     */
-    void isp_check_firmware(const FirmwareData &) override;
-
-    /**
-     * Записать прошивку
-     */
-    void isp_write_firmware(const FirmwareData &pages) override;
-
-    /**
-     * Стереть прошивку
-     */
-    void isp_chip_erase() override;
-
     void action_test() override;
+    void isp_chip_info() override;
+    void isp_check_firmware(const FirmwareData &) override;
+    void isp_write_firmware(const FirmwareData &) override;
+    void isp_chip_erase() override;
+    void isp_read_fuse() override;
+    void isp_write_fuse() override;
+    void isp_check_fuses() override;
+
 };
 
 #endif // ARM_H

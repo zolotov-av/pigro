@@ -2,9 +2,67 @@
 
 #include <nano/exception.h>
 
+static void not_implemented_yet(const std::string &func)
+{
+    throw nano::exception(func + " not implemented yet...");
+}
+
 ARM::~ARM()
 {
 
+}
+
+void ARM::action_test()
+{
+    printf("\ntest STM32/JTAG\n");
+
+    cmd_jtag_reset();
+    arm_check_idcode();
+    cmd_jtag_reset();
+    arm_debug_enable();
+    arm_find_memap();
+
+    printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);
+
+
+    //arm_fpec_unlock();
+
+    /*
+    arm_fpec_mass_erase();
+    arm_fpec_program(0x08000000, 0x0102);
+    arm_fpec_program(0x08000002, 0x0304);
+    arm_fpec_program(0x08000004, 0x0506);
+    arm_fpec_program(0x08000006, 0x0708);
+    arm_fpec_program(0x08000008, 0x090A);
+    arm_fpec_program(0x0800000A, 0x0B0C);
+    */
+
+    uint32_t addr = 0x08000000;
+    arm_set_memaddr(addr);
+    for(int i = 0; i < 4; i++)
+    {
+        uint32_t value = arm_read_mem32();
+        addr += 4;
+        printf("MEM[0x%08X]: 0x%08X\n", addr, value);
+    }
+
+    arm_set_memaddr(0xE0042000);
+    uint32_t value = arm_read_mem32();
+    printf("MEM[0xE0042000]: 0x%08X\n", value);
+    arm_dump_mem32(0x40010800);
+
+    //arm_clear_sticky(arm_status());
+
+
+    //arm_check_bypass<32>(0x01020304);
+    //arm_check_bypass<35>(0x101010101);
+    //arm_check_bypass<38>(0x7FFFFFFFF);
+}
+
+void ARM::isp_chip_info()
+{
+    printf("\nARM::isp_chip_info()\n\n");
+    not_implemented_yet(__func__);
 }
 
 void ARM::isp_check_firmware(const PigroDriver::FirmwareData &pages)
@@ -119,56 +177,54 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
     if ( counter != 0 ) printf("\n");
 
     arm_fpec_write_reg(0x10, 0); // FLASH_CR_PG
+    arm_fpec_lock();
 }
 
 void ARM::isp_chip_erase()
 {
-
-}
-
-void ARM::action_test()
-{
-    printf("\ntest STM32/JTAG\n");
+    printf("\nARM::isp_chip_erase()\n\n");
 
     cmd_jtag_reset();
     arm_check_idcode();
-    cmd_jtag_reset();
     arm_debug_enable();
     arm_find_memap();
 
-    printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);
+    arm_fpec_unlock();
 
-
-    //arm_fpec_unlock();
-
-    /*
-    arm_fpec_mass_erase();
-    arm_fpec_program(0x08000000, 0x0102);
-    arm_fpec_program(0x08000002, 0x0304);
-    arm_fpec_program(0x08000004, 0x0506);
-    arm_fpec_program(0x08000006, 0x0708);
-    arm_fpec_program(0x08000008, 0x090A);
-    arm_fpec_program(0x0800000A, 0x0B0C);
+    /* TODO:
+    auto signature = isp_chip_info();
+    if ( signature != avr.signature )
+    {
+        throw nano::exception("isp_write_firmware() reject: wrong chip signature");
+    }
+    if ( !avr.valid() || !avr.paged )
+    {
+        throw nano::exception("isp_write_firmware() reject: unsupported chip");
+    }
     */
 
-    uint32_t addr = 0x08000000;
-    arm_set_memaddr(addr);
-    for(int i = 0; i < 4; i++)
-    {
-        uint32_t value = arm_read_mem32();
-        addr += 4;
-        printf("MEM[0x%08X]: 0x%08X\n", addr, value);
-    }
+    arm_fpec_mass_erase();
 
-    arm_set_memaddr(0xE0042000);
-    uint32_t value = arm_read_mem32();
-    printf("MEM[0xE0042000]: 0x%08X\n", value);
-    arm_dump_mem32(0x40010800);
+    arm_fpec_lock();
+}
 
-    //arm_clear_sticky(arm_status());
+void ARM::isp_read_fuse()
+{
+    printf("\nARM::isp_read_fuse()\n\n");
 
+    not_implemented_yet(__func__);
+}
 
-    //arm_check_bypass<32>(0x01020304);
-    //arm_check_bypass<35>(0x101010101);
-    //arm_check_bypass<38>(0x7FFFFFFFF);
+void ARM::isp_write_fuse()
+{
+    printf("\nARM::isp_write_fuse()\n\n");
+
+    not_implemented_yet(__func__);
+}
+
+void ARM::isp_check_fuses()
+{
+    printf("\nARM::isp_check_fuses()\n\n");
+
+    not_implemented_yet(__func__);
 }
