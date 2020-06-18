@@ -71,29 +71,28 @@ void AVR::action_test()
 {
     printf("\nAVR::action_test()\n\n");
 
-    throw nano::exception(std::string(__func__) + " not implemented yet");
+    throw nano::exception(std::string(__func__) + " not implemented");
 }
 
 void AVR::isp_chip_info()
 {
-    auto info = isp_read_chip_info();
-    printf("chip signature: 0x%02X, 0x%02X, 0x%02X\n", info[0], info[1], info[2]);
-    if ( info != chip_info().signature )
-    {
-        warn("isp_chip_info(): wrong chip signature");
-    }
+    printf("\nAVR::isp_chip_info()\n\n");
 
+    isp_program_enable();
+
+    check_chip_info();
+
+    isp_program_disable();
 }
 
 void AVR::isp_check_firmware(const PigroDriver::FirmwareData &pages)
 {
-    printf("\nAVR::isp_check_firmware(...)\n");
+    printf("\nAVR::isp_check_firmware()\n");
 
-    auto signature = isp_read_chip_info();
-    if ( signature != chip_info().signature )
-    {
-        warn("isp_check_firmware(): wrong chip signature");
-    }
+    isp_program_enable();
+
+    check_chip_info();
+    check_fuses();
 
     for(const auto &[page_addr, page] : pages)
     {
@@ -109,21 +108,28 @@ void AVR::isp_check_firmware(const PigroDriver::FirmwareData &pages)
             counter = (counter + 1) & 0x1F;
         }
     }
+
+    isp_program_disable();
 }
 
 void AVR::isp_write_firmware(const PigroDriver::FirmwareData &pages)
 {
-    auto signature = isp_read_chip_info();
-    if ( signature != chip_info().signature )
+    printf("\nAVR::isp_write_firmware()\n\n");
+
+    isp_program_enable();
+
+    if ( !check_chip_info() )
     {
         throw nano::exception("isp_write_firmware() reject: wrong chip signature");
     }
+
     if ( !chip_info().valid() || !chip_info().paged )
     {
         throw nano::exception("isp_write_firmware() reject: unsupported chip");
     }
 
-    isp_chip_erase();
+    chip_erase();
+
     for(const auto &[page_addr, page] : pages)
     {
         uint8_t counter = 0;
@@ -140,10 +146,18 @@ void AVR::isp_write_firmware(const PigroDriver::FirmwareData &pages)
         }
         isp_write_memory_page(page_addr);
     }
+
+    isp_program_disable();
 }
 
 void AVR::isp_read_fuse()
 {
+    printf("\nAVR::isp_read_fuse()\n\n");
+
+    isp_program_enable();
+
+    check_chip_info();
+
     uint8_t fuse_lo = isp_read_fuse_low();  // cmd_isp_io(0x50000000) & 0xFF;
     uint8_t fuse_hi = isp_read_fuse_high(); // cmd_isp_io(0x58080000) & 0xFF;
     uint8_t fuse_ex = isp_read_fuse_ext();  // cmd_isp_io(0x50080000) & 0xFF;
@@ -174,10 +188,21 @@ void AVR::isp_read_fuse()
     else status = " NA ";
     printf("fuse ext:  0x%02X [%s]\n", fuse_ex, status);
 
+    isp_program_disable();
 }
 
 void AVR::isp_write_fuse()
 {
+    printf("\nAVR::isp_write_fuse()\n\n");
+
+    isp_program_enable();
+
+    if ( !check_chip_info() )
+    {
+        throw nano::exception("isp_write_firmware() reject: wrong chip signature");
+    }
+
+
     if ( auto s = get_option("fuse_low"); !s.empty() )
     {
         const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
@@ -195,41 +220,17 @@ void AVR::isp_write_fuse()
         const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
         isp_write_fuse_ext(x);
     }
-}
 
-void AVR::isp_check_fuses()
-{
-    if ( auto s = get_option("fuse_low"); !s.empty() )
-    {
-        const uint8_t fuse_lo = isp_read_fuse_low();
-        const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
-        const char *status = (x == fuse_lo) ? " ok " : "diff";
-        printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
-    }
-
-    if ( auto s = get_option("fuse_high"); !s.empty() )
-    {
-        const uint8_t fuse_hi = isp_read_fuse_high();
-        const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
-        const char *status = (x == fuse_hi) ? " ok " : "diff";
-        printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
-    }
-
-    if ( auto s = get_option("fuse_ext"); !s.empty() )
-    {
-        const uint8_t fuse_ext = isp_read_fuse_ext();
-        const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
-        const char *status = (x == fuse_ext) ? " ok " : "diff";
-        printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
-    }
-
+    isp_program_disable();
 }
 
 void AVR::isp_chip_erase()
 {
+    printf("\nAVR::isp_chip_erase()\n\n");
+
     isp_program_enable();
 
-    unsigned int r = cmd_isp_io(0xAC800000);
-    bool status = ((r >> 16) & 0xFF) == 0xAC;
-    if ( !status ) throw nano::exception("isp_chip_erase() error");
+    chip_erase();
+
+    isp_program_disable();
 }

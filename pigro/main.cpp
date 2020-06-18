@@ -251,6 +251,8 @@ public:
             info("read device's fuses");
         }
 
+        loadConfig();
+
         driver->isp_read_fuse();
         return 0;
     }
@@ -261,6 +263,8 @@ public:
         {
             info("write device's fuses");
         }
+
+        loadConfig();
 
         driver->isp_write_fuse();
         return 0;
@@ -343,18 +347,12 @@ public:
         return pages;
     }
 
-    void isp_check_fuses()
-    {
-        driver->isp_check_fuses();
-    }
-
     /**
      * Действие - проверить прошивку в устройстве
      */
     int action_check()
     {
         AVR_Data pages = readHEX();
-        //isp_check_fuses();
         driver->isp_check_firmware(pages);
         return 0;
     }

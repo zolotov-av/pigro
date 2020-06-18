@@ -35,7 +35,7 @@ struct DeviceInfo
         if ( page_word_size == 0 || page_count == 0 ) return false;
         if ( !is_power_of_two(page_word_size) ) return false;
 
-        if ( type == "avr ")
+        if ( type == "avr")
         {
             uint32_t size = flash_size();
             return (size > 0) && (size < 0x10000);

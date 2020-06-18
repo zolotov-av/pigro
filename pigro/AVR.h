@@ -56,24 +56,6 @@ public:
     AVR(PigroLink *link): PigroDriver(link) { }
     ~AVR() override;
 
-    void info(const char *msg)
-    {
-        if ( verbose() )
-        {
-            printf("info: %s\n", msg);
-        }
-    }
-
-    void warn(const char *msg)
-    {
-        fprintf(stderr, "warn: %s\n", msg);
-    }
-
-    void error(const char *msg)
-    {
-        fprintf(stderr, "error: %s\n", msg);
-    }
-
     /**
      * @brief Управление линией RESET программируемого контроллера
      * @param value
@@ -144,6 +126,14 @@ public:
     }
 
     /**
+     * Завершить программирование
+     */
+    void isp_program_disable()
+    {
+        cmd_isp_reset(1);
+    }
+
+    /**
      * Подать команду "Read Device Code"
      *
      *
@@ -157,6 +147,23 @@ public:
         uint8_t b002 = cmd_isp_io(0x30000200) & 0xFF;
 
         return {b000, b001, b002};
+    }
+
+    bool check_chip_info()
+    {
+        auto info = isp_read_chip_info();
+        bool status = (info == chip_info().signature);
+        const char *status_str = status ? "[ ok ]" : "[diff]";
+        printf("chip signature: 0x%02X, 0x%02X, 0x%02X %s\n", info[0], info[1], info[2], status_str);
+        return status;
+    }
+
+    bool chip_erase()
+    {
+        unsigned int r = cmd_isp_io(0xAC800000);
+        bool status = ((r >> 16) & 0xFF) == 0xAC;
+        if ( !status ) error("isp_chip_erase() error");
+        return status;
     }
 
     /**
@@ -259,6 +266,34 @@ public:
         }
     }
 
+    void check_fuses()
+    {
+        if ( auto s = get_option("fuse_low"); !s.empty() )
+        {
+            const uint8_t fuse_lo = isp_read_fuse_low();
+            const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+            const char *status = (x == fuse_lo) ? " ok " : "diff";
+            printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
+        }
+
+        if ( auto s = get_option("fuse_high"); !s.empty() )
+        {
+            const uint8_t fuse_hi = isp_read_fuse_high();
+            const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+            const char *status = (x == fuse_hi) ? " ok " : "diff";
+            printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
+        }
+
+        if ( auto s = get_option("fuse_ext"); !s.empty() )
+        {
+            const uint8_t fuse_ext = isp_read_fuse_ext();
+            const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+            const char *status = (x == fuse_ext) ? " ok " : "diff";
+            printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
+        }
+    }
+
+
     void action_test() override;
     void isp_chip_info() override;
     void isp_check_firmware(const FirmwareData &) override;
@@ -266,7 +301,6 @@ public:
     void isp_chip_erase() override;
     void isp_read_fuse() override;
     void isp_write_fuse() override;
-    void isp_check_fuses() override;
 
 };
 

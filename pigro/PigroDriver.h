@@ -58,6 +58,24 @@ public:
         return link->chip_info();
     }
 
+    void info(const char *msg)
+    {
+        if ( verbose() )
+        {
+            printf("info: %s\n", msg);
+        }
+    }
+
+    void warn(const char *msg)
+    {
+        fprintf(stderr, "warn: %s\n", msg);
+    }
+
+    void error(const char *msg)
+    {
+        fprintf(stderr, "error: %s\n", msg);
+    }
+
     /**
      * Отправить пакет данных
      */
@@ -91,7 +109,6 @@ public:
     virtual void isp_chip_erase() = 0;
     virtual void isp_read_fuse() = 0;
     virtual void isp_write_fuse() = 0;
-    virtual void isp_check_fuses() = 0;
 
 };
 

@@ -16,14 +16,9 @@ void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");
 
-    cmd_jtag_reset();
-    arm_check_idcode();
-    cmd_jtag_reset();
     arm_debug_enable();
-    arm_find_memap();
 
     printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);
-
 
     //arm_fpec_unlock();
 
@@ -57,22 +52,30 @@ void ARM::action_test()
     //arm_check_bypass<32>(0x01020304);
     //arm_check_bypass<35>(0x101010101);
     //arm_check_bypass<38>(0x7FFFFFFFF);
+
+    arm_debug_disable();
 }
 
 void ARM::isp_chip_info()
 {
     printf("\nARM::isp_chip_info()\n\n");
+
     not_implemented_yet(__func__);
+
+    /*
+    arm_debug_enable();
+
+    // ...
+
+    arm_debug_disable();
+    */
 }
 
 void ARM::isp_check_firmware(const PigroDriver::FirmwareData &pages)
 {
-    printf("ARM::isp_check_firmware(...)\n\n");
+    printf("\nARM::isp_check_firmware()\n\n");
 
-    cmd_jtag_reset();
-    arm_check_idcode();
     arm_debug_enable();
-    arm_find_memap();
 
     /*
     auto signature = isp_chip_info();
@@ -108,15 +111,15 @@ void ARM::isp_check_firmware(const PigroDriver::FirmwareData &pages)
     }
 
     if ( counter != 0 ) printf("\n");
+
+    arm_debug_disable();
 }
 
 void ARM::isp_write_firmware(const FirmwareData &pages)
 {
-    printf("\nARM::isp_write_firmware(...)\n\n");
-    cmd_jtag_reset();
-    arm_check_idcode();
+    printf("\nARM::isp_write_firmware()\n\n");
+
     arm_debug_enable();
-    arm_find_memap();
 
     arm_fpec_unlock();
 
@@ -178,16 +181,15 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
 
     arm_fpec_write_reg(0x10, 0); // FLASH_CR_PG
     arm_fpec_lock();
+
+    arm_debug_disable();
 }
 
 void ARM::isp_chip_erase()
 {
     printf("\nARM::isp_chip_erase()\n\n");
 
-    cmd_jtag_reset();
-    arm_check_idcode();
     arm_debug_enable();
-    arm_find_memap();
 
     arm_fpec_unlock();
 
@@ -206,6 +208,8 @@ void ARM::isp_chip_erase()
     arm_fpec_mass_erase();
 
     arm_fpec_lock();
+
+    arm_debug_disable();
 }
 
 void ARM::isp_read_fuse()
@@ -218,13 +222,6 @@ void ARM::isp_read_fuse()
 void ARM::isp_write_fuse()
 {
     printf("\nARM::isp_write_fuse()\n\n");
-
-    not_implemented_yet(__func__);
-}
-
-void ARM::isp_check_fuses()
-{
-    printf("\nARM::isp_check_fuses()\n\n");
 
     not_implemented_yet(__func__);
 }

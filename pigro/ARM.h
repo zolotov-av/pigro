@@ -43,11 +43,11 @@ public:
 
     void cmd_jtag_reset()
     {
+        //printf("cmd_jtag_reset()\n");
         packet_t pkt;
         pkt.cmd = 5;
         pkt.len = 1;
         pkt.data[0] = 0;
-        printf("cmd_jtag_reset()\n");
         auto status = send_packet(pkt);
         if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
     }
@@ -68,10 +68,11 @@ public:
             value = value >> 8;
         }
 
-        dump_packet("arm_io() send", pkt);
+        //dump_packet("arm_io() send", pkt);
         send_packet(pkt);
         recv_packet(pkt);
-        dump_packet("arm_io() recv", pkt);
+        //dump_packet("arm_io() recv", pkt);
+
         if ( pkt.cmd != 8 ) throw nano::exception("arm_io() wrong reply: cmd=" + std::to_string(pkt.cmd));
         if ( pkt.len != bytecount + 2 ) throw nano::exception("arm_io() wrong len: " + std::to_string(pkt.len));
 
@@ -190,7 +191,7 @@ public:
 
     void arm_set_memaddr(uint32_t addr)
     {
-        printf("arm_set_memaddr(0x%08X)\n", addr);
+        //printf("arm_set_memaddr(0x%08X)\n", addr);
         packet_t pkt;
         pkt.cmd = 11;
         pkt.len = 5;
@@ -199,6 +200,7 @@ public:
         pkt.data[2] = (addr >> 8) & 0xFF;
         pkt.data[3] = (addr >> 16) & 0xFF;
         pkt.data[4] = (addr >> 24) & 0xFF;
+        //dump_packet("arm_set_memaddr() send:", pkt);
         send_packet(pkt);
         recv_packet(pkt);
         //dump_packet("arm_set_memaddr() recv:", pkt);
@@ -297,10 +299,10 @@ public:
 
     uint32_t arm_check_idcode()
     {
-        printf("\ncheck arm_idcode_v2():\n");
+        //printf("\narm_check_idcode()\n\n");
         uint32_t idcode = arm_io<32>(IR_IDCODE, 0);
         const char *status = (idcode == CORTEX_M3_IDCODE) ? "[ ok ]" : "[fail]";
-        printf("idcode: 0x%08X %s\n", idcode, status);
+        printf("JTAG idcode: 0x%08X %s\n", idcode, status);
         return idcode;
     }
 
@@ -316,11 +318,16 @@ public:
 
     void arm_debug_enable()
     {
+        //printf("arm_debug_enable()\n");
+
+        cmd_jtag_reset();
+        if ( arm_check_idcode() != CORTEX_M3_IDCODE ) throw nano::exception("only Cortex M3 supported yet");
+
         uint32_t status = CSYSPWRUPREQ | CDBGPWRUPREQ;
         arm_write_dp(0x4, status);
 
         status = arm_status();
-        printf("status: 0x%08X\n", status);
+        //printf("status: 0x%08X\n", status);
 
         if ( (status & CDBGPWRUPACK) == 0 )
         {
@@ -330,25 +337,46 @@ public:
         {
             throw nano::exception("no system power");
         }
+
+        arm_find_memap();
+    }
+
+    void arm_debug_disable()
+    {
+        //printf("arm_debug_disable()\n");
+
+        arm_write_dp(0x4, 0);
+
+        uint32_t status = arm_status();
+        //printf("status: 0x%08X\n", status);
+
+        if ( (status & CDBGPWRUPACK) != 0 )
+        {
+            warn("debug power still on");
+        }
+        if ( (status & CSYSPWRUPACK) != 0 )
+        {
+            warn("system power still on");
+        }
     }
 
     void arm_find_memap()
     {
-        printf("\nfind MEM-AP\n");
+        //printf("\nfind MEM-AP\n");
         for(int i = 0; i < 256; i++)
         {
             try
             {
                 const uint32_t idr = arm_idr(i);
                 const uint32_t test = (idr >> 16) & 0xFFF;
-                printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
+                //printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
                 if ( idr == 0 ) break;
 
 
                 if ( test == 0x477 )
                 {
                     arm_memap = i;
-                    printf("MEM-AP: %d\n", arm_memap);
+                    //printf("MEM-AP: %d\n", arm_memap);
                     return;
                 }
 
@@ -385,7 +413,7 @@ public:
 
     void arm_fpec_unlock()
     {
-        printf("\nunlock FPEC\n");
+        //printf("arm_fpec_unlock()\n");
 
         constexpr uint32_t KEY1 = 0x45670123;
         constexpr uint32_t KEY2 = 0xCDEF89AB;
@@ -393,7 +421,7 @@ public:
         auto flash_cr = arm_fpec_read_reg(0x10);
         if ( (flash_cr & (1 << 7)) == 0 )
         {
-            printf("already unlocked\n");
+            //printf("already unlocked\n");
             return;
         }
 
@@ -406,12 +434,13 @@ public:
             throw nano::exception("arm_fpec_unlock() failed");
         }
 
-        printf("FPEC unlocked\n");
+        //printf("FPEC unlocked\n");
     }
 
     void arm_fpec_lock()
     {
-        printf("TODO: implement arm_fpec_lock()\n");
+        //printf("arm_fpec_lock()\n");
+        arm_fpec_write_reg(0x10, (1 << 7)); // FLASH_CR_LOCK
     }
 
     void arm_fpec_reset_sr()
@@ -474,7 +503,6 @@ public:
     void isp_chip_erase() override;
     void isp_read_fuse() override;
     void isp_write_fuse() override;
-    void isp_check_fuses() override;
 
 };
 
