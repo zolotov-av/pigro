@@ -33,15 +33,12 @@ constexpr uint8_t PKT_NACK = 2;
 
 enum PigroAction {
 	AT_ACT_INFO,
+    AT_ACT_STAT,
 	AT_ACT_CHECK,
 	AT_ACT_WRITE,
 	AT_ACT_ERASE,
 	AT_ACT_READ_FUSE,
     AT_ACT_WRITE_FUSE,
-	AT_ACT_WRITE_FUSE_LO,
-	AT_ACT_WRITE_FUSE_HI,
-	AT_ACT_WRITE_FUSE_EX,
-    AT_ACT_ADC,
     AT_ACT_TEST
 };
 
@@ -53,6 +50,7 @@ int help()
 	printf("pigro :action: :filename: :verbose|quiet:\n");
 	printf("  action:\n");
 	printf("    info  - read chip info\n");
+    printf("    stat  - read file and check stats\n");
 	printf("    check - read file and compare with device\n");
 	printf("    write - read file and write to device\n");
 	printf("    erase - just erase chip\n");
@@ -238,7 +236,6 @@ public:
         return 0;
     }
 
-
     /**
      * Действие - прочитать биты fuse
      */
@@ -329,7 +326,6 @@ public:
 
         }
 
-
         if ( driver ) delete driver;
         driver = lookupDriver(device_type);
         driver->parse_device_info(m_chip_info);
@@ -343,6 +339,17 @@ public:
         printf("page usages: %ld / %d\n", pages.size(), driver->page_count());
         return pages;
     }
+
+    /**
+     * Действие - проверить прошивку и вывести статистику (без обращения к чипу)
+     */
+    int action_stat()
+    {
+        FirmwareData pages = readHEX();
+        driver->isp_stat_firmware(pages);
+        return 0;
+    }
+
 
     /**
      * Действие - проверить прошивку в устройстве
@@ -380,6 +387,7 @@ public:
         switch ( action )
         {
         case AT_ACT_INFO: return action_info();
+        case AT_ACT_STAT: return action_stat();
         case AT_ACT_CHECK: return action_check();
         case AT_ACT_WRITE: return action_write();
         case AT_ACT_ERASE: return action_erase();
@@ -423,14 +431,12 @@ int real_main(int argc, char *argv[])
     if ( action_arg == nullptr ) return help();
 
     if ( strcmp(action_arg, "info") == 0 ) action = AT_ACT_INFO;
+    else if ( strcmp(action_arg, "stat") == 0 ) action = AT_ACT_STAT;
     else if ( strcmp(action_arg, "check") == 0 ) action = AT_ACT_CHECK;
     else if ( strcmp(action_arg, "write") == 0 ) action = AT_ACT_WRITE;
     else if ( strcmp(action_arg, "erase") == 0 ) action = AT_ACT_ERASE;
     else if ( strcmp(action_arg, "rfuse") == 0 ) action = AT_ACT_READ_FUSE;
     else if ( strcmp(action_arg, "wfuse") == 0 ) action = AT_ACT_WRITE_FUSE;
-    else if ( strcmp(action_arg, "wfuse_lo") == 0 ) action = AT_ACT_WRITE_FUSE_LO;
-    else if ( strcmp(action_arg, "wfuse_hi") == 0 ) action = AT_ACT_WRITE_FUSE_HI;
-    else if ( strcmp(action_arg, "wfuse_ex") == 0 ) action = AT_ACT_WRITE_FUSE_EX;
     else if ( strcmp(action_arg, "arm") == 0 ) action = AT_ACT_TEST;
     else if ( strcmp(action_arg, "test") == 0 ) action = AT_ACT_TEST;
 	else return help();

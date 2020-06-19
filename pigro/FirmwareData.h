@@ -29,7 +29,6 @@ public:
 
         const uint32_t byte_mask = page_size - 1;
         const uint32_t page_mask = ~byte_mask;
-        printf("byte_mask=0x%08X, page_mask=0x%08X\n", byte_mask, page_mask);
 
         FirmwareData pages;
         uint32_t LoadAddress = 0;

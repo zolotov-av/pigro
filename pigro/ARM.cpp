@@ -14,13 +14,12 @@ ARM::~ARM()
 
 uint32_t ARM::page_size() const
 {
-    return 1024;
+    return arm.page_size;
 }
 
 uint32_t ARM::page_count() const
 {
-    // TODO
-    return 64;
+    return arm.page_count;
 }
 
 void ARM::action_test()
@@ -67,9 +66,11 @@ void ARM::action_test()
     arm_debug_disable();
 }
 
-void ARM::parse_device_info(const nano::options &)
+void ARM::parse_device_info(const nano::options &options)
 {
-
+    arm.page_size = parse_page_size(options.value("page_size", "1024"));
+    arm.flash_size = parse_flash_size(options.value("flash_size"), arm.page_size);
+    arm.page_count = arm.flash_size / arm.page_size;
 }
 
 void ARM::isp_chip_info()
@@ -81,6 +82,14 @@ void ARM::isp_chip_info()
     warn("ARM::isp_chip_info() not implemented yet");
 
     arm_debug_disable();
+}
+
+void ARM::isp_stat_firmware(const FirmwareData &pages)
+{
+    printf("\nARM::isp_stat_firmware()\n\n");
+
+    show_info();
+    check_firmware(pages, true);
 }
 
 void ARM::isp_check_firmware(const FirmwareData &pages)
@@ -100,7 +109,6 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
     uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
-        printf("page_addr: 0x%08X\n", page_addr);
         arm_set_memaddr(page_addr);
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
@@ -124,6 +132,13 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
 void ARM::isp_write_firmware(const FirmwareData &pages)
 {
     printf("\nARM::isp_write_firmware()\n\n");
+
+    if ( !check_firmware(pages, false) )
+    {
+        error("ARM::isp_write_firmware(): bad firmware");
+        check_firmware(pages, true);
+        return;
+    }
 
     arm_debug_enable();
 

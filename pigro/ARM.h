@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include <nano/string.h>
 #include <nano/exception.h>
 #include "PigroLink.h"
 #include "PigroDriver.h"
@@ -11,7 +12,6 @@ class ARM: public PigroDriver
 {
 private:
 
-    bool arm = false;
     uint8_t arm_memap;
     static constexpr uint32_t arm_csw = 0x22000000;
 
@@ -36,7 +36,14 @@ public:
     static constexpr bool xpacc_read = false;
     static constexpr bool xpacc_write = true;
 
+    struct DeviceInfo
+    {
+        uint32_t page_size;
+        uint32_t page_count;
+        uint32_t flash_size;
+    };
 
+    DeviceInfo arm;
 
     ARM(PigroLink *link): PigroDriver(link) { }
     ~ARM() override;
@@ -499,9 +506,105 @@ public:
     uint32_t page_size() const override;
     uint32_t page_count() const override;
 
+    static uint32_t parse_page_size(const std::string &ps)
+    {
+        if ( ps.empty() ) return 1024;
+
+        const uint32_t size = nano::parse_size(ps);
+
+        if ( size <= 0 )
+        {
+            warn("wrong page_size: " + ps);
+            warn("page_size defaulted to 1024");
+            return 1024;
+        }
+
+        if ( !nano::is_power_of_two(size) )
+        {
+            warn("page_size is not power of two: " + ps);
+            warn("page_size defaulted to 1024");
+            return 1024;
+        }
+
+        return size;
+    }
+
+    static uint32_t parse_flash_size(const std::string &fs, uint32_t page_size)
+    {
+        if ( fs.empty() )
+        {
+            throw nano::exception("specify flash_size");
+        }
+
+        const uint32_t size = nano::parse_size(fs);
+
+        if ( size == 0 )
+        {
+            throw nano::exception("wrong flash_size: zero?");
+        }
+
+        if ( (size % page_size) != 0 )
+        {
+            throw nano::exception("wrong flash_size, should be multiple of page_size");
+        }
+
+        return size;
+    }
+
+    uint32_t flash_begin() const
+    {
+        return 0x08000000;
+    }
+
+    uint32_t flash_end() const
+    {
+        return flash_begin() + page_size() * page_count();
+    }
+
+    bool page_in_range(uint32_t page, uint32_t begin, uint32_t end)
+    {
+        return (page >= begin) && (page < end);
+    }
+
+    void show_info()
+    {
+        printf("flash_size: %dk\n", (arm.flash_size + 1023) / 1024);
+        printf("page_size: %d\n", arm.page_size);
+        printf("page_count: %d\n", arm.page_count);
+        printf("\n");
+    }
+
+    /**
+     * Проверить прошивку на корректность
+     */
+    bool check_firmware(const FirmwareData &pages, bool verbose)
+    {
+        bool status = true;
+        const uint32_t page_begin = flash_begin();
+        const uint32_t page_limit = flash_end();
+        for(const auto page : pages)
+        {
+            const uint32_t page_addr = page.second.addr;
+            const bool page_ok = page_in_range(page_addr, page_begin, page_limit);
+            status = status && page_ok;
+            if ( verbose )
+            {
+                const char *page_status = page_ok ? "ok" : "out of range [fail]";
+                printf("PAGE[0x%08X] - %s\n", page_addr, page_status);
+            }
+        }
+        if ( verbose )
+        {
+            const char *status_str = status ? "[ ok ]" : "[fail]";
+            printf("overall status %s\n", status_str);
+        }
+        return status;
+    }
+
     void action_test() override;
     void parse_device_info(const nano::options &) override;
     void isp_chip_info() override;
+    void isp_stat_firmware(const FirmwareData &) override;
     void isp_check_firmware(const FirmwareData &) override;
     void isp_write_firmware(const FirmwareData &) override;
     void isp_chip_erase() override;

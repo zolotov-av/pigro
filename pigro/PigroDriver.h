@@ -35,7 +35,7 @@ public:
         return link->chip_info();
     }
 
-    inline void info(const char *msg)
+    inline void info(const char *msg) const
     {
         if ( verbose() )
         {
@@ -43,12 +43,17 @@ public:
         }
     }
 
-    inline void warn(const char *msg)
+    static inline void warn(const char *msg)
     {
         fprintf(stderr, "warn: %s\n", msg);
     }
 
-    inline void error(const char *msg)
+    static inline void warn(const std::string &msg)
+    {
+        warn( msg.c_str() );
+    }
+
+    inline void error(const char *msg) const
     {
         fprintf(stderr, "error: %s\n", msg);
     }
@@ -86,6 +91,7 @@ public:
     virtual void action_test() = 0;
     virtual void parse_device_info(const nano::options &info) = 0;
     virtual void isp_chip_info() = 0;
+    virtual void isp_stat_firmware(const FirmwareData &) = 0;
     virtual void isp_check_firmware(const FirmwareData &) = 0;
     virtual void isp_write_firmware(const FirmwareData &) = 0;
     virtual void isp_chip_erase() = 0;

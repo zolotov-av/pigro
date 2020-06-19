@@ -278,9 +278,41 @@ public:
     uint32_t page_size() const override;
     uint32_t page_count() const override;
 
+    uint32_t page_limit() const
+    {
+        return avr.page_byte_size() * avr.page_count;
+    }
+
+    /**
+     * Проверить прошивку на корректность
+     */
+    bool check_firmware(const FirmwareData &pages, bool verbose)
+    {
+        bool status = true;
+        const uint32_t limit = page_limit();
+        for(const auto page : pages)
+        {
+            const uint32_t page_addr = page.second.addr;
+            const bool page_ok = page_addr < limit;
+            status = status && page_ok;
+            if ( verbose )
+            {
+                const char *page_status = page_ok ? "ok" : "out of range [fail]";
+                printf("PAGE[0x%05X] - %s\n", page_addr, page_status);
+            }
+        }
+        if ( verbose )
+        {
+            const char *status_str = status ? "[ ok ]" : "[fail]";
+            printf("overall status %s\n", status_str);
+        }
+        return status;
+    }
+
     void action_test() override;
     void parse_device_info(const nano::options &info) override;
     void isp_chip_info() override;
+    void isp_stat_firmware(const FirmwareData &) override;
     void isp_check_firmware(const FirmwareData &) override;
     void isp_write_firmware(const FirmwareData &) override;
     void isp_chip_erase() override;

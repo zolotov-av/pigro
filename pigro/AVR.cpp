@@ -62,6 +62,13 @@ void AVR::isp_chip_info()
     isp_program_disable();
 }
 
+void AVR::isp_stat_firmware(const FirmwareData &pages)
+{
+    printf("\nAVR::isp_stat_firmware()\n\n");
+
+    check_firmware(pages, true);
+}
+
 void AVR::isp_check_firmware(const FirmwareData &pages)
 {
     printf("\nAVR::isp_check_firmware()\n");
@@ -71,10 +78,9 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
     check_chip_info();
     check_fuses();
 
+    uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
-        if ( page_addr > 0x10000 ) throw nano::exception("AVR::isp_check_firmware() page address out of range");
-        uint8_t counter = 0;
         const size_t size = page.data.size();
         for(size_t i = 0; i < size; i++)
         {
@@ -94,6 +100,13 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
 {
     printf("\nAVR::isp_write_firmware()\n\n");
 
+    if ( !check_firmware(pages, false) )
+    {
+        error(" AVR::isp_write_firmware(): bad firmware");
+        check_firmware(pages, true);
+        return;
+    }
+
     isp_program_enable();
 
     if ( !check_chip_info() )
@@ -108,9 +121,9 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
 
     chip_erase();
 
+    uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
-        uint8_t counter = 0;
         const size_t size = page.data.size();
         for(size_t i = 0; i < size; i++)
         {

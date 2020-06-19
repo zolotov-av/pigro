@@ -11,6 +11,12 @@ namespace nano
 
     std::string_view trim(std::string_view text);
 
+    inline uint8_t parse_decimal_digit(char ch)
+    {
+        if ( ch >= '0' && ch <= '9' ) return ch - '0';
+        throw nano::exception("wrong decimal digit");
+    }
+
     /**
      * Конверировать шестнадцатеричную цифру в число
      */
@@ -45,6 +51,43 @@ namespace nano
     Int parse_hex(const std::string &s)
     {
         return parse_hex<Int>(s.c_str());
+    }
+
+    inline int parse_int(const std::string &s)
+    {
+        return atoi(s.c_str());
+    }
+
+    inline uint32_t parse_size(const char *str)
+    {
+        const char *s = str;
+        if ( s[0] == '0' && ((s[1] == 'x') || (s[1] == 'X')) ) return nano::parse_hex<uint32_t>(s);
+
+        uint32_t value = 0;
+        while ( (*s >= '0') && (*s <= '9') )
+        {
+            value = value * 10 + (*s - '0');
+            s++;
+        }
+
+        if ( *s == 0 ) return value;
+
+        if ( ((*s == 'k') || (*s == 'K')) && (s[1] == 0) )
+        {
+            return value * 1024;
+        }
+
+        if ( ((*s == 'm') || (*s == 'M')) && (s[1] == 0) )
+        {
+            return value * (1024*1024);
+        }
+
+        throw nano::exception("wrong size suffix: " + std::string(str));
+    }
+
+    inline uint32_t parse_size(const std::string &s)
+    {
+        return parse_size(s.c_str());
     }
 
 }
