@@ -83,7 +83,7 @@ void ARM::isp_chip_info()
     arm_debug_disable();
 }
 
-void ARM::isp_check_firmware(const PigroDriver::FirmwareData &pages)
+void ARM::isp_check_firmware(const FirmwareData &pages)
 {
     printf("\nARM::isp_check_firmware()\n\n");
 
@@ -98,24 +98,18 @@ void ARM::isp_check_firmware(const PigroDriver::FirmwareData &pages)
     */
 
     uint8_t counter = 0;
-    uint32_t memaddr = 0x08000000;
-    arm_set_memaddr(memaddr);
     for(const auto &[page_addr, page] : pages)
     {
+        printf("page_addr: 0x%08X\n", page_addr);
+        arm_set_memaddr(page_addr);
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
         {
             const uint16_t offset = i * 4;
-            const uint32_t addr = 0x08000000 + page_addr * 2 + offset;
+            const uint32_t addr = page_addr + offset;
             if ( counter == 0 ) printf("MEM[0x%08X]", addr);
-            if ( addr != memaddr )
-            {
-                arm_set_memaddr(addr);
-                memaddr = addr;
-            }
-            uint32_t hex_value = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
-            uint32_t device_value = arm_read_mem32();
-            memaddr += 4;
+            const uint32_t hex_value = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
+            const uint32_t device_value = arm_read_mem32();
             printf("%s", (device_value == hex_value ? "." : "*" ));
             if ( counter == 0x1F ) printf("\n");
             counter = (counter + 1) & 0x1F;
@@ -154,33 +148,18 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
     printf("flash_cr: 0x%08X\n", arm_fpec_read_reg(0x10));
 
     uint8_t counter = 0;
-    uint32_t memaddr = 0x08000000;
-    arm_set_memaddr(memaddr);
     for(const auto &[page_addr, page] : pages)
     {
+        arm_set_memaddr(page_addr);
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
         {
             const uint32_t offset = i * 4;
-            const uint32_t addr = 0x08000000 + page_addr * 2 + offset;
+            const uint32_t addr = page_addr + offset;
             if ( counter == 0 ) printf("MEM[0x%08X]", addr);
-            if ( addr != memaddr )
-            {
-                arm_set_memaddr(addr);
-                memaddr = addr;
-            }
-            try
-            {
-                uint32_t word = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
-                arm_fpec_program(word);
-                memaddr += 4;
-                printf(".");
-            }
-            catch (const nano::exception &e)
-            {
-                printf("*\n%s\n", e.message().c_str());
-                throw;
-            }
+            const uint32_t word = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
+            arm_fpec_program(word);
+            printf(".");
             if ( counter == 0x1F )
             {
                 printf("\n");

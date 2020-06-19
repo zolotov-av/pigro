@@ -335,11 +335,11 @@ public:
         driver->parse_device_info(m_chip_info);
     }
 
-    AVR_Data readHEX()
+    FirmwareData readHEX()
     {
         loadConfig();
 
-        auto pages = avr_load_from_hex(driver->page_size(), hexfname);
+        auto pages = FirmwareData::LoadFromFile(hexfname, driver->page_size(), driver->page_fill());
         printf("page usages: %ld / %d\n", pages.size(), driver->page_count());
         return pages;
     }
@@ -349,7 +349,7 @@ public:
      */
     int action_check()
     {
-        AVR_Data pages = readHEX();
+        FirmwareData pages = readHEX();
         driver->isp_check_firmware(pages);
         return 0;
     }
@@ -359,7 +359,7 @@ public:
      */
     int action_write()
     {
-        AVR_Data pages = readHEX();
+        FirmwareData pages = readHEX();
         driver->isp_write_firmware(pages);
         return 0;
     }

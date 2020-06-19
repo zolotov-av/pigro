@@ -7,11 +7,13 @@ SOURCES += \
     ARM.cpp \
     AVR.cpp \
     DeviceInfo.cpp \
+    FirmwareData.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
     nano/config.cpp \
     nano/ini.cpp \
     nano/map.cpp \
+    nano/math.cpp \
     nano/string.cpp \
     nano/IniReader.cpp \
     nano/TextReader.cpp \
@@ -24,11 +26,13 @@ HEADERS += \
     ARM.h \
     AVR.h \
     DeviceInfo.h \
+    FirmwareData.h \
     PigroDriver.h \
     PigroLink.h \
     nano/config.h \
     nano/ini.h \
     nano/map.h \
+    nano/math.h \
     nano/string.h \
     nano/IniReader.h \
     nano/TextReader.h \

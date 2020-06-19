@@ -9,10 +9,8 @@
 #include <nano/config.h>
 
 #include "DeviceInfo.h"
+#include "FirmwareData.h"
 #include "PigroLink.h"
-
-// TODO
-uint32_t at_hex_to_int(const char *s);
 
 class PigroDriver
 {
@@ -21,16 +19,6 @@ protected:
     PigroLink *link;
 
 public:
-
-    struct PageData
-    {
-        uint16_t addr;
-        std::vector<uint8_t> data;
-
-        uint16_t page_size() const { return data.size() / 2; }
-    };
-
-    using FirmwareData = std::map<uint16_t, PageData>;
 
     PigroDriver(PigroLink *pl): link(pl) { }
     virtual ~PigroDriver() { }
@@ -93,6 +81,7 @@ public:
 
     virtual uint32_t page_size() const = 0;
     virtual uint32_t page_count() const = 0;
+    virtual uint8_t page_fill() const;
 
     virtual void action_test() = 0;
     virtual void parse_device_info(const nano::options &info) = 0;

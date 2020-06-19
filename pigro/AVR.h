@@ -12,39 +12,9 @@
 #include "PigroLink.h"
 #include "PigroDriver.h"
 
-/**
- * Конверировать шестнадцатеричную цифру в число
- */
-inline uint8_t at_hex_digit(char ch)
-{
-    if ( ch >= '0' && ch <= '9' ) return ch - '0';
-    if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
-    if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
-    throw nano::exception("wrong hex digit");
-}
-
-/**
- * Первести шестнадцатеричное число из строки в целочисленное значение
- */
-inline uint32_t parse_hexint(const char *s)
-{
-    if ( s[0] == '0' && (s[1] == 'x' || s[1] == 'X') ) s += 2;
-
-    uint32_t r = 0;
-
-    while ( *s )
-    {
-        char ch = *s++;
-        uint8_t hex = at_hex_digit(ch);
-        if ( hex > 0xF ) throw nano::exception("wrong hex digit");
-        r = r * 0x10 + hex;
-    }
-    return r;
-}
-
 inline uint8_t parse_fuse(const std::string &s, const char *type)
 {
-    uint32_t value = parse_hexint(s.c_str());
+    uint32_t value = nano::parse_hex<uint32_t>(s.c_str());
     if ( value > 0xFF ) throw nano::exception(std::string("wrong ") + type + ": " + s);
     return value & 0xFF;
 }
@@ -154,7 +124,7 @@ public:
     static DeviceCode parseDeviceCode(const std::string &code)
     {
         if ( code.empty() ) throw nano::exception("wrong device code: " + code);
-        const uint32_t hex = at_hex_to_int(code.c_str());
+        const uint32_t hex = nano::parse_hex<uint32_t>(code);
         const uint8_t b000 = hex >> 16;
         const uint8_t b001 = hex >> 8;
         const uint8_t b002 = hex;
@@ -208,7 +178,7 @@ public:
     int isp_write_memory_page(uint16_t page_addr)
     {
         uint8_t cmd = 0x4C;
-        uint32_t result = cmd_isp_io( (cmd << 24) | (page_addr << 8 ) );
+        uint32_t result = cmd_isp_io( (cmd << 24) | ((page_addr / 2) << 8 ) );
         uint8_t r = (result >> 16) & 0xFF;
         int status = (r == cmd);
         //sleep(1);
@@ -318,13 +288,5 @@ public:
     void isp_write_fuse() override;
 
 };
-
-using AVR_Info = DeviceInfo;
-
-using AVR_Page = PigroDriver::PageData;
-
-using AVR_Data = PigroDriver::FirmwareData;
-
-AVR::FirmwareData avr_load_from_hex(uint32_t page_size, const std::string &path);
 
 #endif // AVR_H

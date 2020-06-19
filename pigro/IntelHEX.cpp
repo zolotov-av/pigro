@@ -1,25 +1,15 @@
 #include "IntelHEX.h"
 
 #include <nano/TextReader.h>
-
-/**
- * Конверировать шестнадцатеричную цифру в число
- */
-static uint8_t at_hex_digit(char ch)
-{
-    if ( ch >= '0' && ch <= '9' ) return ch - '0';
-    if ( ch >= 'A' && ch <= 'F' ) return ch - 'A' + 10;
-    if ( ch >= 'a' && ch <= 'f' ) return ch - 'a' + 10;
-    throw nano::exception("at_hex_digit(): unexpected character");
-}
+#include <nano/string.h>
 
 /**
  * Прочитать байт
  */
-static uint8_t at_hex_get_byte(const char *line, int i)
+static uint8_t parse_hex_byte(const char *line, int i)
 {
     int offset = i * 2 + 1;
-    return at_hex_digit(line[offset]) * 0x10 + at_hex_digit(line[offset+1]);
+    return nano::parse_hex_digit(line[offset]) * 0x10 + nano::parse_hex_digit(line[offset+1]);
 }
 
 void IntelHEX::open(const std::string &path)
@@ -38,14 +28,14 @@ void IntelHEX::open(const std::string &path)
             throw nano::exception("wrong hex-file: line doen't start from ':'");
         }
 
-        uint8_t len = at_hex_get_byte(line.data(), 0);
+        uint8_t len = parse_hex_byte(line.data(), 0);
         int bytelen = len + 5;
         size_t charlen = bytelen * 2 + 1;
         if ( line.length() < charlen ) throw nano::exception("wrong hex-file: line too short");
 
         for(int i = 0; i < bytelen; i++)
         {
-            row.bytes[i] = at_hex_get_byte(line.data(), i);
+            row.bytes[i] = parse_hex_byte(line.data(), i);
         }
 
         uint8_t sum = 0;
