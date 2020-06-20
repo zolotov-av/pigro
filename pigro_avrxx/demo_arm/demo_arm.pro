@@ -9,7 +9,8 @@ HEADERS += \
         armxx.h \
         armxx/bitband.h \
         armxx/static_ptr.h \
-        isr.h
+        isr.h \
+        tiny/io.h
 
 SOURCES += \
         armxx.cpp \
@@ -17,7 +18,8 @@ SOURCES += \
         armxx/static_ptr.cpp \
         isr.cpp \
         isr_vector.cpp \
-        main.cpp
+        main.cpp \
+        tiny/io.cpp
 
 
 INCLUDEPATH += $$PWD/include
