@@ -10,7 +10,12 @@ HEADERS += \
         armxx/pin.h \
         armxx/static_ptr.h \
         isr.h \
-        tiny/io.h
+        tiny/io.h \
+        tiny/iobuf.h \
+        tiny/ringbuf.h \
+        tiny/system.h \
+        tiny/system_arm.h \
+        tiny/uartbuf.h
 
 SOURCES += \
         armxx/bitband.cpp \
@@ -19,7 +24,12 @@ SOURCES += \
         isr.cpp \
         isr_vector.cpp \
         main.cpp \
-        tiny/io.cpp
+        tiny/io.cpp \
+        tiny/iobuf.cpp \
+        tiny/ringbuf.cpp \
+        tiny/system.cpp \
+        tiny/system_arm.cpp \
+        tiny/uartbuf.cpp
 
 
 INCLUDEPATH += $$PWD/include
