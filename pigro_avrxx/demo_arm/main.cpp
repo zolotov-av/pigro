@@ -1,7 +1,7 @@
 
 #include "stm32f1xx.h"
 #include "isr.h"
-#include "armxx.h"
+#include <armxx/pin.h>
 
 inline void wait()
 {
@@ -22,17 +22,17 @@ static int main_loop()
 
 
 
+    const arm::output_pin led(GPIOA, 0);
+
     while ( 1 )
     {
-        arm::pin(GPIOA, 0).bitbang_set(false);
-        //GPIOA->ODR |= 1;
+
+        led.enable();
         wait();
 
-        arm::pin(GPIOA, 0).bitbang_set(true);
-        //GPIOA->ODR &= ~1;
+        led.disable();
         wait();
 
-        //if ( GPIOA->IDR & 1 ) return 1;
     }
 
 }

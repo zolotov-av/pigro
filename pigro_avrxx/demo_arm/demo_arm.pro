@@ -6,15 +6,15 @@ CONFIG -= qt
 DEFINES += STM32F100xB
 
 HEADERS += \
-        armxx.h \
         armxx/bitband.h \
+        armxx/pin.h \
         armxx/static_ptr.h \
         isr.h \
         tiny/io.h
 
 SOURCES += \
-        armxx.cpp \
         armxx/bitband.cpp \
+        armxx/pin.cpp \
         armxx/static_ptr.cpp \
         isr.cpp \
         isr_vector.cpp \
