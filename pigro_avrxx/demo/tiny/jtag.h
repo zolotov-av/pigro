@@ -4,7 +4,7 @@
 #include <avr/io.h>
 #include <avrxx/io.h>
 
-constexpr uint8_t JTAG_DEFAULT_STATE = avr::makebits(PA0/*RESET*/, PA1/*JDI*/, PA3/*TMS*/);
+constexpr uint8_t JTAG_DEFAULT_STATE = avr::makebits(PA1/*JDI*/, PA3/*TMS*/ /*, PA0/ *RESET*/);
 
 #define JTCK avr::pin(PORTA, PA2)
 #define JTDI avr::pin(PORTA, PA1)
@@ -33,28 +33,21 @@ namespace tiny
             clk();
         }
 
-        static void reset()
+        static void reset(uint8_t data)
         {
-            PORTA = JTAG_DEFAULT_STATE;
-            JRST.set(1);
-        }
-
-        /**
-         * включает JTAG
-         * на выходе TMS=1, JRST=1, JDI=1
-         */
-        static void begin()
-        {
-            reset();
-        }
-
-        /**
-         * выключает JTAG
-         * на выходе TMS=1, JRST=0, JDI=1
-         */
-        static void end()
-        {
-            PORTA = JTAG_DEFAULT_STATE;
+            switch (data)
+            {
+            case 0:
+                PORTA = JTAG_DEFAULT_STATE | (1 << PA0);
+                JRST.set(1);
+                return;
+            case 1:
+                avr::pin(PORTA, PA0).set(1);
+                return;
+            case 2:
+                avr::pin(PORTA, PA0).set(0);
+                return;
+            }
         }
 
         class transaction

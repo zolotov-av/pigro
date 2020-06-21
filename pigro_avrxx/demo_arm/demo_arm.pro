@@ -15,7 +15,8 @@ HEADERS += \
         tiny/ringbuf.h \
         tiny/system.h \
         tiny/system_arm.h \
-        tiny/uartbuf.h
+        tiny/uartbuf.h \
+        uart.h
 
 SOURCES += \
         armxx/bitband.cpp \
@@ -29,7 +30,8 @@ SOURCES += \
         tiny/ringbuf.cpp \
         tiny/system.cpp \
         tiny/system_arm.cpp \
-        tiny/uartbuf.cpp
+        tiny/uartbuf.cpp \
+        uart.cpp
 
 
 INCLUDEPATH += $$PWD/include
@@ -38,7 +40,7 @@ DEPENDPATH += $$PWD/include
 MCU = cortex-m3
 LD_SCRIPT = STM32F100XB_FLASH.ld
 
-QMAKE_CXXFLAGS += -mcpu=$$MCU -mthumb
+QMAKE_CXXFLAGS += -mcpu=$$MCU -mthumb -ffreestanding
 QMAKE_LFLAGS += -T./$$LD_SCRIPT
 
 QMAKE_POST_LINK = $$QMAKE_OBJCOPY -O ihex ${TARGET} ${TARGET}.hex;

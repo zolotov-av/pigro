@@ -7,6 +7,11 @@
 namespace tiny
 {
 
+    class no_Lock
+    {
+
+    };
+
     template <int iSize, int oSize, class uart, class ilock = tiny::interrupt_lock>
     class uartbuf
     {

@@ -48,13 +48,13 @@ public:
     ARM(PigroLink *link): PigroDriver(link) { }
     ~ARM() override;
 
-    void cmd_jtag_reset()
+    void cmd_jtag_reset(uint8_t value)
     {
         //printf("cmd_jtag_reset()\n");
         packet_t pkt;
         pkt.cmd = 5;
         pkt.len = 1;
-        pkt.data[0] = 0;
+        pkt.data[0] = value;
         auto status = send_packet(pkt);
         if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
     }
@@ -125,6 +125,12 @@ public:
         throw nano::exception(func + " wrong ACK=" + std::to_string(ack));
     }
 
+    void check_error(const std::string &func, const packet_t &pkt)
+    {
+        if ( pkt.len == 1 )
+            check_error(func, pkt.data[0]);
+    }
+
     uint32_t arm_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
     {
         //printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
@@ -146,10 +152,12 @@ public:
         recv_packet(pkt);
         //dump_packet("arm_xpacc() recv", pkt);
 
+        check_error("arm_xpacc()", pkt);
+
         if ( pkt.cmd != 9 ) throw nano::exception("arm_xpacc() wrong reply: " + std::to_string(pkt.cmd));
         if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong reply length: " + std::to_string(pkt.len));
 
-        check_error("arm_xpacc()", pkt.data[1]);
+        //check_error("arm_xpacc()", pkt.data[1]);
 
         return pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
     }
@@ -175,10 +183,12 @@ public:
         recv_packet(pkt);
         //dump_packet("arm_apacc() recv", pkt);
 
+        check_error("arm_apacc()", pkt);
+
         if ( pkt.cmd != 10 ) throw nano::exception("arm_apacc() wrong reply: " + std::to_string(pkt.cmd));
         if ( pkt.len != 6 ) throw nano::exception("arm_apacc() wrong reply length: " + std::to_string(pkt.len));
 
-        check_error("arm_apacc()", pkt.data[1]);
+        //check_error("arm_apacc()", pkt.data[1]);
 
         return pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
     }
@@ -193,6 +203,7 @@ public:
         pkt.data[1] = ap;
         send_packet(pkt);
         recv_packet(pkt);
+        check_error("arm_set_memap()", pkt);
         if ( pkt.len != 2 || pkt.data[1] != ap ) throw nano::exception("arm_set_memap() failed");
     }
 
@@ -210,6 +221,7 @@ public:
         //dump_packet("arm_set_memaddr() send:", pkt);
         send_packet(pkt);
         recv_packet(pkt);
+        check_error("arm_set_memaddr()", pkt);
         //dump_packet("arm_set_memaddr() recv:", pkt);
         if ( pkt.len != 5 ) throw nano::exception("arm_set_memaddr() wrong length: " + std::to_string(pkt.len));
         uint32_t output = pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24);
@@ -225,6 +237,7 @@ public:
         send_packet(pkt);
         recv_packet(pkt);
         //dump_packet("arm_read_mem32() recv", pkt);
+        check_error("arm_read_mem32()", pkt);
         if ( pkt.len != 4 ) throw nano::exception("arm_read_mem32() wrong length: " + std::to_string(pkt.len));
         return pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
     }
@@ -236,6 +249,7 @@ public:
         pkt.len = 2;
         send_packet(pkt);
         recv_packet(pkt);
+        check_error("arm_read_mem16()", pkt);
         if ( pkt.len != 2 ) throw nano::exception("arm_read_mem16() wrong length: " + std::to_string(pkt.len));
         return pkt.data[0] | (pkt.data[1] << 8);
     }
@@ -251,6 +265,7 @@ public:
         pkt.data[3] = (value >> 24) & 0xFF;
         send_packet(pkt);
         recv_packet(pkt);
+        check_error("arm_write_mem32()", pkt);
         if ( pkt.len != 4 ) throw nano::exception("arm_write_mem32() wrong length: " + std::to_string(pkt.len));
         uint32_t output = pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
         if ( output != value ) throw nano::exception("arm_write_mem32() failed");
@@ -265,6 +280,7 @@ public:
         pkt.data[1] = (value >> 8) & 0xFF;
         send_packet(pkt);
         recv_packet(pkt);
+        check_error("arm_write_mem16()", pkt);
         if ( pkt.len != 2 ) throw nano::exception("arm_write_mem16() wrong length: " + std::to_string(pkt.len));
         uint16_t output = pkt.data[0] | (pkt.data[1] << 8);
         if ( output != value ) throw nano::exception("arm_write_mem16() failed");
@@ -327,7 +343,9 @@ public:
     {
         //printf("arm_debug_enable()\n");
 
-        cmd_jtag_reset();
+        cmd_jtag_reset(0);
+        cmd_jtag_reset(2);
+
         if ( arm_check_idcode() != CORTEX_M3_IDCODE ) throw nano::exception("only Cortex M3 supported yet");
 
         uint32_t status = CSYSPWRUPREQ | CDBGPWRUPREQ;
@@ -346,6 +364,41 @@ public:
         }
 
         arm_find_memap();
+
+
+        uint32_t test;
+
+
+        arm_set_memaddr(0xE000EDF0);
+        arm_write_mem32(0xA05F0003);
+
+        arm_set_memaddr(0xE000EDF0);
+        test = arm_read_mem32();
+        printf("DHCSR: 0x%08X\n", test);
+
+        arm_set_memaddr(0xE000EDFC);
+        arm_write_mem32(1);
+
+        arm_set_memaddr(0xE000EDFC);
+        auto test2 = arm_read_mem32();
+        printf("DEMCR: 0x%08X\n", test2);
+
+        cmd_jtag_reset(1);
+
+        arm_set_memaddr(0xE000EDF0);
+        test = arm_read_mem32();
+        printf("DHCSR: 0x%08X\n", test);
+
+        arm_set_memaddr(0xE000EDF0);
+        test = arm_read_mem32();
+        printf("DHCSR: 0x%08X\n", test);
+
+        arm_set_memaddr(0xE000ED10);
+        arm_read_mem32();
+        printf("SCR: 0x%08X\n", test);
+
+
+        //
     }
 
     void arm_debug_disable()
@@ -365,25 +418,26 @@ public:
         {
             warn("system power still on");
         }
+
     }
 
     void arm_find_memap()
     {
-        //printf("\nfind MEM-AP\n");
+        printf("\nfind MEM-AP\n");
         for(int i = 0; i < 256; i++)
         {
             try
             {
                 const uint32_t idr = arm_idr(i);
                 const uint32_t test = (idr >> 16) & 0xFFF;
-                //printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
+                printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
                 if ( idr == 0 ) break;
 
 
                 if ( test == 0x477 )
                 {
                     arm_memap = i;
-                    //printf("MEM-AP: %d\n", arm_memap);
+                    printf("MEM-AP: %d\n", arm_memap);
                     return;
                 }
 

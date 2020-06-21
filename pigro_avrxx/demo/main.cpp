@@ -131,13 +131,16 @@ void cmd_isp_io()
 
 static void cmd_jtag_test()
 {
-    JTAG::reset();
+    if ( pkt.len == 1 )
+    {
+        JTAG::reset(pkt.data[0]);
+    }
 }
 
 static void send_error(JTAG::error_t error)
 {
     pkt.len = 1;
-    pkt.data[1] = error;
+    pkt.data[0] = error;
     send_packet();
 }
 
@@ -287,6 +290,14 @@ static void cmd_arm_fpec()
     }
 }
 
+static void cmd_arm_reset()
+{
+    if ( pkt.len == 1 )
+    {
+        avr::pin(PORTB, PB1).set(pkt.data[0]);
+    }
+}
+
 /**
  * Обработка команд
  */
@@ -335,6 +346,9 @@ void handle_packet()
         return;
     case 14:
         cmd_arm_fpec();
+        return;
+    case 15:
+        cmd_arm_reset();
         return;
     }
 }

@@ -19,7 +19,7 @@ void SVC_Handler() DEFAULT_ISR;
 void DebugMon_Handler() DEFAULT_ISR;
 
 void PendSV_Handler() DEFAULT_ISR;
-void SysTick_Handler() DEFAULT_ISR;
+// void SysTick_Handler() DEFAULT_ISR;
 void WWDG_IRQHandler() DEFAULT_ISR;
 void PVD_IRQHandler() DEFAULT_ISR;
 void TAMPER_IRQHandler() DEFAULT_ISR;
@@ -56,7 +56,7 @@ void I2C2_EV_IRQHandler() DEFAULT_ISR;
 void I2C2_ER_IRQHandler() DEFAULT_ISR;
 void SPI1_IRQHandler() DEFAULT_ISR;
 void SPI2_IRQHandler() DEFAULT_ISR;
-void USART1_IRQHandler() DEFAULT_ISR;
+//void USART1_IRQHandler() DEFAULT_ISR;
 void USART2_IRQHandler() DEFAULT_ISR;
 void USART3_IRQHandler() DEFAULT_ISR;
 void EXTI15_10_IRQHandler() DEFAULT_ISR;
