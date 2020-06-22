@@ -7,7 +7,10 @@ namespace arm
 {
 
     // DO NOT IMPLEMENT
-    uint32_t* unsupported_bitbang();
+    inline uint32_t* unsupported_bitbang()
+    {
+        return nullptr;
+    }
 
     constexpr inline uint32_t bitband_addr(uint32_t addr, unsigned bit)
     {
