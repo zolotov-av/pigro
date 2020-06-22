@@ -26,7 +26,7 @@ namespace tiny
             const uint8_t b = tiny::forced_read(begin);
             const uint8_t e = tiny::forced_read(end);
             if ( b == e ) return false;
-            *dest = tiny::forced_read(data[begin]);
+            *dest = tiny::forced_read(data[b]);
             tiny::forced_write(begin, (b + 1) % size);
             return true;
         }
@@ -37,7 +37,7 @@ namespace tiny
             const uint8_t e = tiny::forced_read(end);
             const uint8_t e_next = (e + 1) % size;
             if ( e_next == b ) return false;
-            tiny::forced_write(data[e_next], value);
+            tiny::forced_write(data[e], value);
             tiny::forced_write(end, e_next);
             return true;
         }
