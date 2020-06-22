@@ -25,6 +25,16 @@ public:
         TCCR0 = tiny::makebits(WGM01, CS01);
     }
 
+    static bool expire()
+    {
+        return count > 80;
+    }
+
+    static void reset()
+    {
+        count = 0;
+    }
+
     static void stop()
     {
         avr::pin(TIMSK, OCIE0).set(false);

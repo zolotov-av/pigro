@@ -35,6 +35,13 @@ struct packet_t
 SPI_Master spi {};
 tiny::uartbuf<avr::UART> uart {};
 
+class ReadTimer
+{
+public:
+    ReadTimer() { Timer::start(); }
+    ~ReadTimer() { Timer::stop(); }
+};
+
 /**
  * Прерываение SPI
  */
@@ -70,7 +77,7 @@ static bool usart_read(uint8_t &dest)
 {
     while ( !uart.read(&dest) )
     {
-        if ( Timer::count > 80 ) return false;
+        if ( Timer::expire() ) return false;
         tiny::sleep();
     }
     return true;
@@ -80,7 +87,7 @@ static bool usart_write(uint8_t dest)
 {
     while ( !uart.write(dest) )
     {
-        if ( Timer::count > 80 ) return false;
+        if ( Timer::expire() ) return false;
         tiny::sleep();
     }
     return true;
@@ -371,13 +378,6 @@ void handle_packet()
     }
 }
 
-class ReadTimer
-{
-public:
-    ReadTimer() { Timer::start(); }
-    ~ReadTimer() { Timer::stop(); }
-};
-
 /**
  * Чтение пакета в блокируещем режиме и его обработка
  */
@@ -405,6 +405,20 @@ static bool read_packet()
         if ( !usart_read(pkt.data[i]) ) return false;
     }
     return true;
+}
+
+/**
+ * Прочитать "мусор" после рассинхрона
+ */
+static void skip_trash()
+{
+    ReadTimer tm;
+    uint8_t dummy;
+    while ( !Timer::expire() )
+    {
+        while ( uart.read(&dummy) ) Timer::reset();
+        tiny::sleep();
+    }
 }
 
 int main()
@@ -439,6 +453,7 @@ int main()
         else
         {
             send_nack();
+            skip_trash();
         }
     }
 }
