@@ -10,12 +10,6 @@ HEADERS += \
         armxx/pin.h \
         armxx/static_ptr.h \
         isr.h \
-        tiny/io.h \
-        tiny/iobuf.h \
-        tiny/ringbuf.h \
-        tiny/system.h \
-        tiny/system_arm.h \
-        tiny/uartbuf.h \
         uart.h
 
 SOURCES += \
@@ -25,17 +19,11 @@ SOURCES += \
         isr.cpp \
         isr_vector.cpp \
         main.cpp \
-        tiny/io.cpp \
-        tiny/iobuf.cpp \
-        tiny/ringbuf.cpp \
-        tiny/system.cpp \
-        tiny/system_arm.cpp \
-        tiny/uartbuf.cpp \
         uart.cpp
 
 
-INCLUDEPATH += $$PWD/include
-DEPENDPATH += $$PWD/include
+INCLUDEPATH += $$PWD/include $$PWD/../libtiny
+DEPENDPATH += $$PWD/include $$PWD/../libtiny
 
 MCU = cortex-m3
 LD_SCRIPT = STM32F100XB_FLASH.ld
