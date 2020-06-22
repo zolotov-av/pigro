@@ -5,6 +5,7 @@ CONFIG -= qt
 
 SOURCES += \
         main.cpp \
+        timer.cpp \
         tiny/jtag.cpp
 
 
@@ -24,4 +25,5 @@ QMAKE_CLEAN += $${TARGET}.hex $${TARGET}.dump
 QMAKE_CXXFLAGS += -Wa,-adhln=temp.s
 
 HEADERS += \
+    timer.h \
     tiny/jtag.h

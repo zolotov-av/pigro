@@ -6,6 +6,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <tiny/jtag.h>
+#include "timer.h"
 
 using namespace avr;
 using namespace tiny;
@@ -58,18 +59,55 @@ ISR(USART_UDRE_vect)
     uart.isr_tx_empty();
 }
 
-static packet_t pkt;
-
-void send_packet();
-
-static void send_ack()
+ISR(TIMER0_COMP_vect )
 {
-    uart.write_sync(PKT_ACK);
+    Timer::isr();
 }
 
-static void send_nack()
+static packet_t pkt;
+
+static bool usart_read(uint8_t &dest)
 {
-    uart.write_sync(PKT_NACK);
+    while ( !uart.read(&dest) )
+    {
+        if ( Timer::count > 80 ) return false;
+        tiny::sleep();
+    }
+    return true;
+}
+
+static bool usart_write(uint8_t dest)
+{
+    while ( !uart.write(dest) )
+    {
+        if ( Timer::count > 80 ) return false;
+        tiny::sleep();
+    }
+    return true;
+}
+
+static bool send_ack()
+{
+    return usart_write(PKT_ACK);
+}
+
+static bool send_nack()
+{
+    return usart_write(PKT_NACK);
+}
+
+/**
+ * Отправить пакет сформированный в переменной ptk
+ */
+bool send_packet()
+{
+    if ( !usart_write(pkt.cmd) ) return false;
+    if ( !usart_write(pkt.len) ) return false;
+    for(uint8_t i = 0; i < pkt.len; i++)
+    {
+        if ( !usart_write(pkt.data[i]) ) return false;
+    }
+    return true;
 }
 
 /**
@@ -94,20 +132,6 @@ void cmd_isp_reset()
     if ( pkt.len == 1 )
     {
         avr::pin(PORTB, PB1).set(pkt.data[0]);
-    }
-}
-
-/**
- * Отправить пакет сформированный в переменной ptk
- */
-void send_packet()
-{
-    uart.write_sync(pkt.cmd);
-    uart.write_sync(pkt.len);
-    int i;
-    for(i = 0; i < pkt.len; i++)
-    {
-        uart.write_sync(pkt.data[i]);
     }
 }
 
@@ -347,30 +371,40 @@ void handle_packet()
     }
 }
 
+class ReadTimer
+{
+public:
+    ReadTimer() { Timer::start(); }
+    ~ReadTimer() { Timer::stop(); }
+};
+
 /**
  * Чтение пакета в блокируещем режиме и его обработка
  */
-static void read_packet()
+static bool read_packet()
 {
-    int i;
+
     uart.read_sync(&pkt.cmd);
-    uart.read_sync(&pkt.len);
+
+    ReadTimer tm;
+
+    if ( ! usart_read(pkt.len) ) return false;
 
     if ( pkt.len > PACKET_MAXLEN )
     {
         uint8_t dummy;
-        send_nack();
-        for(i = 0; i < pkt.len; i++) uart.read_sync(&dummy);
-        return;
+        for(uint8_t i = 0; i < pkt.len; i++)
+        {
+            if ( !usart_read(dummy) ) return false;
+        }
+        return false;
     }
 
-    for(i = 0; i < pkt.len; i++)
+    for(uint8_t i = 0; i < pkt.len; i++)
     {
-        uart.read_sync(&pkt.data[i]);
+        if ( !usart_read(pkt.data[i]) ) return false;
     }
-    send_ack();
-
-    handle_packet();
+    return true;
 }
 
 int main()
@@ -384,6 +418,9 @@ int main()
     DDRA = makebits(PA0, PA1, PA2, PA3, PA4, /*PA5,*/ PA6, PA7);
     PORTA = JTAG_DEFAULT_STATE;
 
+    //DDRA = 0xFF;
+    //PORTA = 0xFF;
+
     avr::pin(MCUCR, SE).set(true);
 
     // Настройка UART
@@ -394,6 +431,14 @@ int main()
 
     while ( true )
     {
-        read_packet();
+        if ( read_packet() )
+        {
+            send_ack();
+            handle_packet();
+        }
+        else
+        {
+            send_nack();
+        }
     }
 }

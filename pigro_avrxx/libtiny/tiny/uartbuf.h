@@ -30,7 +30,7 @@ namespace tiny
         {
             if ( buf.write(value) )
             {
-                device().enable_tx_isr();
+                device().enable_tx_empty_isr();
                 return true;
             }
 
