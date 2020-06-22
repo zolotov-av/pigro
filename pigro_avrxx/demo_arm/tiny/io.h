@@ -126,6 +126,30 @@ namespace tiny
         return forced_io(r);
     }
 
+    template <typename T>
+    inline T cached_read(const volatile T &var)
+    {
+        return *reinterpret_cast<const T *>(&var);
+    }
+
+    template <typename T>
+    inline T forced_read(const volatile T &var)
+    {
+        return var;
+    }
+
+    template <typename T, typename V>
+    inline void cached_write(volatile T &var, V value)
+    {
+        *reinterpret_cast<T*>(&var) = value;
+    }
+
+    template <typename T, typename V>
+    inline void forced_write(volatile T &var, V value)
+    {
+        var = value;
+    }
+
 }
 
 #endif // TINY_IO_H
