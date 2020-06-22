@@ -2,61 +2,14 @@
 #define AVRXX_H
 
 #include <stdint.h>
+#include <tiny/system.h>
 
 namespace avr
 {
 
-    constexpr auto makebits()
-    {
-        return 0;
-    }
-
-    template<typename T>
-    constexpr T makebits(T first) {
-        return (1 << first);
-    }
-
-    template<typename T, typename... Args>
-    constexpr T makebits(T first, Args... args) {
-        return (1 << first) | makebits(args...);
-    }
-
-    template <typename T>
-    void setreg(volatile T &reg)
-    {
-        reg = 0;
-    }
-
-    template <typename T>
-    void setreg(volatile T &reg, int bit)
-    {
-        reg = (1 << bit);
-    }
-
-    template <typename T, typename... Bits>
-    void setreg(volatile T &reg, Bits... bits)
-    {
-        reg = makebits(bits...);
-    }
-
-    inline void interrupt_enable()
-    {
-        __asm__ __volatile__ ("sei" ::: "memory");
-    }
-
-    inline void interrupt_disable()
-    {
-        __asm__ __volatile__ ("cli" ::: "memory");
-    }
-
-    inline void sleep()
-    {
-        __asm__ __volatile__ ("sleep" ::: "memory");
-    }
-
     inline void sleep_loop()
     {
-        while ( true ) sleep();
+        while ( true ) tiny::sleep();
     }
 
     template <typename T> class cached_io;

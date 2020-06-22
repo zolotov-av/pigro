@@ -3,8 +3,9 @@
 
 #include <avr/io.h>
 #include <avrxx/io.h>
+#include <tiny/io.h>
 
-constexpr uint8_t JTAG_DEFAULT_STATE = avr::makebits(PA1/*JDI*/, PA3/*TMS*/ /*, PA0/ *RESET*/);
+constexpr uint8_t JTAG_DEFAULT_STATE = tiny::makebits(PA1/*JDI*/, PA3/*TMS*/ /*, PA0/ *RESET*/);
 
 #define JTCK avr::pin(PORTA, PA2)
 #define JTDI avr::pin(PORTA, PA1)

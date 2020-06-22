@@ -3,6 +3,7 @@
 
 #include <avrxx/io.h>
 #include <avr/io.h>
+#include <tiny/io.h>
 
 namespace avr
 {
@@ -13,9 +14,9 @@ namespace avr
 
         static void init()
         {
-            UCSRA = makebits();
-            UCSRB = makebits(RXEN, TXEN, RXCIE, TXCIE);
-            UCSRC = makebits(URSEL, UCSZ0, UCSZ1);
+            UCSRA = tiny::makebits();
+            UCSRB = tiny::makebits(RXEN, TXEN, RXCIE, TXCIE);
+            UCSRC = tiny::makebits(URSEL, UCSZ0, UCSZ1);
         }
 
         static void enableUDRE()

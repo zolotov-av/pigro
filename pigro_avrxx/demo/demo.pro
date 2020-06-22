@@ -8,8 +8,8 @@ SOURCES += \
         tiny/jtag.cpp
 
 
-INCLUDEPATH += $$PWD/../avrxx
-DEPENDPATH += $$PWD/../avrxx
+INCLUDEPATH += $$PWD/../avrxx $$PWD/../libtiny
+DEPENDPATH += $$PWD/../avrxx $$PWD/../libtiny
 
 AVR_MCU = atmega16a
 

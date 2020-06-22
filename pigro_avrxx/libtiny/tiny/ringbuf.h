@@ -2,6 +2,7 @@
 #define TINY_RINGBUF_H
 
 #include <inttypes.h>
+#include <tiny/system.h>
 #include <tiny/io.h>
 
 namespace tiny
@@ -39,6 +40,22 @@ namespace tiny
             tiny::forced_write(data[e_next], value);
             tiny::forced_write(end, e_next);
             return true;
+        }
+
+        void read_sync(uint8_t *dest)
+        {
+            while ( !read(dest) )
+            {
+                tiny::sleep();
+            }
+        }
+
+        void write_sync(uint8_t value)
+        {
+            while ( !write(value) )
+            {
+                tiny::sleep();
+            }
         }
 
         void clear()

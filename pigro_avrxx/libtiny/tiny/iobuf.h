@@ -6,7 +6,7 @@
 namespace tiny
 {
 
-    template <int iSize, int oSize>
+    template <uint8_t iSize, uint8_t oSize>
     class iobuf
     {
     private:
@@ -27,6 +27,16 @@ namespace tiny
         bool write(uint8_t value)
         {
             return obuf.write(value);
+        }
+
+        void read_sync(uint8_t *dest)
+        {
+            return ibuf.read_sync(dest);
+        }
+
+        void write_sync(uint8_t value)
+        {
+            return obuf.write_sync(value);
         }
 
         void clear()

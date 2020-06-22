@@ -1,6 +1,8 @@
+#include <tiny/system.h>
 #include <avrxx/io.h>
 #include <avrxx/spi_master.h>
-#include <avrxx/uartbuf.h>
+#include <tiny/uartbuf.h>
+#include <avrxx/uart.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <tiny/jtag.h>
@@ -30,7 +32,7 @@ struct packet_t
 };
 
 SPI_Master spi {};
-uartbuf<8, 8> uart {};
+tiny::uartbuf<8, 8, avr::UART> uart {};
 
 /**
  * Прерываение SPI
@@ -396,7 +398,7 @@ int main()
     UART::init();
     UART::setBaudRate(UART_BAUD_K);
 
-    avr::interrupt_enable();
+    tiny::interrupt_enable();
 
     while ( true )
     {

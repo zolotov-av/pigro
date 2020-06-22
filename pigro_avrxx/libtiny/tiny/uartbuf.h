@@ -7,12 +7,7 @@
 namespace tiny
 {
 
-    class no_Lock
-    {
-
-    };
-
-    template <int iSize, int oSize, class uart, class ilock = tiny::interrupt_lock>
+    template <uint8_t iSize, uint8_t oSize, class uart>
     class uartbuf
     {
     private:
@@ -21,29 +16,18 @@ namespace tiny
 
     public:
 
-        void wait()
-        {
-            while ( buf.input().empty() )
-            {
-                tiny::sleep();
-            }
-        }
-
         bool read(uint8_t *dest)
         {
-            ilock lock;
             return buf.read(dest);
         }
 
-        bool read_sync(uint8_t *dest)
+        void read_sync(uint8_t *dest)
         {
-            wait();
-            return read(dest);
+            return buf.read_sync(dest);
         }
 
         bool write(uint8_t value)
         {
-            ilock lock;
             if ( buf.write(value) )
             {
                 uart::enableUDRE();
@@ -55,12 +39,8 @@ namespace tiny
 
         void write_sync(uint8_t value)
         {
-            while ( buf.output().full() )
-            {
-                sleep();
-            }
-
-            write(value);
+            buf.write_sync(value);
+            uart::enableUDRE();
         }
 
         void handle_rxc_isr()

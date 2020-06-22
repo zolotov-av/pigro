@@ -1,6 +1,7 @@
 #ifndef SPI_MASTER_H
 #define SPI_MASTER_H
 
+#include <tiny/system.h>
 #include <avrxx/spi.h>
 
 namespace avr
@@ -17,7 +18,7 @@ namespace avr
 
         void wait()
         {
-            while ( busy ) avr::sleep();
+            while ( busy ) tiny::sleep();
         }
 
         void ioctl(uint8_t *data, int size)
