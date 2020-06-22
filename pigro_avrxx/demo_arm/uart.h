@@ -23,13 +23,13 @@ namespace demo
             port->BRR = (52 << 4) | (1 << 0);
         }
 
-        static void enableUDRE()
+        static void enable_tx_empty_isr()
         {
             //port->CR1 = tiny::makebits(USART_CR1_UE_Pos, USART_CR1_TE_Pos, USART_CR1_RE_Pos, USART_CR1_RXNEIE_Pos, USART_CR1_TXEIE_Pos);
             arm::bitband_write(port->CR1, USART_CR1_TXEIE_Pos, true);
         }
 
-        static void disableUDRE()
+        static void disable_tx_empty_isr()
         {
             //port->CR1 = tiny::makebits(USART_CR1_UE_Pos, USART_CR1_TE_Pos, USART_CR1_RE_Pos, USART_CR1_RXNEIE_Pos);
             arm::bitband_write(port->CR1, USART_CR1_TXEIE_Pos, false);
@@ -47,7 +47,7 @@ namespace demo
 
     };
 
-    inline tiny::uartbuf<8, 8, UART1> uart1;
+    inline tiny::uartbuf<UART1> uart1;
 
 }
 

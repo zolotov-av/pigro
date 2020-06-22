@@ -7,7 +7,7 @@
 namespace tiny
 {
 
-    template <uint8_t iSize, uint8_t oSize, class uart>
+    template <class device, uint8_t iSize = 8, uint8_t oSize = 8>
     class uartbuf
     {
     private:
@@ -30,7 +30,7 @@ namespace tiny
         {
             if ( buf.write(value) )
             {
-                uart::enableUDRE();
+                device().enable_tx_isr();
                 return true;
             }
 
@@ -40,30 +40,24 @@ namespace tiny
         void write_sync(uint8_t value)
         {
             buf.write_sync(value);
-            uart::enableUDRE();
+            device().enable_tx_empty_isr();
         }
 
-        void handle_rxc_isr()
+        void isr_rx_ready()
         {
-            buf.enque_input(uart::read());
+            buf.enque_input(device().read());
         }
 
-        void handle_txc_isr()
-        {
-        }
-
-        void handle_udre_isr()
+        void isr_tx_empty()
         {
             uint8_t dest;
             if ( buf.deque_output(&dest) )
             {
-                uart::write(dest);
-                if ( buf.output().empty() )
-                {
-                    uart::disableUDRE();
-                }
+                device().write(dest);
+                return;
             }
 
+            device().disable_tx_empty_isr();
         }
 
         void clear()

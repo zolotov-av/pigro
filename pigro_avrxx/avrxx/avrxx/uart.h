@@ -15,24 +15,24 @@ namespace avr
         static void init()
         {
             UCSRA = tiny::makebits();
-            UCSRB = tiny::makebits(RXEN, TXEN, RXCIE, TXCIE);
+            UCSRB = tiny::makebits(RXEN, TXEN, RXCIE);
             UCSRC = tiny::makebits(URSEL, UCSZ0, UCSZ1);
-        }
-
-        static void enableUDRE()
-        {
-            avr::ioreg(UCSRB).write_pin(UDRIE, true);
-        }
-
-        static void disableUDRE()
-        {
-            avr::ioreg(UCSRB).write_pin(UDRIE, false);
         }
 
         static void setBaudRate(int rate)
         {
             avr::ioreg(UBRRH).raw_write( (rate / 256) & 0xF );
             avr::ioreg(UBRRL).raw_write(rate % 256);
+        }
+
+        static void enable_tx_empty_isr()
+        {
+            avr::ioreg(UCSRB).write_pin(UDRIE, true);
+        }
+
+        static void disable_tx_empty_isr()
+        {
+            avr::ioreg(UCSRB).write_pin(UDRIE, false);
         }
 
         static uint8_t read()

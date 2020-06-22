@@ -32,7 +32,7 @@ struct packet_t
 };
 
 SPI_Master spi {};
-tiny::uartbuf<8, 8, avr::UART> uart {};
+tiny::uartbuf<avr::UART> uart {};
 
 /**
  * Прерываение SPI
@@ -47,15 +47,7 @@ ISR(SPI_STC_vect)
  */
 ISR(USART_RXC_vect)
 {
-    uart.handle_rxc_isr();
-}
-
-/**
-* USART Transmit Complete
-*/
-ISR(USART_TXC_vect)
-{
-    uart.handle_txc_isr();
+    uart.isr_rx_ready();
 }
 
 /**
@@ -63,7 +55,7 @@ ISR(USART_TXC_vect)
 */
 ISR(USART_UDRE_vect)
 {
-    uart.handle_udre_isr();
+    uart.isr_tx_empty();
 }
 
 static packet_t pkt;
