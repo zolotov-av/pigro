@@ -56,7 +56,18 @@ public:
     {
         if ( pkt.len == 1 )
         {
-            JTAG::reset(pkt.data[0]);
+            switch (pkt.data[0])
+            {
+            case 0:
+                STM32::init_jtag();
+                return;
+            case 1:
+                STM32::reset_target(1);
+                return;
+            case 2:
+                STM32::reset_target(0);
+                return;
+            }
         }
     }
 

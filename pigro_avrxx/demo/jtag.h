@@ -7,6 +7,7 @@
 
 constexpr uint8_t JTAG_DEFAULT_STATE = tiny::makebits(PA1/*JDI*/, PA3/*TMS*/ /*, PA0/ *RESET*/);
 
+#define JD_RESET avr::pin(PORTA, PA0)
 #define JTCK avr::pin(PORTA, PA2)
 #define JTDI avr::pin(PORTA, PA1)
 #define JTDO avr::pin(PORTA, PINA, PA5)
@@ -30,21 +31,16 @@ public:
         clk();
     }
 
-    static void reset(uint8_t data)
+    static void init()
     {
-        switch (data)
-        {
-        case 0:
-            PORTA = JTAG_DEFAULT_STATE | (1 << PA0);
-            JRST.set(1);
-            return;
-        case 1:
-            avr::pin(PORTA, PA0).set(1);
-            return;
-        case 2:
-            avr::pin(PORTA, PA0).set(0);
-            return;
-        }
+        PORTA = JTAG_DEFAULT_STATE | (1 << PA0);
+        JRST.set(1);
+    }
+
+    static void reset()
+    {
+        JRST.set(0);
+        JRST.set(1);
     }
 
     class transaction

@@ -43,6 +43,27 @@ public:
     using error_t = uint8_t;
 
     /**
+     * Control RESET line of target device
+     */
+    static inline void reset_target(bool value)
+    {
+        JD_RESET.set(value);
+    }
+
+    static inline void init_jtag()
+    {
+        JTAG::init();
+    }
+
+    /**
+     * Reset JTAG-SM state
+     */
+    static inline void reset_jtag_state()
+    {
+        JTAG::reset();
+    }
+
+    /**
      * Transmit instruction register
      *
      * Execute sequence: select-dr, select-ir, capture-ir, shift-ir, exit1-ir, update-ir
