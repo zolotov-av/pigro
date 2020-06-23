@@ -26,7 +26,7 @@ void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");
 
-    arm_idcode_raw();
+    check_idcode_raw();
     check_bypass<9, 32>(0x12345678);
 
     arm_debug_enable();
@@ -46,7 +46,7 @@ void ARM::action_test()
     */
 
     uint32_t addr = 0x08000000;
-    arm_set_memaddr(addr);
+    set_memaddr(addr);
     for(int i = 0; i < 4; i++)
     {
         uint32_t value = read_next32();
@@ -54,7 +54,7 @@ void ARM::action_test()
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
 
-    arm_set_memaddr(0xE0042000);
+    set_memaddr(0xE0042000);
     uint32_t value = read_next32();
     printf("MEM[0xE0042000]: 0x%08X\n", value);
     arm_dump_mem32(0x40010800);
@@ -112,7 +112,7 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
     uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
-        arm_set_memaddr(page_addr);
+        set_memaddr(page_addr);
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
         {
@@ -168,7 +168,7 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
     uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
-        arm_set_memaddr(page_addr);
+        set_memaddr(page_addr);
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
         {
@@ -176,7 +176,7 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
             const uint32_t addr = page_addr + offset;
             if ( counter == 0 ) printf("MEM[0x%08X]", addr);
             const uint32_t word = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
-            arm_fpec_program(word);
+            cmd_program_next(word);
             printf(".");
             if ( counter == 0x1F )
             {

@@ -28,6 +28,12 @@ public:
 
     static constexpr uint32_t CORTEX_M3_IDCODE = 0x3BA00477;
 
+    static constexpr bool is_cortex_m3_idcode(uint32_t idcode)
+    {
+        return (idcode & 0x0FFFFFFF) == (CORTEX_M3_IDCODE & 0x0FFFFFFF);
+    }
+
+
     static constexpr uint32_t CSYSPWRUPACK = 1 << 31; // RO  System power-up acknowledge.
     static constexpr uint32_t CSYSPWRUPREQ = 1 << 30; // R/W System power-up request.
     static constexpr uint32_t CDBGPWRUPACK = 1 << 29; // Debug power-up acknowledge.
@@ -47,120 +53,6 @@ public:
 
     ARM(PigroLink *link): PigroDriver(link) { }
     ~ARM() override;
-
-    void cmd_jtag_reset(uint8_t value)
-    {
-        //printf("cmd_jtag_reset()\n");
-        packet_t pkt;
-        pkt.cmd = 5;
-        pkt.len = 1;
-        pkt.data[0] = value;
-        auto status = send_packet(pkt);
-        if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
-    }
-
-    template <uint8_t bitcount>
-    uint64_t cmd_jtag_raw_ir(uint64_t ir)
-    {
-        static_assert(bitcount <= 64);
-
-        const unsigned byte_count = (bitcount + 7) / 8;
-        static_assert(byte_count <= (PACKET_MAXLEN - 1));
-
-        packet_t pkt;
-        pkt.cmd = 6;
-        pkt.len = byte_count + 1;
-        pkt.data[0] = bitcount;
-        for(unsigned i = 0; i < byte_count; i++)
-        {
-            pkt.data[i+1] = ir & 0xFF;
-            ir = ir >> 8;
-        }
-
-        //dump_packet("cmd_jtag_raw_ir() send", pkt);
-        send_packet(pkt);
-        recv_packet(pkt);
-        //dump_packet("cmd_jtag_raw_ir() recv", pkt);
-
-        uint64_t result = 0;
-        uint64_t mul = 1;
-        for(unsigned i = 0; i < byte_count; i++)
-        {
-            result = result | (pkt.data[i+1] * mul);
-            mul = mul * 256;
-        }
-        return result;
-    }
-
-    template <uint8_t bitcount>
-    uint64_t cmd_jtag_raw_dr(uint64_t dr)
-    {
-        static_assert(bitcount <= 64);
-
-        const unsigned byte_count = (bitcount + 7) / 8;
-        static_assert(byte_count <= (PACKET_MAXLEN - 1));
-
-        packet_t pkt;
-        pkt.cmd = 7;
-        pkt.len = byte_count + 1;
-        pkt.data[0] = bitcount;
-        for(unsigned i = 0; i < byte_count; i++)
-        {
-            pkt.data[i+1] = dr & 0xFF;
-            dr = dr >> 8;
-        }
-
-        //dump_packet("cmd_jtag_raw_dr() send", pkt);
-        send_packet(pkt);
-        recv_packet(pkt);
-        //dump_packet("cmd_jtag_raw_dr() recv", pkt);
-
-        uint64_t result = 0;
-        uint64_t mul = 1;
-        for(unsigned i = 0; i < byte_count; i++)
-        {
-            result = result | (pkt.data[i+1] * mul);
-            mul = mul * 256;
-        }
-        return result;
-    }
-
-    template <uint8_t bitcount>
-    uint32_t arm_io(uint8_t ir, uint64_t value)
-    {
-        static_assert(bitcount <= 64);
-
-        constexpr uint8_t bytecount = (bitcount + 7) / 8;
-        static_assert(bytecount <= (PACKET_MAXLEN - 2));
-
-        packet_t pkt;
-        pkt.cmd = 8;
-        pkt.len = bytecount + 2;
-        pkt.data[0] = ir;
-        pkt.data[1] = bitcount;
-        for(int i = 0; i < bytecount; i++)
-        {
-            pkt.data[i+2] = value & 0xFF;
-            value = value >> 8;
-        }
-
-        //dump_packet("arm_io() send", pkt);
-        send_packet(pkt);
-        recv_packet(pkt);
-        //dump_packet("arm_io() recv", pkt);
-
-        if ( pkt.cmd != 8 ) throw nano::exception("arm_io() wrong reply: cmd=" + std::to_string(pkt.cmd));
-        if ( pkt.len != bytecount + 2 ) throw nano::exception("arm_io() wrong len: " + std::to_string(pkt.len));
-
-        uint64_t result = 0;
-        uint64_t mul = 1;
-        for(int i = 0; i < bytecount; i++)
-        {
-            result = result | (pkt.data[i+2] * mul);
-            mul = mul * 256;
-        }
-        return result;
-    }
 
     /**
      * Error code
@@ -200,187 +92,8 @@ public:
             check_error(func, pkt.data[0]);
     }
 
-    uint32_t arm_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
-    {
-        //printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
-        if ( reg > 0x0F ) throw nano::exception("arm_xpacc_ex() wrong register: " + std::to_string(reg));
-        packet_t pkt;
-        pkt.cmd = 9;
-        pkt.len = 6;
-        if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_xpacc() pkt.len too big: " + std::to_string(pkt.len));
-        pkt.data[0] = ir;
-        pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
-        pkt.data[2] = value & 0xFF;
-        pkt.data[3] = (value >> 8) & 0xFF;
-        pkt.data[4] = (value >> 16) & 0xFF;
-        pkt.data[5] = (value >> 24) & 0xFF;
-
-        //dump_packet("arm_xpacc() send", pkt);
-        send_packet(pkt);
-
-        recv_packet(pkt);
-        //dump_packet("arm_xpacc() recv", pkt);
-
-        check_error("arm_xpacc()", pkt);
-
-        if ( pkt.cmd != 9 ) throw nano::exception("arm_xpacc() wrong reply: " + std::to_string(pkt.cmd));
-        if ( pkt.len != 6 ) throw nano::exception("arm_xpacc() wrong reply length: " + std::to_string(pkt.len));
-
-        //check_error("arm_xpacc()", pkt.data[1]);
-
-        return pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
-    }
-
-    uint32_t arm_apacc(uint8_t ap, uint8_t reg, uint32_t value, bool write)
-    {
-        //printf("arm_apacc(ap=0x%02X, reg=0x%02X, value=0x%08X, %s):\n", ap, reg, value, action(write));
-        if ( reg & 0x03 ) throw nano::exception("arm_apacc() wrong register: " + std::to_string(reg));
-        packet_t pkt;
-        pkt.cmd = 10;
-        pkt.len = 6;
-        if ( pkt.len > PACKET_MAXLEN ) throw nano::exception("arm_apacc() pkt.len too big: " + std::to_string(pkt.len));
-        pkt.data[0] = ap;
-        pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
-        pkt.data[2] = value & 0xFF;
-        pkt.data[3] = (value >> 8) & 0xFF;
-        pkt.data[4] = (value >> 16) & 0xFF;
-        pkt.data[5] = (value >> 24) & 0xFF;
-
-        //dump_packet("arm_apacc() send", pkt);
-        send_packet(pkt);
-
-        recv_packet(pkt);
-        //dump_packet("arm_apacc() recv", pkt);
-
-        check_error("arm_apacc()", pkt);
-
-        if ( pkt.cmd != 10 ) throw nano::exception("arm_apacc() wrong reply: " + std::to_string(pkt.cmd));
-        if ( pkt.len != 6 ) throw nano::exception("arm_apacc() wrong reply length: " + std::to_string(pkt.len));
-
-        //check_error("arm_apacc()", pkt.data[1]);
-
-        return pkt.data[2] | (pkt.data[3] << 8) | (pkt.data[4] << 16) | (pkt.data[5] << 24);
-    }
-
-    void arm_set_memap(uint8_t ap)
-    {
-        printf("arm_set_memap(0x%02X)\n", ap);
-        packet_t pkt;
-        pkt.cmd = 11;
-        pkt.len = 2;
-        pkt.data[0] = 1;
-        pkt.data[1] = ap;
-        send_packet(pkt);
-        recv_packet(pkt);
-        check_error("arm_set_memap()", pkt);
-        if ( pkt.len != 2 || pkt.data[1] != ap ) throw nano::exception("arm_set_memap() failed");
-    }
-
-    void arm_set_memaddr(uint32_t addr)
-    {
-        //printf("arm_set_memaddr(0x%08X)\n", addr);
-        packet_t pkt;
-        pkt.cmd = 11;
-        pkt.len = 5;
-        pkt.data[0] = 2;
-        pkt.data[1] = addr & 0xFF;
-        pkt.data[2] = (addr >> 8) & 0xFF;
-        pkt.data[3] = (addr >> 16) & 0xFF;
-        pkt.data[4] = (addr >> 24) & 0xFF;
-        //dump_packet("arm_set_memaddr() send:", pkt);
-        send_packet(pkt);
-        recv_packet(pkt);
-        check_error("arm_set_memaddr()", pkt);
-        //dump_packet("arm_set_memaddr() recv:", pkt);
-        if ( pkt.len != 5 ) throw nano::exception("arm_set_memaddr() wrong length: " + std::to_string(pkt.len));
-        uint32_t output = pkt.data[1] | (pkt.data[2] << 8) | (pkt.data[3] << 16) | (pkt.data[4] << 24);
-        if ( output != addr ) throw nano::exception("arm_set_memaddr() failed");
-    }
-
-    uint32_t read_next32()
-    {
-        //printf("arm_read_mem32()\n");
-        packet_t pkt;
-        pkt.cmd = 12;
-        pkt.len = 4;
-        send_packet(pkt);
-        recv_packet(pkt);
-        //dump_packet("arm_read_mem32() recv", pkt);
-        check_error("arm_read_mem32()", pkt);
-        if ( pkt.len != 4 ) throw nano::exception("arm_read_mem32() wrong length: " + std::to_string(pkt.len));
-        return pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
-    }
-
-    uint16_t read_next16()
-    {
-        packet_t pkt;
-        pkt.cmd = 12;
-        pkt.len = 2;
-        send_packet(pkt);
-        recv_packet(pkt);
-        check_error("arm_read_mem16()", pkt);
-        if ( pkt.len != 2 ) throw nano::exception("arm_read_mem16() wrong length: " + std::to_string(pkt.len));
-        return pkt.data[0] | (pkt.data[1] << 8);
-    }
-
-    void write_next32(uint32_t value)
-    {
-        packet_t pkt;
-        pkt.cmd = 13;
-        pkt.len = 4;
-        pkt.data[0] = value & 0xFF;
-        pkt.data[1] = (value >> 8) & 0xFF;
-        pkt.data[2] = (value >> 16) & 0xFF;
-        pkt.data[3] = (value >> 24) & 0xFF;
-        send_packet(pkt);
-        recv_packet(pkt);
-        check_error("arm_write_mem32()", pkt);
-        if ( pkt.len != 4 ) throw nano::exception("arm_write_mem32() wrong length: " + std::to_string(pkt.len));
-        uint32_t output = pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
-        if ( output != value ) throw nano::exception("arm_write_mem32() failed");
-    }
-
-    void write_next16(uint16_t value)
-    {
-        packet_t pkt;
-        pkt.cmd = 13;
-        pkt.len = 2;
-        pkt.data[0] = value & 0xFF;
-        pkt.data[1] = (value >> 8) & 0xFF;
-        send_packet(pkt);
-        recv_packet(pkt);
-        check_error("arm_write_mem16()", pkt);
-        if ( pkt.len != 2 ) throw nano::exception("arm_write_mem16() wrong length: " + std::to_string(pkt.len));
-        uint16_t output = pkt.data[0] | (pkt.data[1] << 8);
-        if ( output != value ) throw nano::exception("arm_write_mem16() failed");
-    }
-
-    void arm_fpec_program(uint32_t value)
-    {
-        packet_t pkt;
-        pkt.cmd = 14;
-        pkt.len = 4;
-        pkt.data[0] = value & 0xFF;
-        pkt.data[1] = (value >> 8) & 0xFF;
-        pkt.data[2] = (value >> 16) & 0xFF;
-        pkt.data[3] = (value >> 24) & 0xFF;
-        //dump_packet("arm_fpec_program() send", pkt);
-        send_packet(pkt);
-        recv_packet(pkt);
-        //dump_packet("arm_fpec_program() recv", pkt);
-        if ( pkt.cmd != 14 ) throw nano::exception("arm_fpec_program() wrong cmd=" + std::to_string(pkt.cmd));
-        if ( pkt.len == 2 )
-        {
-            printf("status0: 0x%02X, status1: 0x%02X\n", pkt.data[0], pkt.data[1]);
-            throw nano::exception("arm_fpec_program() failed");
-        }
-        if ( pkt.len != 4 ) throw nano::exception("arm_fpec_program() wrong length: " + std::to_string(pkt.len));
-        const uint32_t data = pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
-        if ( data != value ) throw nano::exception("arm_fpec_program() failed");
-    }
-
     template <uint8_t bitcount>
-    void write_bits(uint8_t *data, uint64_t value)
+    static constexpr void write_bits(uint8_t *data, uint64_t value)
     {
         constexpr uint8_t bytecount = (bitcount + 7) / 8;
         for(uint8_t i = 0; i < bytecount; i++)
@@ -391,11 +104,11 @@ public:
     }
 
     template <uint8_t bitcount>
-    uint64_t read_bits(const uint8_t *data)
+    static constexpr uint64_t read_bits(const uint8_t *data)
     {
-        constexpr uint8_t bytecount = (bitcount + 7) / 8;
         uint64_t result = 0;
         uint64_t mul = 1;
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
         for(uint8_t i = 0; i < bytecount; i++)
         {
             result = result | (data[i] * mul);
@@ -404,47 +117,280 @@ public:
         return result;
     }
 
-    uint32_t read_mem32(uint32_t addr)
+    void cmd_jtag_reset(uint8_t value)
     {
+        //printf("cmd_jtag_reset()\n");
         packet_t pkt;
-        pkt.cmd = 15;
-        pkt.len = 8;
-        write_bits<32>(&pkt.data[0], addr);
-        write_bits<32>(&pkt.data[4], 0);
-
-        send_packet(pkt);
-        recv_packet(pkt);
-
-        if ( pkt.cmd != 15 ) throw nano::exception("read_mem32(): wrong cmd = " + std::to_string(pkt.cmd));
-        if ( pkt.len != 8 ) throw nano::exception("read_mem32(): wrong len = " + std::to_string(pkt.len));
-
-        return read_bits<32>(&pkt.data[4]);
+        pkt.cmd = 5;
+        pkt.len = 1;
+        pkt.data[0] = value;
+        auto status = send_packet(pkt);
+        if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
     }
 
-    uint16_t read_mem16(uint32_t addr)
+    template <uint8_t bitcount>
+    uint64_t cmd_jtag_raw_ir(uint64_t ir)
     {
+        static_assert(bitcount <= 64);
+
+        const unsigned byte_count = (bitcount + 7) / 8;
+        static_assert(byte_count <= (PACKET_MAXLEN - 1));
+
         packet_t pkt;
-        pkt.cmd = 15;
+        pkt.cmd = 6;
+        pkt.len = byte_count + 1;
+        pkt.data[0] = bitcount;
+        write_bits<bitcount>(&pkt.data[1], ir);
+
+        //dump_packet("cmd_jtag_raw_ir() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("cmd_jtag_raw_ir() recv", pkt);
+
+        return read_bits<bitcount>(&pkt.data[1]);
+    }
+
+    template <uint8_t bitcount>
+    uint64_t cmd_jtag_raw_dr(uint64_t dr)
+    {
+        static_assert(bitcount <= 64);
+
+        const unsigned byte_count = (bitcount + 7) / 8;
+        static_assert(byte_count <= (PACKET_MAXLEN - 1));
+
+        packet_t pkt;
+        pkt.cmd = 7;
+        pkt.len = byte_count + 1;
+        pkt.data[0] = bitcount;
+        write_bits<bitcount>(&pkt.data[1], dr);
+
+        //dump_packet("cmd_jtag_raw_dr() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("cmd_jtag_raw_dr() recv", pkt);
+
+        return read_bits<bitcount>(&pkt.data[1]);
+    }
+
+    template <uint8_t bitcount>
+    uint32_t cmd_raw_io(uint8_t ir, uint64_t value)
+    {
+        static_assert(bitcount <= 64);
+
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        static_assert(bytecount <= (PACKET_MAXLEN - 2));
+
+        packet_t pkt;
+        pkt.cmd = 8;
+        pkt.len = bytecount + 2;
+        pkt.data[0] = ir;
+        pkt.data[1] = bitcount;
+        write_bits<bitcount>(&pkt.data[2], value);
+
+        //dump_packet("arm_io() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("arm_io() recv", pkt);
+
+        if ( pkt.cmd != 8 ) throw nano::exception("arm_io() wrong reply: cmd=" + std::to_string(pkt.cmd));
+        if ( pkt.len != bytecount + 2 ) throw nano::exception("arm_io() wrong len: " + std::to_string(pkt.len));
+
+        return read_bits<bitcount>(&pkt.data[2]);
+    }
+
+    uint32_t cmd_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
+    {
+        //printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
+        if ( reg > 0x0F ) throw nano::exception("cmd_xpacc() wrong register: " + std::to_string(reg));
+
+        packet_t pkt;
+        pkt.cmd = 9;
         pkt.len = 6;
+        pkt.data[0] = ir;
+        pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
+        write_bits<32>(&pkt.data[2], value);
+
+        //dump_packet("cmd_xpacc() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("cmd_xpacc() recv", pkt);
+
+        check_error("cmd_xpacc()", pkt);
+
+        if ( pkt.cmd != 9 ) throw nano::exception("cmd_xpacc() wrong reply: " + std::to_string(pkt.cmd));
+        if ( pkt.len != 6 ) throw nano::exception("cmd_xpacc() wrong reply length: " + std::to_string(pkt.len));
+
+        return read_bits<32>(&pkt.data[2]);
+    }
+
+    uint32_t cmd_apacc(uint8_t ap, uint8_t reg, uint32_t value, bool write)
+    {
+        //printf("arm_apacc(ap=0x%02X, reg=0x%02X, value=0x%08X, %s):\n", ap, reg, value, action(write));
+        if ( reg & 0x03 ) throw nano::exception("arm_apacc() wrong register: " + std::to_string(reg));
+
+        packet_t pkt;
+        pkt.cmd = 10;
+        pkt.len = 6;
+        pkt.data[0] = ap;
+        pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
+        write_bits<32>(&pkt.data[2], value);
+
+        //dump_packet("arm_apacc() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("arm_apacc() recv", pkt);
+
+        check_error("arm_apacc()", pkt);
+
+        if ( pkt.cmd != 10 ) throw nano::exception("arm_apacc() wrong reply: " + std::to_string(pkt.cmd));
+        if ( pkt.len != 6 ) throw nano::exception("arm_apacc() wrong reply length: " + std::to_string(pkt.len));
+
+        return read_bits<32>(&pkt.data[2]);
+    }
+
+    template <uint8_t bitcount>
+    uint64_t cmd_config(uint8_t param, uint64_t value, [[maybe_unused]] const char *func = "cmd_config()")
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        //printf("cmd_config(0x%02X, 0x%lX)\n", param, value);
+        packet_t pkt;
+        pkt.cmd = 11;
+        pkt.len = bytecount + 1;
+        pkt.data[0] = param;
+        write_bits<bitcount>(&pkt.data[1], value);
+        //dump_packet(func, pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet(func, pkt);
+        if ( pkt.len != (bytecount + 1) ) throw nano::exception(std::string(func) + " wrong len: " + std::to_string(pkt.len));
+        return read_bits<bitcount>(&pkt.data[1]);
+    }
+
+    void set_memap(uint8_t ap)
+    {
+        printf("arm_set_memap(0x%02X)\n", ap);
+        const uint8_t result = cmd_config<8>(1, ap, "set_memap()");
+        if ( result != ap ) throw nano::exception("arm_set_memap() failed");
+    }
+
+    void set_memaddr(uint32_t addr)
+    {
+        //printf("arm_set_memaddr(0x%08X)\n", addr);
+        uint32_t output = cmd_config<32>(2, addr, "set_memaddr()");
+        if ( output != addr ) throw nano::exception("arm_set_memaddr() failed");
+    }
+
+    template <uint8_t bitcount>
+    uint64_t read_next()
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        packet_t pkt;
+        pkt.cmd = 12;
+        pkt.len = bytecount;
+        send_packet(pkt);
+        recv_packet(pkt);
+        check_error("read_next()", pkt);
+        if ( pkt.len != bytecount ) throw nano::exception("read_next() wrong length: " + std::to_string(pkt.len));
+        return read_bits<bitcount>(&pkt.data[0]);
+    }
+
+    inline uint32_t read_next32()
+    {
+        return read_next<32>();
+    }
+
+    inline uint16_t read_next16()
+    {
+        return read_next<16>();
+    }
+
+    template <uint8_t bitcount>
+    void write_next(uint64_t value)
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        packet_t pkt;
+        pkt.cmd = 13;
+        pkt.len = bytecount;
+        write_bits<bitcount>(&pkt.data[0], value);
+        send_packet(pkt);
+        recv_packet(pkt);
+        check_error("write_next()", pkt);
+        if ( pkt.len != bytecount ) throw nano::exception("write_next() wrong length: " + std::to_string(pkt.len));
+        const uint64_t output = read_bits<bitcount>(&pkt.data[0]);
+        if ( output != value ) throw nano::exception("write_next() failed");
+    }
+
+    inline void write_next32(uint32_t value)
+    {
+        return write_next<32>(value);
+    }
+
+    inline void write_next16(uint16_t value)
+    {
+        return write_next<16>(value);
+    }
+
+    void cmd_program_next(uint32_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 14;
+        pkt.len = 4;
+        write_bits<32>(&pkt.data[0], value);
+        //dump_packet("arm_fpec_program() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("arm_fpec_program() recv", pkt);
+        if ( pkt.cmd != 14 ) throw nano::exception("cmd_program_next() wrong cmd=" + std::to_string(pkt.cmd));
+        if ( pkt.len == 2 )
+        {
+            printf("cmd_program_next() status0: 0x%02X, status1: 0x%02X\n", pkt.data[0], pkt.data[1]);
+            throw nano::exception("cmd_program_next() failed");
+        }
+        if ( pkt.len != 4 ) throw nano::exception("cmd_program_next() wrong length: " + std::to_string(pkt.len));
+        const uint16_t output0 = read_bits<16>(&pkt.data[0]);
+        const uint16_t output1 = read_bits<16>(&pkt.data[2]);
+        const uint32_t output = output0 | (uint32_t(output1) << 16);
+        if ( output != value ) throw nano::exception("cmd_program_next() failed");
+    }
+
+    template <uint8_t bitcount>
+    uint64_t read_mem(uint32_t addr)
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        packet_t pkt;
+        pkt.cmd = 15;
+        pkt.len = 4 + bytecount;
         write_bits<32>(&pkt.data[0], addr);
-        write_bits<16>(&pkt.data[4], 0);
+        write_bits<bitcount>(&pkt.data[4], 0);
 
         send_packet(pkt);
         recv_packet(pkt);
 
-        if ( pkt.cmd != 15 ) throw nano::exception("read_mem16(): wrong cmd = " + std::to_string(pkt.cmd));
-        if ( pkt.len != 6 ) throw nano::exception("read_mem16(): wrong len = " + std::to_string(pkt.len));
+        if ( pkt.cmd != 15 ) throw nano::exception("read_mem() wrong cmd = " + std::to_string(pkt.cmd));
+        if ( pkt.len != (bytecount + 4) ) throw nano::exception("read_mem() wrong len = " + std::to_string(pkt.len));
 
-        return read_bits<16>(&pkt.data[4]);
+        return read_bits<bitcount>(&pkt.data[4]);
     }
 
-    void write_mem32(uint32_t addr, uint32_t value)
+    inline uint32_t read_mem32(uint32_t addr)
     {
+        return read_mem<32>(addr);
+    }
+
+    inline uint16_t read_mem16(uint32_t addr)
+    {
+        return read_mem<16>(addr);
+    }
+
+    template <uint8_t bitcount>
+    void write_mem(uint32_t addr, uint64_t value)
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
         packet_t pkt;
         pkt.cmd = 16;
-        pkt.len = 8;
+        pkt.len = 4 + bytecount;
         write_bits<32>(&pkt.data[0], addr);
-        write_bits<32>(&pkt.data[4], value);
+        write_bits<bitcount>(&pkt.data[4], value);
 
         //dump_packet("write_mem32() send", pkt);
         send_packet(pkt);
@@ -452,55 +398,55 @@ public:
         //dump_packet("write_mem32() recv", pkt);
 
         if ( pkt.cmd != 16 ) throw nano::exception("write_mem32(): wrong cmd = " + std::to_string(pkt.cmd));
-        if ( pkt.len != 8 ) throw nano::exception("write_mem32(): wrong len = " + std::to_string(pkt.len));
+        if ( pkt.len != (bytecount + 4) ) throw nano::exception("write_mem32(): wrong len = " + std::to_string(pkt.len));
     }
 
-    void write_mem16(uint32_t addr, uint32_t value)
+    inline void write_mem32(uint32_t addr, uint32_t value)
     {
-        packet_t pkt;
-        pkt.cmd = 16;
-        pkt.len = 6;
-        write_bits<32>(&pkt.data[0], addr);
-        write_bits<16>(&pkt.data[4], value);
-
-        send_packet(pkt);
-        recv_packet(pkt);
-
-        if ( pkt.cmd != 16 ) throw nano::exception("write_mem16(): wrong cmd = " + std::to_string(pkt.cmd));
-        if ( pkt.len != 6 ) throw nano::exception("write_mem16(): wrong len = " + std::to_string(pkt.len));
+        return write_mem<32>(addr, value);
     }
 
-    uint32_t arm_read_dp(uint8_t addr)
+    inline void write_mem16(uint32_t addr, uint32_t value)
     {
-        return arm_xpacc(IR_DPACC, addr, 0, xpacc_read);
+        return write_mem<16>(addr, value);
     }
 
-    void arm_write_dp(uint8_t addr, uint32_t value)
+    inline uint32_t read_dp(uint8_t addr)
     {
-        arm_xpacc(IR_DPACC, addr, value, xpacc_write);
+        return cmd_xpacc(IR_DPACC, addr, 0, xpacc_read);
     }
 
-    constexpr bool is_cortex_m3_idcode(uint32_t idcode)
+    inline void write_dp(uint8_t addr, uint32_t value)
     {
-        return (idcode & 0x0FFFFFFF) == (CORTEX_M3_IDCODE & 0x0FFFFFFF);
+        cmd_xpacc(IR_DPACC, addr, value, xpacc_write);
     }
 
-    uint32_t arm_check_idcode()
+    inline uint32_t read_ap(uint8_t ap, uint8_t reg)
     {
-        //printf("\narm_check_idcode()\n\n");
-        uint32_t idcode = arm_io<32>(IR_IDCODE, 0);
+        return cmd_apacc(ap, reg, 0, xpacc_read);
+    }
+
+    inline void write_ap(uint8_t ap, uint8_t reg, uint32_t value)
+    {
+        cmd_apacc(ap, reg, value, xpacc_write);
+    }
+
+    uint32_t check_idcode()
+    {
+        //printf("\ncheck_idcode()\n\n");
+        uint32_t idcode = cmd_raw_io<32>(IR_IDCODE, 0);
         const char *status = is_cortex_m3_idcode(idcode) ? "[ ok ]" : "[fail]";
         printf("JTAG idcode: 0x%08X %s\n", idcode, status);
         return idcode;
     }
 
-    uint32_t arm_idcode_raw()
+    uint32_t check_idcode_raw()
     {
-        printf("\narm_check_idcode_raw()\n");
+        printf("\ncheck_idcode_raw()\n");
 
         cmd_jtag_reset(0);
-
         const uint64_t idcode = cmd_jtag_raw_dr<64>(0);
+
         const uint32_t stm32_id = idcode & 0xFFFFFFFF;
         const uint32_t tap_id = (idcode >> 32) & 0xFFFFFFFF;
 
@@ -522,14 +468,14 @@ public:
         return result;
     }
 
-    uint32_t arm_status()
+    inline uint32_t dp_status()
     {
-        return arm_read_dp(0x4);
+        return read_dp(0x4);
     }
 
-    uint32_t arm_idr(uint8_t apsel)
+    uint32_t ap_idr(uint8_t ap)
     {
-        return arm_apacc(apsel, 0xFC, 0, xpacc_read);
+        return read_ap(ap, 0xFC);
     }
 
     void arm_debug_enable()
@@ -539,12 +485,12 @@ public:
         cmd_jtag_reset(0);
         cmd_jtag_reset(2);
 
-        if ( arm_check_idcode() != CORTEX_M3_IDCODE ) throw nano::exception("only Cortex M3 supported yet");
+        if ( !is_cortex_m3_idcode( check_idcode() ) ) throw nano::exception("only Cortex M3 supported yet");
 
         uint32_t status = CSYSPWRUPREQ | CDBGPWRUPREQ;
-        arm_write_dp(0x4, status);
+        write_dp(0x4, status);
 
-        status = arm_status();
+        status = dp_status();
         //printf("status: 0x%08X\n", status);
 
         if ( (status & CDBGPWRUPACK) == 0 )
@@ -556,7 +502,7 @@ public:
             throw nano::exception("no system power");
         }
 
-        arm_find_memap();
+        find_memap();
 
 
         uint32_t test;
@@ -590,9 +536,9 @@ public:
     {
         //printf("arm_debug_disable()\n");
 
-        arm_write_dp(0x4, 0);
+        write_dp(0x4, 0);
 
-        uint32_t status = arm_status();
+        uint32_t status = dp_status();
         //printf("status: 0x%08X\n", status);
 
         if ( (status & CDBGPWRUPACK) != 0 )
@@ -606,23 +552,23 @@ public:
 
     }
 
-    void arm_find_memap()
+    void find_memap()
     {
-        printf("\nfind MEM-AP\n");
+        //printf("\nfind MEM-AP\n");
         for(int i = 0; i < 256; i++)
         {
             try
             {
-                const uint32_t idr = arm_idr(i);
+                const uint32_t idr = ap_idr(i);
                 const uint32_t test = (idr >> 16) & 0xFFF;
-                printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
+                //printf("idr(%d) = 0x%08X test=0x%03X\n", i, idr, test);
                 if ( idr == 0 ) break;
 
 
                 if ( test == 0x477 )
                 {
                     arm_memap = i;
-                    printf("MEM-AP: %d\n", arm_memap);
+                    //printf("MEM-AP: %d\n", arm_memap);
                     return;
                 }
 
@@ -641,19 +587,19 @@ public:
 
     uint32_t arm_flash_size()
     {
-        arm_set_memaddr(0x1FFFF7E0);
+        set_memaddr(0x1FFFF7E0);
         return (read_next16() & 0xFFFF) * 1024;
     }
 
     uint32_t arm_fpec_read_reg(uint8_t reg)
     {
-        arm_set_memaddr(0x40022000 + reg);
+        set_memaddr(0x40022000 + reg);
         return read_next32();
     }
 
     void arm_fpec_write_reg(uint8_t reg, const uint32_t &value)
     {
-        arm_set_memaddr(0x40022000 + reg);
+        set_memaddr(0x40022000 + reg);
         write_next32(value);
     }
 
@@ -737,7 +683,7 @@ public:
 
     void arm_dump_mem32(uint32_t addr)
     {
-        arm_set_memaddr(addr);
+        set_memaddr(addr);
         const uint32_t value = read_next32();
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
