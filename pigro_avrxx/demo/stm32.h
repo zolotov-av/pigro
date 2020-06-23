@@ -146,15 +146,15 @@ public:
      *
      * @return ACK-code
      */
-    static error_t set_dr_xpacc(uint8_t reg_cmd, uint32_t *value)
+    static error_t set_xpacc_dr(uint8_t reg_cmd, uint32_t *value)
     {
         JTMS.set(1);
         clk(); // ->select-dr
 
         transaction t;
 
-        uint8_t *data = reinterpret_cast<uint8_t*>(value);
         const uint8_t ack = t.shift_xr<3>( reg_cmd >> 1 ) >> 5;
+        uint8_t *data = reinterpret_cast<uint8_t*>(value);
         data[0] = t.shift_xr<8>(data[0]);
         data[1] = t.shift_xr<8>(data[1]);
         data[2] = t.shift_xr<8>(data[2]);
@@ -192,7 +192,7 @@ public:
     static error_t xpacc_io(uint8_t ir, uint8_t reg_cmd, uint32_t *data)
     {
         if ( set_ir(ir) != 1 ) return 0x10;
-        return set_dr_xpacc(reg_cmd, data);
+        return set_xpacc_dr(reg_cmd, data);
     }
 
     /**
@@ -223,7 +223,7 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_xpacc(uint8_t ir, uint8_t reg_cmd, uint32_t *data)
+    static error_t xpacc(uint8_t ir, uint8_t reg_cmd, uint32_t *data)
     {
         // send command
         if ( xpacc_io(ir, reg_cmd, data) == 0x10 ) return 0x10;
@@ -252,9 +252,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_xpacc_read(uint8_t ir, uint8_t reg, uint32_t *data)
+    static error_t read_xpacc(uint8_t ir, uint8_t reg, uint32_t *data)
     {
-        return arm_xpacc(ir, request_read(reg), data);
+        return xpacc(ir, request_read(reg), data);
     }
 
     /**
@@ -262,9 +262,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_xpacc_write(uint8_t ir, uint8_t reg, uint32_t *data)
+    static error_t write_xpacc(uint8_t ir, uint8_t reg, uint32_t *data)
     {
-        return arm_xpacc(ir, request_write(reg), data);
+        return xpacc(ir, request_write(reg), data);
     }
 
     /**
@@ -272,9 +272,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_dp_read(uint8_t reg, uint32_t *data)
+    static error_t read_dp(uint8_t reg, uint32_t *data)
     {
-        return arm_xpacc_read(IR_DPACC, reg, data);
+        return read_xpacc(IR_DPACC, reg, data);
     }
 
     /**
@@ -282,9 +282,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_dp_write(uint8_t reg, uint32_t *data)
+    static error_t write_dp(uint8_t reg, uint32_t *data)
     {
-        return arm_xpacc_write(IR_DPACC, reg, data);
+        return write_xpacc(IR_DPACC, reg, data);
     }
 
     /**
@@ -295,18 +295,18 @@ public:
      * @param data to send/recv
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_apacc(uint8_t ap, uint8_t reg_cmd, uint32_t *data)
+    static error_t apacc(uint8_t ap, uint8_t reg_cmd, uint32_t *data)
     {
         // SELECT AP
         uint32_t temp = (uint32_t(ap) << 24) | (reg_cmd & 0xF0);
-        if ( auto error = arm_dp_write(0x8, &temp) )
+        if ( auto error = write_dp(0x8, &temp) )
         {
             *data = temp;
             return error | 0x40;
         }
 
         // EXEC AP
-        return arm_xpacc(IR_APACC, reg_cmd, data);
+        return xpacc(IR_APACC, reg_cmd, data);
     }
 
     /**
@@ -314,9 +314,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_apacc_read(uint8_t ap, uint8_t reg, uint32_t *data)
+    static error_t read_apacc(uint8_t ap, uint8_t reg, uint32_t *data)
     {
-        return arm_apacc(ap, reg | 0b10, data);
+        return apacc(ap, reg | 0b10, data);
     }
 
     /**
@@ -324,9 +324,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_apacc_write(uint8_t ap, uint8_t reg, uint32_t *data)
+    static error_t write_apacc(uint8_t ap, uint8_t reg, uint32_t *data)
     {
-        return arm_apacc(ap, reg | 0b00, data);
+        return apacc(ap, reg | 0b00, data);
     }
 
     /**
@@ -334,9 +334,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_read_memap_reg(uint8_t reg, uint32_t &value)
+    static error_t read_memap(uint8_t reg, uint32_t &value)
     {
-        return arm_apacc_read(memap, reg, &value);
+        return read_apacc(memap, reg, &value);
     }
 
     /**
@@ -344,9 +344,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_write_memap_reg(uint8_t reg, uint32_t value)
+    static error_t write_memap(uint8_t reg, uint32_t value)
     {
-        return arm_apacc_write(memap, reg, &value);
+        return write_apacc(memap, reg, &value);
     }
 
     /**
@@ -354,11 +354,11 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_mem_read32(uint32_t addr, uint32_t &value)
+    static error_t read_mem32(uint32_t addr, uint32_t &value)
     {
-        if ( auto err = arm_write_memap_reg(0x00, default_csw | 2) ) return err;
-        if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
-        if ( auto err = arm_read_memap_reg(0x0C, value) ) return err;
+        if ( auto err = write_memap(0x00, default_csw | 2) ) return err;
+        if ( auto err = write_memap(0x04, addr) ) return err;
+        if ( auto err = read_memap(0x0C, value) ) return err;
         return 0;
     }
 
@@ -367,12 +367,12 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_mem_read16(uint32_t addr, uint16_t &value)
+    static error_t read_mem16(uint32_t addr, uint16_t &value)
     {
-        if ( auto err = arm_write_memap_reg(0x00, default_csw | 1) ) return err;
-        if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
+        if ( auto err = write_memap(0x00, default_csw | 1) ) return err;
+        if ( auto err = write_memap(0x04, addr) ) return err;
         uint32_t output;
-        if ( auto err = arm_read_memap_reg(0x0C, output) ) return err;
+        if ( auto err = read_memap(0x0C, output) ) return err;
         value = (addr & 2) ? (output >> 16) : output;
         return 0;
     }
@@ -382,11 +382,11 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_mem_write32(uint32_t addr, uint32_t value)
+    static error_t write_mem32(uint32_t addr, uint32_t value)
     {
-        if ( auto err = arm_write_memap_reg(0x00, default_csw | 2) ) return err;
-        if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
-        if ( auto err = arm_write_memap_reg(0x0C, value) ) return err;
+        if ( auto err = write_memap(0x00, default_csw | 2) ) return err;
+        if ( auto err = write_memap(0x04, addr) ) return err;
+        if ( auto err = write_memap(0x0C, value) ) return err;
         return 0;
     }
 
@@ -395,12 +395,12 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_mem_write16(uint32_t addr, uint16_t value)
+    static error_t write_mem16(uint32_t addr, uint16_t value)
     {
-        if ( auto err = arm_write_memap_reg(0x00, default_csw | 1) ) return err;
-        if ( auto err = arm_write_memap_reg(0x04, addr) ) return err;
+        if ( auto err = write_memap(0x00, default_csw | 1) ) return err;
+        if ( auto err = write_memap(0x04, addr) ) return err;
         const uint32_t data = (addr & 2) ? ((uint32_t(value) << 16)) : (value);
-        if ( auto err = arm_write_memap_reg(0x0C, data) ) return err;
+        if ( auto err = write_memap(0x0C, data) ) return err;
         return 0;
     }
 
@@ -409,9 +409,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t get_fpec_reg(uint8_t reg, uint32_t &value)
+    static error_t read_fpec(uint8_t reg, uint32_t &value)
     {
-        return arm_mem_read32(0x40022000 + reg, value);
+        return read_mem32(0x40022000 + reg, value);
     }
 
     /**
@@ -419,9 +419,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t set_fpec_reg(uint8_t reg, uint32_t value)
+    static error_t write_fpec(uint8_t reg, uint32_t value)
     {
-        return arm_mem_write32(0x40022000 + reg, value);
+        return write_mem32(0x40022000 + reg, value);
     }
 
     /**
@@ -429,9 +429,9 @@ public:
      *
      * @return 0 on success, 0x2X on command failure where X is ACK-code
      */
-    static error_t arm_fpec_reset_sr()
+    static error_t reset_flash_sr()
     {
-        return set_fpec_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
+        return write_fpec(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
     }
 
     /**
@@ -442,10 +442,10 @@ public:
      *     bit[7] - unknown error
      *     return 0 on success
      */
-    static uint8_t arm_fpec_check_sr()
+    static uint8_t check_flash_sr()
     {
         uint32_t flash_sr;
-        if ( get_fpec_reg(0x0C, flash_sr) ) return (1 << 6);
+        if ( read_fpec(0x0C, flash_sr) ) return (1 << 6);
 
         constexpr uint8_t error_mask = 1 | (1 << 2) | (1 << 4);
         if ( flash_sr & error_mask ) return flash_sr;
@@ -461,11 +461,11 @@ public:
      *     bit[7] - unknown error
      *     return 0 on success
      */
-    static uint8_t arm_fpec_program(uint32_t addr, uint16_t value)
+    static uint8_t program_flash(uint32_t addr, uint16_t value)
     {
-        if ( arm_fpec_reset_sr() ) return (1 << 7);
-        if ( arm_mem_write16(addr, value) ) return (1 << 7);
-        return arm_fpec_check_sr();
+        if ( reset_flash_sr() ) return (1 << 7);
+        if ( write_mem16(addr, value) ) return (1 << 7);
+        return check_flash_sr();
     }
 
 };

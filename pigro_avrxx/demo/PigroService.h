@@ -92,9 +92,9 @@ public:
         send_packet();
     }
 
-    static void cmd_arm_idcode()
+    static void cmd_arm_raw_io()
     {
-        if ( pkt.len < 3 || pkt.len * 8 < pkt.data[1] ) return;
+        if ( pkt.len < 3 || (pkt.len-2) * 8 < pkt.data[1] ) return;
         pkt.data[0] = STM32::raw_io(pkt.data[0], &pkt.data[2], pkt.data[1]);
         send_packet();
     }
@@ -103,7 +103,7 @@ public:
     {
         if ( pkt.len != 6 ) return;
 
-        pkt.data[1] = STM32::arm_xpacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
+        pkt.data[1] = STM32::xpacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
         send_packet();
     }
 
@@ -111,7 +111,7 @@ public:
     {
         if ( pkt.len != 6 ) return;
 
-        pkt.data[1] = STM32::arm_apacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
+        pkt.data[1] = STM32::apacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
         send_packet();
     }
 
@@ -137,7 +137,7 @@ public:
         if ( pkt.len == 4 )
         {
             uint32_t value;
-            auto error = STM32::arm_mem_read32(STM32::mem_addr, value);
+            auto error = STM32::read_mem32(STM32::mem_addr, value);
             STM32::mem_addr += 4;
             if ( error ) return send_error(error);
 
@@ -149,7 +149,7 @@ public:
         if ( pkt.len == 2 )
         {
             uint16_t value;
-            auto error = STM32::arm_mem_read16(STM32::mem_addr, value);
+            auto error = STM32::read_mem16(STM32::mem_addr, value);
             STM32::mem_addr += 2;
             if ( error ) return send_error(error);
 
@@ -164,7 +164,7 @@ public:
     {
         if ( pkt.len == 4 )
         {
-            auto error = STM32::arm_mem_write32(STM32::mem_addr, *reinterpret_cast<uint32_t*>(pkt.data));
+            auto error = STM32::write_mem32(STM32::mem_addr, *reinterpret_cast<uint32_t*>(pkt.data));
             STM32::mem_addr += 4;
             if ( error ) return send_error(error);
 
@@ -174,7 +174,7 @@ public:
 
         if ( pkt.len == 2 )
         {
-            auto error = STM32::arm_mem_write16(STM32::mem_addr, *reinterpret_cast<uint16_t*>(pkt.data));
+            auto error = STM32::write_mem16(STM32::mem_addr, *reinterpret_cast<uint16_t*>(pkt.data));
             STM32::mem_addr += 2;
             if ( error ) return send_error(error);
 
@@ -183,15 +183,15 @@ public:
         }
     }
 
-    static void cmd_arm_fpec()
+    static void cmd_arm_program()
     {
         if ( pkt.len == 4 )
         {
             const uint16_t word0 = *reinterpret_cast<uint16_t*>(&pkt.data[0]);
             const uint16_t word1 = *reinterpret_cast<uint16_t*>(&pkt.data[2]);
 
-            uint8_t status0 = STM32::arm_fpec_program(STM32::mem_addr+0, word0);
-            uint8_t status1 = STM32::arm_fpec_program(STM32::mem_addr+2, word1);
+            uint8_t status0 = STM32::program_flash(STM32::mem_addr+0, word0);
+            uint8_t status1 = STM32::program_flash(STM32::mem_addr+2, word1);
             STM32::mem_addr += 4;
 
             if ( status0 || status1 )
@@ -243,7 +243,7 @@ public:
             cmd_jtag_raw_dr();
             return;
         case 8:
-            cmd_arm_idcode();
+            cmd_arm_raw_io();
             return;
         case 9:
             cmd_arm_xpacc();
@@ -261,7 +261,7 @@ public:
             cmd_arm_write();
             return;
         case 14:
-            cmd_arm_fpec();
+            cmd_arm_program();
             return;
         case 15:
             cmd_arm_reset();
