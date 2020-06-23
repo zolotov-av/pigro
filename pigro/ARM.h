@@ -59,10 +59,13 @@ public:
         if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
     }
 
-    uint64_t cmd_jtag_raw_ir(uint64_t ir, unsigned bitcount)
+    template <uint8_t bitcount>
+    uint64_t cmd_jtag_raw_ir(uint64_t ir)
     {
+        static_assert(bitcount <= 64);
+
         const unsigned byte_count = (bitcount + 7) / 8;
-        if ( byte_count + 1 > PACKET_MAXLEN ) throw nano::exception("cmd_jtag_raw_ir(): packet too long");
+        static_assert(byte_count <= (PACKET_MAXLEN - 1));
 
         packet_t pkt;
         pkt.cmd = 6;
@@ -89,10 +92,13 @@ public:
         return result;
     }
 
-    uint64_t cmd_jtag_raw_dr(uint64_t dr, unsigned bitcount)
+    template <uint8_t bitcount>
+    uint64_t cmd_jtag_raw_dr(uint64_t dr)
     {
+        static_assert(bitcount <= 64);
+
         const unsigned byte_count = (bitcount + 7) / 8;
-        if ( byte_count > (PACKET_MAXLEN - 1) ) throw nano::exception("cmd_jtag_raw_dr(): packet too long");
+        static_assert(byte_count <= (PACKET_MAXLEN - 1));
 
         packet_t pkt;
         pkt.cmd = 7;
@@ -122,8 +128,11 @@ public:
     template <uint8_t bitcount>
     uint32_t arm_io(uint8_t ir, uint64_t value)
     {
+        static_assert(bitcount <= 64);
+
         constexpr uint8_t bytecount = (bitcount + 7) / 8;
-        if ( bytecount + 2 > PACKET_MAXLEN ) throw nano::exception("arm_io() packet to long: " + std::to_string(bitcount));
+        static_assert(bytecount <= (PACKET_MAXLEN - 2));
+
         packet_t pkt;
         pkt.cmd = 8;
         pkt.len = bytecount + 2;
@@ -380,24 +389,46 @@ public:
         arm_xpacc(IR_DPACC, addr, value, xpacc_write);
     }
 
+    constexpr bool is_cortex_m3_idcode(uint32_t idcode)
+    {
+        return (idcode & 0x0FFFFFFF) == (CORTEX_M3_IDCODE & 0x0FFFFFFF);
+    }
+
     uint32_t arm_check_idcode()
     {
         //printf("\narm_check_idcode()\n\n");
         uint32_t idcode = arm_io<32>(IR_IDCODE, 0);
-        const char *status = (idcode == CORTEX_M3_IDCODE) ? "[ ok ]" : "[fail]";
+        const char *status = is_cortex_m3_idcode(idcode) ? "[ ok ]" : "[fail]";
         printf("JTAG idcode: 0x%08X %s\n", idcode, status);
         return idcode;
     }
 
     uint32_t arm_idcode_raw()
     {
-        printf("\narm_check_idcode_raw()\n\n");
+        printf("\narm_check_idcode_raw()\n");
 
         cmd_jtag_reset(0);
 
-        uint32_t idcode = cmd_jtag_raw_dr(0, 32);
-        printf("idcode: 0x%08X\n", idcode);
-        return idcode;
+        const uint64_t idcode = cmd_jtag_raw_dr<64>(0);
+        const uint32_t stm32_id = idcode & 0xFFFFFFFF;
+        const uint32_t tap_id = (idcode >> 32) & 0xFFFFFFFF;
+
+        const char *status = is_cortex_m3_idcode(stm32_id) ? "[ ok ]" : "[fail]";
+        printf("  STM32 idcode: 0x%08X %s\n", stm32_id, status);
+        printf("    TAP idcode: 0x%08X\n", tap_id);
+        return stm32_id;
+    }
+
+    template <uint8_t ir_count, uint8_t bitcount>
+    uint64_t check_bypass(uint64_t value)
+    {
+        const uint32_t ir_ack = cmd_jtag_raw_ir<ir_count>(-1);
+        const uint64_t result = cmd_jtag_raw_dr<bitcount>(value);
+        constexpr uint64_t mask = (uint64_t(1) << bitcount) - 1;
+        const uint64_t test_value = (value << 2) & mask;
+        const char *status = (result == test_value) ? "[ ok ]" : "[fail]";
+        printf("\ncheck_bypass<%d, %d>(0x%016lX): ir = 0x%03X, data = 0x%016lX %s\n", ir_count, bitcount, value, ir_ack, result, status);
+        return result;
     }
 
     uint32_t arm_status()

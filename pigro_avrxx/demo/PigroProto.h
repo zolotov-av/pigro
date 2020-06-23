@@ -13,7 +13,7 @@ class PigroProto
 {
 public:
 
-    static constexpr uint8_t PACKET_MAXLEN = 6;
+    static constexpr uint8_t PACKET_MAXLEN = 12;
 
     static constexpr uint8_t PKT_ACK = 1;
     static constexpr uint8_t PKT_NACK = 2;

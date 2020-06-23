@@ -7,7 +7,7 @@
 
 #include "DeviceInfo.h"
 
-constexpr auto PACKET_MAXLEN = 6;
+constexpr auto PACKET_MAXLEN = 12;
 
 struct packet_t
 {

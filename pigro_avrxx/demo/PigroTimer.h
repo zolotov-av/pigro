@@ -6,9 +6,11 @@
 
 class Timer
 {
-public:
+private:
 
     static inline volatile uint8_t count;
+
+public:
 
     static void init()
     {
@@ -27,7 +29,7 @@ public:
 
     static bool expire()
     {
-        return count > 80;
+        return count > 160;
     }
 
     static void reset()

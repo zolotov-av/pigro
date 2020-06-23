@@ -27,6 +27,7 @@ void ARM::action_test()
     printf("\ntest STM32/JTAG\n");
 
     arm_idcode_raw();
+    check_bypass<9, 32>(0x12345678);
 
     arm_debug_enable();
 
