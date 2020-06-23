@@ -29,44 +29,23 @@ void ARM::action_test()
     check_idcode_raw();
     check_bypass<9, 32>(0x12345678);
 
-    arm_debug_enable();
+    debug_enable();
 
-    printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);
+    printf("flash size: %dkB\n", (read_flash_size()+1023)/1024);
 
-    //arm_fpec_unlock();
 
-    /*
-    arm_fpec_mass_erase();
-    arm_fpec_program(0x08000000, 0x0102);
-    arm_fpec_program(0x08000002, 0x0304);
-    arm_fpec_program(0x08000004, 0x0506);
-    arm_fpec_program(0x08000006, 0x0708);
-    arm_fpec_program(0x08000008, 0x090A);
-    arm_fpec_program(0x0800000A, 0x0B0C);
-    */
-
-    uint32_t addr = 0x08000000;
-    set_memaddr(addr);
-    for(int i = 0; i < 4; i++)
+    const uint32_t addr = 0x08000000;
+    printf("\n");
+    for(int i = 0; i < 8; i++)
     {
-        uint32_t value = read_next32();
-        addr += 4;
-        printf("MEM[0x%08X]: 0x%08X\n", addr, value);
+        dump_mem32(addr + 4 * i);
     }
+    printf("\n");
 
-    set_memaddr(0xE0042000);
-    uint32_t value = read_next32();
-    printf("MEM[0xE0042000]: 0x%08X\n", value);
-    arm_dump_mem32(0x40010800);
+    dump_mem32(0xE0042000);
+    dump_mem32(0x40010800);
 
-    //arm_clear_sticky(arm_status());
-
-
-    //arm_check_bypass<32>(0x01020304);
-    //arm_check_bypass<35>(0x101010101);
-    //arm_check_bypass<38>(0x7FFFFFFFF);
-
-    arm_debug_disable();
+    debug_disable();
 }
 
 void ARM::parse_device_info(const nano::options &options)
@@ -80,11 +59,11 @@ void ARM::isp_chip_info()
 {
     printf("\nARM::isp_chip_info()\n\n");
 
-    arm_debug_enable();
+    debug_enable();
 
     warn("ARM::isp_chip_info() not implemented yet");
 
-    arm_debug_disable();
+    debug_disable();
 }
 
 void ARM::isp_stat_firmware(const FirmwareData &pages)
@@ -99,7 +78,7 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
 {
     printf("\nARM::isp_check_firmware()\n\n");
 
-    arm_debug_enable();
+    debug_enable();
 
     /*
     auto signature = isp_chip_info();
@@ -129,7 +108,7 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
 
     if ( counter != 0 ) printf("\n");
 
-    arm_debug_disable();
+    debug_disable();
 }
 
 void ARM::isp_write_firmware(const FirmwareData &pages)
@@ -143,9 +122,9 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
         return;
     }
 
-    arm_debug_enable();
+    debug_enable();
 
-    arm_fpec_unlock();
+    unlock_fpec();
 
     /* TODO:
     auto signature = isp_chip_info();
@@ -159,11 +138,11 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
     }
     */
 
-    arm_fpec_mass_erase();
+    fpec_mass_erase();
 
-    arm_fpec_write_reg(0x10, 1); // FLASH_CR_PG
+    write_fpec(0x10, 1); // FLASH_CR_PG
 
-    printf("flash_cr: 0x%08X\n", arm_fpec_read_reg(0x10));
+    printf("flash_cr: 0x%08X\n", read_fpec(0x10));
 
     uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
@@ -188,19 +167,19 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
 
     if ( counter != 0 ) printf("\n");
 
-    arm_fpec_write_reg(0x10, 0); // FLASH_CR_PG
-    arm_fpec_lock();
+    write_fpec(0x10, 0); // FLASH_CR_PG
+    lock_fpec();
 
-    arm_debug_disable();
+    debug_disable();
 }
 
 void ARM::isp_chip_erase()
 {
     printf("\nARM::isp_chip_erase()\n\n");
 
-    arm_debug_enable();
+    debug_enable();
 
-    arm_fpec_unlock();
+    unlock_fpec();
 
     /* TODO:
     auto signature = isp_chip_info();
@@ -214,11 +193,11 @@ void ARM::isp_chip_erase()
     }
     */
 
-    arm_fpec_mass_erase();
+    fpec_mass_erase();
 
-    arm_fpec_lock();
+    lock_fpec();
 
-    arm_debug_disable();
+    debug_disable();
 }
 
 void ARM::isp_read_fuse()

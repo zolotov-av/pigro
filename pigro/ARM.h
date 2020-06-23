@@ -1,5 +1,5 @@
-#ifndef ARM_H
-#define ARM_H
+#ifndef PIGRO_ARM_DRIVER_H
+#define PIGRO_ARM_DRIVER_H
 
 #include <cstdint>
 
@@ -12,8 +12,7 @@ class ARM: public PigroDriver
 {
 private:
 
-    uint8_t arm_memap;
-    static constexpr uint32_t arm_csw = 0x22000000;
+    uint8_t memap;
 
 public:
 
@@ -187,20 +186,20 @@ public:
         pkt.data[1] = bitcount;
         write_bits<bitcount>(&pkt.data[2], value);
 
-        //dump_packet("arm_io() send", pkt);
+        //dump_packet("cmd_raw_io() send", pkt);
         send_packet(pkt);
         recv_packet(pkt);
-        //dump_packet("arm_io() recv", pkt);
+        //dump_packet("cmd_raw_io() recv", pkt);
 
-        if ( pkt.cmd != 8 ) throw nano::exception("arm_io() wrong reply: cmd=" + std::to_string(pkt.cmd));
-        if ( pkt.len != bytecount + 2 ) throw nano::exception("arm_io() wrong len: " + std::to_string(pkt.len));
+        if ( pkt.cmd != 8 ) throw nano::exception("cmd_raw_io() wrong reply: cmd=" + std::to_string(pkt.cmd));
+        if ( pkt.len != bytecount + 2 ) throw nano::exception("cmd_raw_io() wrong len: " + std::to_string(pkt.len));
 
         return read_bits<bitcount>(&pkt.data[2]);
     }
 
     uint32_t cmd_xpacc(uint8_t ir, uint8_t reg, uint32_t value, bool write)
     {
-        //printf("arm_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
+        //printf("cmd_xpacc(0x%02X, 0x%02X, 0x%08X, %s):\n", ir, reg, value, action(write));
         if ( reg > 0x0F ) throw nano::exception("cmd_xpacc() wrong register: " + std::to_string(reg));
 
         packet_t pkt;
@@ -225,8 +224,8 @@ public:
 
     uint32_t cmd_apacc(uint8_t ap, uint8_t reg, uint32_t value, bool write)
     {
-        //printf("arm_apacc(ap=0x%02X, reg=0x%02X, value=0x%08X, %s):\n", ap, reg, value, action(write));
-        if ( reg & 0x03 ) throw nano::exception("arm_apacc() wrong register: " + std::to_string(reg));
+        //printf("cmd_apacc(ap=0x%02X, reg=0x%02X, value=0x%08X, %s):\n", ap, reg, value, action(write));
+        if ( reg & 0x03 ) throw nano::exception("cmd_apacc() wrong register: " + std::to_string(reg));
 
         packet_t pkt;
         pkt.cmd = 10;
@@ -235,15 +234,15 @@ public:
         pkt.data[1] = (reg & 0xFC) | (write ? 0b00 : 0b10);
         write_bits<32>(&pkt.data[2], value);
 
-        //dump_packet("arm_apacc() send", pkt);
+        //dump_packet("cmd_apacc() send", pkt);
         send_packet(pkt);
         recv_packet(pkt);
-        //dump_packet("arm_apacc() recv", pkt);
+        //dump_packet("cmd_apacc() recv", pkt);
 
-        check_error("arm_apacc()", pkt);
+        check_error("cmd_apacc()", pkt);
 
-        if ( pkt.cmd != 10 ) throw nano::exception("arm_apacc() wrong reply: " + std::to_string(pkt.cmd));
-        if ( pkt.len != 6 ) throw nano::exception("arm_apacc() wrong reply length: " + std::to_string(pkt.len));
+        if ( pkt.cmd != 10 ) throw nano::exception("cmd_apacc() wrong reply: " + std::to_string(pkt.cmd));
+        if ( pkt.len != 6 ) throw nano::exception("cmd_apacc() wrong reply length: " + std::to_string(pkt.len));
 
         return read_bits<32>(&pkt.data[2]);
     }
@@ -268,16 +267,16 @@ public:
 
     void set_memap(uint8_t ap)
     {
-        printf("arm_set_memap(0x%02X)\n", ap);
+        printf("set_memap(0x%02X)\n", ap);
         const uint8_t result = cmd_config<8>(1, ap, "set_memap()");
-        if ( result != ap ) throw nano::exception("arm_set_memap() failed");
+        if ( result != ap ) throw nano::exception("set_memap() failed");
     }
 
     void set_memaddr(uint32_t addr)
     {
-        //printf("arm_set_memaddr(0x%08X)\n", addr);
+        //printf("set_memaddr(0x%08X)\n", addr);
         uint32_t output = cmd_config<32>(2, addr, "set_memaddr()");
-        if ( output != addr ) throw nano::exception("arm_set_memaddr() failed");
+        if ( output != addr ) throw nano::exception("set_memaddr() failed");
     }
 
     template <uint8_t bitcount>
@@ -336,10 +335,10 @@ public:
         pkt.cmd = 14;
         pkt.len = 4;
         write_bits<32>(&pkt.data[0], value);
-        //dump_packet("arm_fpec_program() send", pkt);
+        //dump_packet("cmd_program_next() send", pkt);
         send_packet(pkt);
         recv_packet(pkt);
-        //dump_packet("arm_fpec_program() recv", pkt);
+        //dump_packet("cmd_program_next() recv", pkt);
         if ( pkt.cmd != 14 ) throw nano::exception("cmd_program_next() wrong cmd=" + std::to_string(pkt.cmd));
         if ( pkt.len == 2 )
         {
@@ -478,9 +477,9 @@ public:
         return read_ap(ap, 0xFC);
     }
 
-    void arm_debug_enable()
+    void debug_enable()
     {
-        //printf("arm_debug_enable()\n");
+        //printf("debug_enable()\n");
 
         cmd_jtag_reset(0);
         cmd_jtag_reset(2);
@@ -532,9 +531,9 @@ public:
         //
     }
 
-    void arm_debug_disable()
+    void debug_disable()
     {
-        //printf("arm_debug_disable()\n");
+        //printf("debug_disable()\n");
 
         write_dp(0x4, 0);
 
@@ -567,8 +566,8 @@ public:
 
                 if ( test == 0x477 )
                 {
-                    arm_memap = i;
-                    //printf("MEM-AP: %d\n", arm_memap);
+                    memap = i;
+                    //printf("MEM-AP: %d\n", memap);
                     return;
                 }
 
@@ -585,64 +584,67 @@ public:
 
     }
 
-    uint32_t arm_flash_size()
+    uint32_t read_flash_size()
     {
-        set_memaddr(0x1FFFF7E0);
-        return (read_next16() & 0xFFFF) * 1024;
+        return read_mem16(0x1FFFF7E0) * 1024;
     }
 
-    uint32_t arm_fpec_read_reg(uint8_t reg)
+    uint32_t read_fpec(uint8_t reg)
     {
-        set_memaddr(0x40022000 + reg);
-        return read_next32();
+        return read_mem32(0x40022000 + reg);
     }
 
-    void arm_fpec_write_reg(uint8_t reg, const uint32_t &value)
+    void write_fpec(uint8_t reg, const uint32_t &value)
     {
-        set_memaddr(0x40022000 + reg);
-        write_next32(value);
+        return write_mem32(0x40022000 + reg, value);
     }
 
-    void arm_fpec_unlock()
+    void unlock_fpec()
     {
-        //printf("arm_fpec_unlock()\n");
+        //printf("unlock_fpec()\n");
 
         constexpr uint32_t KEY1 = 0x45670123;
         constexpr uint32_t KEY2 = 0xCDEF89AB;
 
-        auto flash_cr = arm_fpec_read_reg(0x10);
+        auto flash_cr = read_fpec(0x10);
         if ( (flash_cr & (1 << 7)) == 0 )
         {
             //printf("already unlocked\n");
             return;
         }
 
-        arm_fpec_write_reg(0x04, KEY1);
-        arm_fpec_write_reg(0x04, KEY2);
+        write_fpec(0x04, KEY1);
+        write_fpec(0x04, KEY2);
 
-        flash_cr = arm_fpec_read_reg(0x10);
+        flash_cr = read_fpec(0x10);
         if ( flash_cr & (1 << 7) )
         {
-            throw nano::exception("arm_fpec_unlock() failed");
+            throw nano::exception("unlock_fpec() failed");
         }
 
         //printf("FPEC unlocked\n");
     }
 
-    void arm_fpec_lock()
+    void lock_fpec()
     {
-        //printf("arm_fpec_lock()\n");
-        arm_fpec_write_reg(0x10, (1 << 7)); // FLASH_CR_LOCK
+        //printf("lock_fpec()\n");
+        write_fpec(0x10, (1 << 7)); // FLASH_CR_LOCK
     }
 
-    void arm_fpec_reset_sr()
+    /**
+     * Reset errors in FLASH_SR register
+     */
+    void reset_flash_sr()
     {
-        arm_fpec_write_reg(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
+        write_fpec(0x0C, (1 << 2) | (1 << 4) | (1 << 5));
     }
 
-    void arm_fpec_check_sr()
+    /**
+     * Check errors in FLASH_SR register
+     */
+    void check_flash_sr()
     {
-        uint32_t flash_sr = arm_fpec_read_reg(0x0C);
+        uint32_t flash_sr = read_fpec(0x0C);
 
         if ( flash_sr & 1 )
         {
@@ -672,19 +674,18 @@ public:
         printf("FPEC status unknown\n");
     }
 
-    void arm_fpec_mass_erase()
+    void fpec_mass_erase()
     {
-        printf("\narm_fpec_mass_erase()\n");
-        arm_fpec_reset_sr();
-        arm_fpec_write_reg(0x10, (1 << 2)); // FLASH_CR_MER
-        arm_fpec_write_reg(0x10, (1 << 2) | (1 << 6)); // FLASH_CR_STRT
-        arm_fpec_check_sr();
+        printf("\nfpec_mass_erase()\n");
+        reset_flash_sr();
+        write_fpec(0x10, (1 << 2)); // FLASH_CR_MER
+        write_fpec(0x10, (1 << 2) | (1 << 6)); // FLASH_CR_STRT
+        check_flash_sr();
     }
 
-    void arm_dump_mem32(uint32_t addr)
+    void dump_mem32(uint32_t addr)
     {
-        set_memaddr(addr);
-        const uint32_t value = read_next32();
+        const uint32_t value = read_mem32(addr);
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
 
@@ -798,4 +799,4 @@ public:
 
 };
 
-#endif // ARM_H
+#endif // PIGRO_ARM_DRIVER_H
