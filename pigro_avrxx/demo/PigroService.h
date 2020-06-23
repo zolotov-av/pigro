@@ -1,18 +1,16 @@
 #ifndef PIGRO_SERVICE_H
 #define PIGRO_SERVICE_H
 
-#include "PigroProto.h"
-
 #include <avrxx/spi_master.h>
-#include <tiny/jtag.h>
+
+#include "PigroProto.h"
+#include "stm32.h"
 
 avr::SPI_Master spi {};
 
 class PigroService: public PigroProto
 {
 public:
-
-    using JTAG = tiny::JTAG;
 
     static constexpr uint8_t PROTO_VERSION = 0;
     static constexpr uint8_t SERVICE_VERSION = 1;
@@ -62,7 +60,7 @@ public:
         }
     }
 
-    static void send_error(JTAG::error_t error)
+    static void send_error(STM32::error_t error)
     {
         pkt.len = 1;
         pkt.data[0] = error;
@@ -74,7 +72,7 @@ public:
         if ( pkt.len != 1 || pkt.data[0] > 0x0F ) return;
 
         JTAG::tms(0); // [Reset/Idle]->idle
-        pkt.data[0] = JTAG::set_ir(pkt.data[0]);
+        pkt.data[0] = STM32::set_ir(pkt.data[0]);
         JTAG::tms(0); // ->idle
 
         send_packet();
@@ -85,7 +83,7 @@ public:
         if ( pkt.len < 2 || pkt.data[0] > 39 ) return;
 
         JTAG::tms(0); // idle
-        JTAG::set_dr(&pkt.data[1], pkt.data[0]);
+        STM32::set_dr(&pkt.data[1], pkt.data[0]);
         JTAG::tms(0); // idle
 
         send_packet();
@@ -96,7 +94,7 @@ public:
         if ( pkt.len < 3 || pkt.len * 8 < pkt.data[1] ) return;
 
         JTAG::tms(0); // Reset->idle
-        pkt.data[0] = JTAG::arm_io(pkt.data[0], &pkt.data[2], pkt.data[1]);
+        pkt.data[0] = STM32::arm_io(pkt.data[0], &pkt.data[2], pkt.data[1]);
         JTAG::tms(0); // idle
 
         send_packet();
@@ -107,7 +105,7 @@ public:
         if ( pkt.len != 6 ) return;
 
         JTAG::tms(0); // [Reset/Idle]->idle
-        pkt.data[1] = JTAG::arm_xpacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
+        pkt.data[1] = STM32::arm_xpacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
         JTAG::tms(0); // idle
 
         send_packet();
@@ -118,7 +116,7 @@ public:
         if ( pkt.len != 6 ) return;
 
         JTAG::tms(0); // [Reset/Idle]->idle
-        pkt.data[1] = JTAG::arm_apacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
+        pkt.data[1] = STM32::arm_apacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
         JTAG::tms(0); // idle
 
         send_packet();
@@ -128,14 +126,14 @@ public:
     {
         if ( pkt.len == 2 && pkt.data[0] == 1 )
         {
-            JTAG::memap = pkt.data[1];
+            STM32::memap = pkt.data[1];
             send_packet();
             return;
         }
 
         if ( pkt.len == 5 && pkt.data[0] == 2 )
         {
-            JTAG::mem_addr = *reinterpret_cast<uint32_t*>(&pkt.data[1]);
+            STM32::mem_addr = *reinterpret_cast<uint32_t*>(&pkt.data[1]);
             send_packet();
             return;
         }
@@ -146,8 +144,8 @@ public:
         if ( pkt.len == 4 )
         {
             uint32_t value;
-            auto error = JTAG::arm_mem_read32(JTAG::mem_addr, value);
-            JTAG::mem_addr += 4;
+            auto error = STM32::arm_mem_read32(STM32::mem_addr, value);
+            STM32::mem_addr += 4;
             if ( error ) return send_error(error);
 
             *reinterpret_cast<uint32_t*>(pkt.data) = value;
@@ -158,8 +156,8 @@ public:
         if ( pkt.len == 2 )
         {
             uint16_t value;
-            auto error = JTAG::arm_mem_read16(JTAG::mem_addr, value);
-            JTAG::mem_addr += 2;
+            auto error = STM32::arm_mem_read16(STM32::mem_addr, value);
+            STM32::mem_addr += 2;
             if ( error ) return send_error(error);
 
             *reinterpret_cast<uint16_t*>(pkt.data) = value;
@@ -173,8 +171,8 @@ public:
     {
         if ( pkt.len == 4 )
         {
-            auto error = JTAG::arm_mem_write32(JTAG::mem_addr, *reinterpret_cast<uint32_t*>(pkt.data));
-            JTAG::mem_addr += 4;
+            auto error = STM32::arm_mem_write32(STM32::mem_addr, *reinterpret_cast<uint32_t*>(pkt.data));
+            STM32::mem_addr += 4;
             if ( error ) return send_error(error);
 
             send_packet();
@@ -183,8 +181,8 @@ public:
 
         if ( pkt.len == 2 )
         {
-            auto error = JTAG::arm_mem_write16(JTAG::mem_addr, *reinterpret_cast<uint16_t*>(pkt.data));
-            JTAG::mem_addr += 2;
+            auto error = STM32::arm_mem_write16(STM32::mem_addr, *reinterpret_cast<uint16_t*>(pkt.data));
+            STM32::mem_addr += 2;
             if ( error ) return send_error(error);
 
             send_packet();
@@ -199,9 +197,9 @@ public:
             const uint16_t word0 = *reinterpret_cast<uint16_t*>(&pkt.data[0]);
             const uint16_t word1 = *reinterpret_cast<uint16_t*>(&pkt.data[2]);
 
-            uint8_t status0 = JTAG::arm_fpec_program(JTAG::mem_addr+0, word0);
-            uint8_t status1 = JTAG::arm_fpec_program(JTAG::mem_addr+2, word1);
-            JTAG::mem_addr += 4;
+            uint8_t status0 = STM32::arm_fpec_program(STM32::mem_addr+0, word0);
+            uint8_t status1 = STM32::arm_fpec_program(STM32::mem_addr+2, word1);
+            STM32::mem_addr += 4;
 
             if ( status0 || status1 )
             {
