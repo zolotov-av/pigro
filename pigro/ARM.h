@@ -477,6 +477,11 @@ public:
         return read_ap(ap, 0xFC);
     }
 
+    uint32_t read_device_id()
+    {
+        return read_mem32(0xE0042000);
+    }
+
     void debug_enable()
     {
         //printf("debug_enable()\n");
@@ -527,6 +532,7 @@ public:
         test = read_mem32(0xE000ED10);
         printf("SCR: 0x%08X\n", test);
 
+        printf("MCU DEVICE ID: 0x%08X\n", read_device_id());
 
         //
     }
