@@ -8,7 +8,6 @@
 
 #include <nano/exception.h>
 
-#include "DeviceInfo.h"
 #include "PigroLink.h"
 #include "PigroDriver.h"
 
@@ -23,7 +22,48 @@ class AVR: public PigroDriver
 {
 public:
 
-    DeviceInfo avr;
+    using DeviceCode = std::array<uint8_t, 3>;
+
+    struct AvrDeviceInfo
+    {
+        DeviceCode signature;
+
+        std::string type;
+
+        bool paged;
+
+        uint32_t page_word_size;
+        uint32_t page_count;
+
+        uint32_t eeprom_page_size;
+        uint32_t eeprom_page_count;
+
+        bool valid() const
+        {
+            if ( page_word_size == 0 || page_count == 0 ) return false;
+            if ( !nano::is_power_of_two(page_word_size) ) return false;
+
+            if ( type == "avr")
+            {
+                uint32_t size = flash_size();
+                return (size > 0) && (size < 0x20000);
+            }
+
+            if ( type == "arm" )
+            {
+                return flash_size() > 0;
+            }
+
+            return false;
+        }
+
+        uint32_t flash_size() const { return page_byte_size() * page_count; }
+        uint32_t eeprom_size() const { return eeprom_page_size * eeprom_page_count; }
+
+        uint32_t page_byte_size() const { return page_word_size * 2; }
+    };
+
+    AvrDeviceInfo avr;
 
     AVR(PigroLink *link): PigroDriver(link) { }
     ~AVR() override;

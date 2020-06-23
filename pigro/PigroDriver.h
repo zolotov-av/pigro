@@ -8,7 +8,6 @@
 #include <nano/exception.h>
 #include <nano/config.h>
 
-#include "DeviceInfo.h"
 #include "FirmwareData.h"
 #include "PigroLink.h"
 

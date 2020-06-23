@@ -41,14 +41,14 @@ public:
     static constexpr bool xpacc_read = false;
     static constexpr bool xpacc_write = true;
 
-    struct DeviceInfo
+    struct ArmDeviceInfo
     {
         uint32_t page_size;
         uint32_t page_count;
         uint32_t flash_size;
     };
 
-    DeviceInfo arm;
+    ArmDeviceInfo arm;
 
     ARM(PigroLink *link): PigroDriver(link) { }
     ~ARM() override;

@@ -76,10 +76,6 @@ private:
     std::string device_type;
     std::string hexfname;
 
-    IntelHEX hex;
-    DeviceInfo chip;
-
-
     PigroDriver *driver = nullptr;
 
 public:

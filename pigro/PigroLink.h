@@ -5,8 +5,6 @@
 #include <string>
 #include <nano/config.h>
 
-#include "DeviceInfo.h"
-
 constexpr auto PACKET_MAXLEN = 12;
 
 struct packet_t
