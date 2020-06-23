@@ -113,7 +113,10 @@ public:
 
     }
 
-    static uint8_t arm_io(uint8_t ir, uint8_t *data, uint8_t bitcount)
+    /**
+     * Execute raw I/O
+     */
+    static uint8_t raw_io(uint8_t ir, uint8_t *data, uint8_t bitcount)
     {
         uint8_t ir_ack = set_ir(ir);
         set_dr(data, bitcount);

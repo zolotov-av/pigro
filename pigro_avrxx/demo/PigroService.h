@@ -82,10 +82,7 @@ public:
     {
         if ( pkt.len != 1 || pkt.data[0] > 0x0F ) return;
 
-        JTAG::tms(0); // [Reset/Idle]->idle
         pkt.data[0] = STM32::set_ir(pkt.data[0]);
-        JTAG::tms(0); // ->idle
-
         send_packet();
     }
 
@@ -93,21 +90,14 @@ public:
     {
         if ( pkt.len < 2 || pkt.data[0] > 39 ) return;
 
-        JTAG::tms(0); // idle
         STM32::set_dr(&pkt.data[1], pkt.data[0]);
-        JTAG::tms(0); // idle
-
         send_packet();
     }
 
     static void cmd_arm_idcode()
     {
         if ( pkt.len < 3 || pkt.len * 8 < pkt.data[1] ) return;
-
-        JTAG::tms(0); // Reset->idle
-        pkt.data[0] = STM32::arm_io(pkt.data[0], &pkt.data[2], pkt.data[1]);
-        JTAG::tms(0); // idle
-
+        pkt.data[0] = STM32::raw_io(pkt.data[0], &pkt.data[2], pkt.data[1]);
         send_packet();
     }
 
@@ -115,10 +105,7 @@ public:
     {
         if ( pkt.len != 6 ) return;
 
-        JTAG::tms(0); // [Reset/Idle]->idle
         pkt.data[1] = STM32::arm_xpacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
-        JTAG::tms(0); // idle
-
         send_packet();
     }
 
@@ -126,10 +113,7 @@ public:
     {
         if ( pkt.len != 6 ) return;
 
-        JTAG::tms(0); // [Reset/Idle]->idle
         pkt.data[1] = STM32::arm_apacc(pkt.data[0], pkt.data[1], reinterpret_cast<uint32_t*>(&pkt.data[2]));
-        JTAG::tms(0); // idle
-
         send_packet();
     }
 

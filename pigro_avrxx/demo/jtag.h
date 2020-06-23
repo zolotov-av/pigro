@@ -17,7 +17,7 @@ constexpr uint8_t JTAG_DEFAULT_STATE = tiny::makebits(PA1/*JDI*/, PA3/*TMS*/ /*,
 
 class JTAG
 {
-public:
+protected:
 
     static void clk()
     {
@@ -35,12 +35,14 @@ public:
     {
         PORTA = JTAG_DEFAULT_STATE | (1 << PA0);
         JRST.set(1);
+        JTAG::tms(0); // ->idle
     }
 
     static void reset()
     {
         JRST.set(0);
         JRST.set(1);
+        JTAG::tms(0); // ->idle
     }
 
     class transaction
