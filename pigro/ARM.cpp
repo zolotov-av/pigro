@@ -26,6 +26,8 @@ void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");
 
+    arm_idcode_raw();
+
     arm_debug_enable();
 
     printf("flash size: %dkB\n", (arm_flash_size()+1023)/1024);

@@ -64,7 +64,32 @@ public:
     }
 
     /**
-     * Transmit instruction register
+     * Transmit instruction register (as-is)
+     *
+     * Execute sequence: select-dr, select-ir, capture-ir, shift-ir, exit1-ir, update-ir
+     */
+    static void raw_ir(uint8_t *data, uint8_t bitcount)
+    {
+        JTMS.set(1);
+        clk(); // ->select-dr
+        clk(); // ->select-ir
+        transaction().shift_ex(data, bitcount);
+    }
+
+    /**
+     * Transmit data register (as-is)
+     *
+     * Execute sequence: select-dr, capture-dr, shift-dr, exit1-dr, update-dr
+     */
+    static void raw_dr(uint8_t *data, uint8_t bitcount)
+    {
+        JTMS.set(1);
+        clk(); // ->select-dr
+        transaction().shift_ex(data, bitcount);
+    }
+
+    /**
+     * Transmit instruction register (stm32)
      *
      * Execute sequence: select-dr, select-ir, capture-ir, shift-ir, exit1-ir, update-ir
      *
@@ -86,6 +111,8 @@ public:
     }
 
     /**
+     * Transmit data register (stm32)
+     *
      * на входе TMS=0 (idle) или TMS=1, 2-clk
      * на выходе TMS=1, 2-clk
      */
@@ -95,22 +122,8 @@ public:
         clk(); // ->select-dr
 
         transaction t;
-
-        // вытолкнуть целые байты
-        while ( bitcount > 8 )
-        {
-            *data = t.shift_xr<8>(*data);
-            data++;
-            bitcount -= 8;
-        }
-
-        // вытолкнуть остаток
-        uint8_t output = t.shift_xr(*data, bitcount);
-        for(uint8_t i = bitcount; i < 8; i++) output = output >> 1;
-        *data = output;
-
+        t.shift_ex(data, bitcount);
         t.shift_xr<1>(0);
-
     }
 
     /**

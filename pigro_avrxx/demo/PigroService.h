@@ -78,19 +78,17 @@ public:
         send_packet();
     }
 
-    static void cmd_jtag_ir()
+    static void cmd_jtag_raw_ir()
     {
-        if ( pkt.len != 1 || pkt.data[0] > 0x0F ) return;
-
-        pkt.data[0] = STM32::set_ir(pkt.data[0]);
+        if ( pkt.len < 2 || (pkt.len-1) * 8 < pkt.data[0] ) return;
+        STM32::raw_ir(&pkt.data[1], pkt.data[0]);
         send_packet();
     }
 
-    static void cmd_jtag_dr()
+    static void cmd_jtag_raw_dr()
     {
-        if ( pkt.len < 2 || pkt.data[0] > 39 ) return;
-
-        STM32::set_dr(&pkt.data[1], pkt.data[0]);
+        if ( pkt.len < 2 || (pkt.len-1) * 8 < pkt.data[0] ) return;
+        STM32::raw_dr(&pkt.data[1], pkt.data[0]);
         send_packet();
     }
 
@@ -239,10 +237,10 @@ public:
             cmd_jtag_test();
             return;
         case 6:
-            cmd_jtag_ir();
+            cmd_jtag_raw_ir();
             return;
         case 7:
-            cmd_jtag_dr();
+            cmd_jtag_raw_dr();
             return;
         case 8:
             cmd_arm_idcode();

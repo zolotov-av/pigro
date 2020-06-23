@@ -97,6 +97,25 @@ protected:
             return output;
         }
 
+        /**
+         * Сдвигает несколько битов в shift-ir/shift-dr
+         */
+        static void shift_ex(uint8_t *data, uint8_t bitcount)
+        {
+            // вытолкнуть целые байты
+            while ( bitcount > 8 )
+            {
+                *data = shift_xr<8>(*data);
+                data++;
+                bitcount -= 8;
+            }
+
+            // вытолкнуть остаток
+            uint8_t output = shift_xr(*data, bitcount);
+            for(uint8_t i = bitcount; i < 8; i++) output = output >> 1;
+            *data = output;
+        }
+
         ~transaction()
         {
             JTMS.set(1);

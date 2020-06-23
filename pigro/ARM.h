@@ -59,6 +59,66 @@ public:
         if ( !status ) throw nano::exception("cmd_jtag_reset() fail");
     }
 
+    uint64_t cmd_jtag_raw_ir(uint64_t ir, unsigned bitcount)
+    {
+        const unsigned byte_count = (bitcount + 7) / 8;
+        if ( byte_count + 1 > PACKET_MAXLEN ) throw nano::exception("cmd_jtag_raw_ir(): packet too long");
+
+        packet_t pkt;
+        pkt.cmd = 6;
+        pkt.len = byte_count + 1;
+        pkt.data[0] = bitcount;
+        for(unsigned i = 0; i < byte_count; i++)
+        {
+            pkt.data[i+1] = ir & 0xFF;
+            ir = ir >> 8;
+        }
+
+        //dump_packet("cmd_jtag_raw_ir() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("cmd_jtag_raw_ir() recv", pkt);
+
+        uint64_t result = 0;
+        uint64_t mul = 1;
+        for(unsigned i = 0; i < byte_count; i++)
+        {
+            result = result | (pkt.data[i+1] * mul);
+            mul = mul * 256;
+        }
+        return result;
+    }
+
+    uint64_t cmd_jtag_raw_dr(uint64_t dr, unsigned bitcount)
+    {
+        const unsigned byte_count = (bitcount + 7) / 8;
+        if ( byte_count > (PACKET_MAXLEN - 1) ) throw nano::exception("cmd_jtag_raw_dr(): packet too long");
+
+        packet_t pkt;
+        pkt.cmd = 7;
+        pkt.len = byte_count + 1;
+        pkt.data[0] = bitcount;
+        for(unsigned i = 0; i < byte_count; i++)
+        {
+            pkt.data[i+1] = dr & 0xFF;
+            dr = dr >> 8;
+        }
+
+        //dump_packet("cmd_jtag_raw_dr() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("cmd_jtag_raw_dr() recv", pkt);
+
+        uint64_t result = 0;
+        uint64_t mul = 1;
+        for(unsigned i = 0; i < byte_count; i++)
+        {
+            result = result | (pkt.data[i+1] * mul);
+            mul = mul * 256;
+        }
+        return result;
+    }
+
     template <uint8_t bitcount>
     uint32_t arm_io(uint8_t ir, uint64_t value)
     {
@@ -326,6 +386,17 @@ public:
         uint32_t idcode = arm_io<32>(IR_IDCODE, 0);
         const char *status = (idcode == CORTEX_M3_IDCODE) ? "[ ok ]" : "[fail]";
         printf("JTAG idcode: 0x%08X %s\n", idcode, status);
+        return idcode;
+    }
+
+    uint32_t arm_idcode_raw()
+    {
+        printf("\narm_check_idcode_raw()\n\n");
+
+        cmd_jtag_reset(0);
+
+        uint32_t idcode = cmd_jtag_raw_dr(0, 32);
+        printf("idcode: 0x%08X\n", idcode);
         return idcode;
     }
 
