@@ -297,7 +297,7 @@ public:
         if ( output != addr ) throw nano::exception("arm_set_memaddr() failed");
     }
 
-    uint32_t arm_read_mem32()
+    uint32_t read_next32()
     {
         //printf("arm_read_mem32()\n");
         packet_t pkt;
@@ -311,7 +311,7 @@ public:
         return pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
     }
 
-    uint16_t arm_read_mem16()
+    uint16_t read_next16()
     {
         packet_t pkt;
         pkt.cmd = 12;
@@ -323,7 +323,7 @@ public:
         return pkt.data[0] | (pkt.data[1] << 8);
     }
 
-    void arm_write_mem32(uint32_t value)
+    void write_next32(uint32_t value)
     {
         packet_t pkt;
         pkt.cmd = 13;
@@ -340,7 +340,7 @@ public:
         if ( output != value ) throw nano::exception("arm_write_mem32() failed");
     }
 
-    void arm_write_mem16(uint16_t value)
+    void write_next16(uint16_t value)
     {
         packet_t pkt;
         pkt.cmd = 13;
@@ -377,6 +377,97 @@ public:
         if ( pkt.len != 4 ) throw nano::exception("arm_fpec_program() wrong length: " + std::to_string(pkt.len));
         const uint32_t data = pkt.data[0] | (pkt.data[1] << 8) | (pkt.data[2] << 16) | (pkt.data[3] << 24);
         if ( data != value ) throw nano::exception("arm_fpec_program() failed");
+    }
+
+    template <uint8_t bitcount>
+    void write_bits(uint8_t *data, uint64_t value)
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        for(uint8_t i = 0; i < bytecount; i++)
+        {
+            data[i] = value & 0xFF;
+            value = value >> 8;
+        }
+    }
+
+    template <uint8_t bitcount>
+    uint64_t read_bits(const uint8_t *data)
+    {
+        constexpr uint8_t bytecount = (bitcount + 7) / 8;
+        uint64_t result = 0;
+        uint64_t mul = 1;
+        for(uint8_t i = 0; i < bytecount; i++)
+        {
+            result = result | (data[i] * mul);
+            mul = mul * 256;
+        }
+        return result;
+    }
+
+    uint32_t read_mem32(uint32_t addr)
+    {
+        packet_t pkt;
+        pkt.cmd = 15;
+        pkt.len = 8;
+        write_bits<32>(&pkt.data[0], addr);
+        write_bits<32>(&pkt.data[4], 0);
+
+        send_packet(pkt);
+        recv_packet(pkt);
+
+        if ( pkt.cmd != 15 ) throw nano::exception("read_mem32(): wrong cmd = " + std::to_string(pkt.cmd));
+        if ( pkt.len != 8 ) throw nano::exception("read_mem32(): wrong len = " + std::to_string(pkt.len));
+
+        return read_bits<32>(&pkt.data[4]);
+    }
+
+    uint16_t read_mem16(uint32_t addr)
+    {
+        packet_t pkt;
+        pkt.cmd = 15;
+        pkt.len = 6;
+        write_bits<32>(&pkt.data[0], addr);
+        write_bits<16>(&pkt.data[4], 0);
+
+        send_packet(pkt);
+        recv_packet(pkt);
+
+        if ( pkt.cmd != 15 ) throw nano::exception("read_mem16(): wrong cmd = " + std::to_string(pkt.cmd));
+        if ( pkt.len != 6 ) throw nano::exception("read_mem16(): wrong len = " + std::to_string(pkt.len));
+
+        return read_bits<16>(&pkt.data[4]);
+    }
+
+    void write_mem32(uint32_t addr, uint32_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 16;
+        pkt.len = 8;
+        write_bits<32>(&pkt.data[0], addr);
+        write_bits<32>(&pkt.data[4], value);
+
+        //dump_packet("write_mem32() send", pkt);
+        send_packet(pkt);
+        recv_packet(pkt);
+        //dump_packet("write_mem32() recv", pkt);
+
+        if ( pkt.cmd != 16 ) throw nano::exception("write_mem32(): wrong cmd = " + std::to_string(pkt.cmd));
+        if ( pkt.len != 8 ) throw nano::exception("write_mem32(): wrong len = " + std::to_string(pkt.len));
+    }
+
+    void write_mem16(uint32_t addr, uint32_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 16;
+        pkt.len = 6;
+        write_bits<32>(&pkt.data[0], addr);
+        write_bits<16>(&pkt.data[4], value);
+
+        send_packet(pkt);
+        recv_packet(pkt);
+
+        if ( pkt.cmd != 16 ) throw nano::exception("write_mem16(): wrong cmd = " + std::to_string(pkt.cmd));
+        if ( pkt.len != 6 ) throw nano::exception("write_mem16(): wrong len = " + std::to_string(pkt.len));
     }
 
     uint32_t arm_read_dp(uint8_t addr)
@@ -470,33 +561,25 @@ public:
 
         uint32_t test;
 
+        write_mem32(0xE000EDF0, 0xA05F0003);
 
-        arm_set_memaddr(0xE000EDF0);
-        arm_write_mem32(0xA05F0003);
-
-        arm_set_memaddr(0xE000EDF0);
-        test = arm_read_mem32();
+        test = read_mem32(0xE000EDF0);
         printf("DHCSR: 0x%08X\n", test);
 
-        arm_set_memaddr(0xE000EDFC);
-        arm_write_mem32(1);
+        write_mem32(0xE000EDFC, 1);
 
-        arm_set_memaddr(0xE000EDFC);
-        auto test2 = arm_read_mem32();
-        printf("DEMCR: 0x%08X\n", test2);
+        test = read_mem32(0xE000EDFC);
+        printf("DEMCR: 0x%08X\n", test);
 
         cmd_jtag_reset(1);
 
-        arm_set_memaddr(0xE000EDF0);
-        test = arm_read_mem32();
+        test = read_mem32(0xE000EDF0);
         printf("DHCSR: 0x%08X\n", test);
 
-        arm_set_memaddr(0xE000EDF0);
-        test = arm_read_mem32();
+        test = read_mem32(0xE000EDF0);
         printf("DHCSR: 0x%08X\n", test);
 
-        arm_set_memaddr(0xE000ED10);
-        arm_read_mem32();
+        test = read_mem32(0xE000ED10);
         printf("SCR: 0x%08X\n", test);
 
 
@@ -559,19 +642,19 @@ public:
     uint32_t arm_flash_size()
     {
         arm_set_memaddr(0x1FFFF7E0);
-        return (arm_read_mem16() & 0xFFFF) * 1024;
+        return (read_next16() & 0xFFFF) * 1024;
     }
 
     uint32_t arm_fpec_read_reg(uint8_t reg)
     {
         arm_set_memaddr(0x40022000 + reg);
-        return arm_read_mem32();
+        return read_next32();
     }
 
     void arm_fpec_write_reg(uint8_t reg, const uint32_t &value)
     {
         arm_set_memaddr(0x40022000 + reg);
-        arm_write_mem32(value);
+        write_next32(value);
     }
 
     void arm_fpec_unlock()
@@ -655,7 +738,7 @@ public:
     void arm_dump_mem32(uint32_t addr)
     {
         arm_set_memaddr(addr);
-        const uint32_t value = arm_read_mem32();
+        const uint32_t value = read_next32();
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
 

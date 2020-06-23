@@ -49,13 +49,13 @@ void ARM::action_test()
     arm_set_memaddr(addr);
     for(int i = 0; i < 4; i++)
     {
-        uint32_t value = arm_read_mem32();
+        uint32_t value = read_next32();
         addr += 4;
         printf("MEM[0x%08X]: 0x%08X\n", addr, value);
     }
 
     arm_set_memaddr(0xE0042000);
-    uint32_t value = arm_read_mem32();
+    uint32_t value = read_next32();
     printf("MEM[0xE0042000]: 0x%08X\n", value);
     arm_dump_mem32(0x40010800);
 
@@ -120,7 +120,7 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
             const uint32_t addr = page_addr + offset;
             if ( counter == 0 ) printf("MEM[0x%08X]", addr);
             const uint32_t hex_value = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
-            const uint32_t device_value = arm_read_mem32();
+            const uint32_t device_value = read_next32();
             printf("%s", (device_value == hex_value ? "." : "*" ));
             if ( counter == 0x1F ) printf("\n");
             counter = (counter + 1) & 0x1F;

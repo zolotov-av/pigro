@@ -120,19 +120,17 @@ public:
         if ( pkt.len == 2 && pkt.data[0] == 1 )
         {
             STM32::memap = pkt.data[1];
-            send_packet();
-            return;
+            return send_packet();
         }
 
         if ( pkt.len == 5 && pkt.data[0] == 2 )
         {
             STM32::mem_addr = *reinterpret_cast<uint32_t*>(&pkt.data[1]);
-            send_packet();
-            return;
+            return send_packet();
         }
     }
 
-    static void cmd_arm_read()
+    static void cmd_arm_read_next()
     {
         if ( pkt.len == 4 )
         {
@@ -140,10 +138,8 @@ public:
             auto error = STM32::read_mem32(STM32::mem_addr, value);
             STM32::mem_addr += 4;
             if ( error ) return send_error(error);
-
             *reinterpret_cast<uint32_t*>(pkt.data) = value;
-            send_packet();
-            return;
+            return send_packet();
         }
 
         if ( pkt.len == 2 )
@@ -152,24 +148,19 @@ public:
             auto error = STM32::read_mem16(STM32::mem_addr, value);
             STM32::mem_addr += 2;
             if ( error ) return send_error(error);
-
             *reinterpret_cast<uint16_t*>(pkt.data) = value;
-            send_packet();
-            return;
-
+            return send_packet();
         }
     }
 
-    static void cmd_arm_write()
+    static void cmd_arm_write_next()
     {
         if ( pkt.len == 4 )
         {
             auto error = STM32::write_mem32(STM32::mem_addr, *reinterpret_cast<uint32_t*>(pkt.data));
             STM32::mem_addr += 4;
             if ( error ) return send_error(error);
-
-            send_packet();
-            return;
+            return send_packet();
         }
 
         if ( pkt.len == 2 )
@@ -177,13 +168,11 @@ public:
             auto error = STM32::write_mem16(STM32::mem_addr, *reinterpret_cast<uint16_t*>(pkt.data));
             STM32::mem_addr += 2;
             if ( error ) return send_error(error);
-
-            send_packet();
-            return;
+            return send_packet();
         }
     }
 
-    static void cmd_arm_program()
+    static void cmd_arm_program_next()
     {
         if ( pkt.len == 4 )
         {
@@ -201,16 +190,51 @@ public:
                 pkt.data[1] = status1;
             }
 
-            send_packet();
-            return;
+            return send_packet();
         }
     }
 
-    static void cmd_arm_reset()
+    static void cmd_arm_read()
     {
-        if ( pkt.len == 1 )
+        if ( pkt.len == 8 )
         {
-            avr::pin(PORTB, PB1).set(pkt.data[0]);
+            const uint32_t addr = *reinterpret_cast<uint32_t*>(&pkt.data[0]);
+            uint32_t value;
+            auto error = STM32::read_mem32(addr, value);
+            if ( error ) return send_error(error);
+
+            *reinterpret_cast<uint32_t*>(&pkt.data[4]) = value;
+            return send_packet();
+        }
+
+        if ( pkt.len == 6 )
+        {
+            const uint32_t addr = *reinterpret_cast<uint32_t*>(&pkt.data[0]);
+            uint16_t value;
+            auto error = STM32::read_mem16(addr, value);
+            if ( error ) return send_error(error);
+
+            *reinterpret_cast<uint16_t*>(&pkt.data[4]) = value;
+            return send_packet();
+        }
+    }
+
+    static void cmd_arm_write()
+    {
+        if ( pkt.len == 8 )
+        {
+            const uint32_t addr = *reinterpret_cast<uint32_t*>(&pkt.data[0]);
+            auto error = STM32::write_mem32(addr, *reinterpret_cast<uint32_t*>(&pkt.data[4]));
+            if ( error ) return send_error(error);
+            return send_packet();
+        }
+
+        if ( pkt.len == 6 )
+        {
+            const uint32_t addr = *reinterpret_cast<uint32_t*>(&pkt.data[0]);
+            auto error = STM32::write_mem16(addr, *reinterpret_cast<uint16_t*>(&pkt.data[4]));
+            if ( error ) return send_error(error);
+            return send_packet();
         }
     }
 
@@ -255,16 +279,19 @@ public:
             cmd_arm_config();
             return ;
         case 12:
-            cmd_arm_read();
+            cmd_arm_read_next();
             return;
         case 13:
-            cmd_arm_write();
+            cmd_arm_write_next();
             return;
         case 14:
-            cmd_arm_program();
+            cmd_arm_program_next();
             return;
         case 15:
-            cmd_arm_reset();
+            cmd_arm_read();
+            return;
+        case 16:
+            cmd_arm_write();
             return;
         }
     }
