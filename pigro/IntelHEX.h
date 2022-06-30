@@ -1,8 +1,6 @@
 #ifndef INTELHEX_H
 #define INTELHEX_H
 
-#include <nano/serial.h>
-
 #include <map>
 #include <list>
 #include <array>

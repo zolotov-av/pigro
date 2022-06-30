@@ -7,6 +7,7 @@
 #include <string>
 
 #include <nano/math.h>
+#include <nano/exception.h>
 
 #include "IntelHEX.h"
 

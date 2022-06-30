@@ -1,7 +1,10 @@
 TEMPLATE = app
+
+QT += core serialport
+
 CONFIG += console c++17
 CONFIG -= app_bundle
-CONFIG -= qt
+#CONFIG -= qt
 
 SOURCES += \
     ARM.cpp \
@@ -18,7 +21,6 @@ SOURCES += \
     nano/IniReader.cpp \
     nano/TextReader.cpp \
     nano/exception.cpp \
-    nano/serial.cpp \
     IntelHEX.cpp \
     main.cpp
 
@@ -37,5 +39,4 @@ HEADERS += \
     nano/IniReader.h \
     nano/TextReader.h \
     nano/exception.h \
-    nano/serial.h \
     IntelHEX.h

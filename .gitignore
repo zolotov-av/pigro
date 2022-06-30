@@ -6,3 +6,5 @@ Makefile
 *.s
 *.hex
 *.dump
+
+/build-pigro-Desktop-Release/

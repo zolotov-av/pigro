@@ -11,6 +11,9 @@
 //    Fill free to copy, to compile, to use, to redistribute etc on your own risk.
 //
 
+#include <QCoreApplication>
+#include <QSerialPort>
+
 #include <stdio.h>
 #include <time.h>
 #include <stdint.h>
@@ -18,7 +21,6 @@
 
 #include <array>
 #include <nano/exception.h>
-#include <nano/serial.h>
 #include <nano/IniReader.h>
 #include <nano/config.h>
 
@@ -59,7 +61,7 @@ int help()
 	return 0;
 }
 
-class PigroApp: public PigroLink
+class PigroApp: public QObject, public PigroLink
 {
 private:
 
@@ -67,11 +69,11 @@ private:
      * Нужно ли выводить дополнительный отладочный вывод или быть тихим?
      */
     bool m_verbose = false;
-    bool nack_support = false;
+    bool nack_support { false };
     uint8_t protoVersionMajor = 0;
     uint8_t protoVersionMinor = 0;
     nano::config config;
-    nano::serial *serial = nullptr;
+    QSerialPort *serial { new QSerialPort(this) };
     nano::options m_chip_info;
     std::string device_type;
     std::string hexfname;
@@ -80,8 +82,16 @@ private:
 
 public:
 
-    PigroApp(const char *path, bool verbose): m_verbose(verbose), config(nano::IniReader<512>("pigro.ini").data), serial (new nano::serial(path))
+    PigroApp(const char *path, bool verbose): m_verbose(verbose), config(nano::IniReader<512>("pigro.ini").data)
     {
+        serial->setPortName(path);
+        serial->setBaudRate(QSerialPort::Baud9600);
+        serial->setDataBits(QSerialPort::Data8);
+        if ( !serial->open(QIODevice::ReadWrite))
+        {
+            throw nano::exception(serial->errorString().toStdString());
+        }
+
     }
 
     ~PigroApp()
@@ -105,12 +115,38 @@ public:
         return m_chip_info;
     }
 
+    uint8_t read_sync()
+    {
+        char data;
+        if ( serial->read(&data, 1) == 1 )
+        {
+            return data;
+        }
+
+        if ( serial->waitForReadyRead(200) )
+        {
+            char data;
+            if ( serial->read(&data, 1) == 1 )
+            {
+                return data;
+            }
+
+            throw nano::exception("read fail: " + serial->errorString().toStdString());
+        }
+        else
+        {
+            // timeout
+            throw nano::exception("read timeout");
+        }
+    }
+
     /**
      * Отправить пакет данных
      */
     bool send_packet(const packet_t *pkt) override
     {
-        ssize_t r = serial->write(pkt, pkt->len + 2);
+        ssize_t r = serial->write(reinterpret_cast<const char *>(pkt), pkt->len + 2);
+        serial->waitForBytesWritten(200);
         if ( r != pkt->len + 2 )
         {
             // TODO обработка ошибок
@@ -119,7 +155,7 @@ public:
 
         if ( nack_support )
         {
-            switch ( serial->read_sync() )
+            switch ( read_sync() )
             {
             case PKT_ACK: return true;
             case PKT_NACK: throw nano::exception("send_packet(): NACK");
@@ -132,15 +168,15 @@ public:
 
     void recv_packet(packet_t *pkt) override
     {
-        pkt->cmd = serial->read_sync();
-        pkt->len = serial->read_sync();
+        pkt->cmd = read_sync();
+        pkt->len = read_sync();
         if ( pkt->len > PACKET_MAXLEN )
         {
             throw nano::exception("packet to big: " + std::to_string(pkt->len) + "/" + std::to_string((PACKET_MAXLEN)));
         }
         for(int i = 0; i < pkt->len; i++)
         {
-            pkt->data[i] = serial->read_sync();
+            pkt->data[i] = read_sync();
         }
     }
 
@@ -164,6 +200,9 @@ public:
 
     void checkProtoVersion()
     {
+        serial->waitForReadyRead(200);
+        serial->readAll();
+
         packet_t pkt;
         pkt.cmd = 1;
         pkt.len = 2;
@@ -171,9 +210,9 @@ public:
         pkt.data[1] = 0;
         send_packet(&pkt);
 
-        if ( serial->wait() )
+        if ( serial->waitForReadyRead(200) )
         {
-            uint8_t ack;
+            char ack;
             serial->read(&ack, sizeof(ack));
             if ( ack == PKT_ACK )
             {
@@ -448,6 +487,7 @@ int real_main(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    QCoreApplication app(argc, argv);
     try
     {
         return real_main(argc, argv);
