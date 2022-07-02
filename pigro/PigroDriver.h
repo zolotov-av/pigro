@@ -1,6 +1,7 @@
 #ifndef PIGRODRIVER_H
 #define PIGRODRIVER_H
 
+#include <QFile>
 #include <cstdint>
 #include <map>
 #include <vector>
@@ -89,6 +90,7 @@ public:
     virtual uint8_t page_fill() const;
 
     virtual QString getIspChipInfo() = 0;
+    virtual FirmwareData readFirmware() = 0;
 
     virtual void action_test() = 0;
     virtual void parse_device_info(const nano::options &info) = 0;

@@ -27,6 +27,11 @@ QString ARM::getIspChipInfo()
     return QStringLiteral("ARM::getIspChipInfo() not implemented yet");
 }
 
+FirmwareData ARM::readFirmware()
+{
+    throw nano::exception("ARM::readFirmware() not implemented yet");
+}
+
 void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");

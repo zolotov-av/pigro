@@ -1,6 +1,7 @@
 #ifndef PIGROAPP_H
 #define PIGROAPP_H
 
+#include <QFile>
 #include <QSerialPort>
 
 #include <stdio.h>
@@ -36,6 +37,8 @@ enum PigroAction {
 
 class PigroApp: public QObject, public PigroLink
 {
+    Q_OBJECT
+
 private:
 
     /**
@@ -150,6 +153,10 @@ public:
         }
     }
 
+    void beginProgress(int min, int max) override;
+    void reportProgress(int value) override;
+    void endProcess() override;
+
     bool open(const QString &dev);
     void close();
 
@@ -247,6 +254,11 @@ public:
     QString getChipInfo()
     {
         return driver->getIspChipInfo();
+    }
+
+    FirmwareData readFirmware()
+    {
+        return driver->readFirmware();
     }
 
     /**
@@ -370,6 +382,12 @@ public:
         default: throw nano::exception("Victory!");
         }
     }
+
+signals:
+
+    void beginProgress1(int min, int max);
+    void reportProgress1(int value);
+    void endProgress1();
 
 };
 

@@ -34,7 +34,9 @@ public:
      */
     virtual void recv_packet(packet_t *pkt) = 0;
 
-
+    virtual void beginProgress(int min, int max) = 0;
+    virtual void reportProgress(int value) = 0;
+    virtual void endProcess() = 0;
 
 };
 

@@ -30,6 +30,21 @@ PigroApp::~PigroApp()
     if ( driver ) delete driver;
 }
 
+void PigroApp::beginProgress(int min, int max)
+{
+    emit beginProgress1(min, max);
+}
+
+void PigroApp::reportProgress(int value)
+{
+    emit reportProgress1(value);
+}
+
+void PigroApp::endProcess()
+{
+    emit endProgress1();
+}
+
 bool PigroApp::open(const QString &dev)
 {
     serial->setPortName(dev);

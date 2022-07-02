@@ -324,6 +324,7 @@ public:
     }
 
     virtual QString getIspChipInfo() override;
+    virtual FirmwareData readFirmware() override;
 
     /**
      * Проверить прошивку на корректность

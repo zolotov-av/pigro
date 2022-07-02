@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>icons/reload.png</file>
         <file>icons/open-file.png</file>
+        <file>icons/save-file.png</file>
     </qresource>
 </RCC>

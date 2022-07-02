@@ -18,6 +18,7 @@ struct PageData
     std::vector<uint8_t> data;
 
     uint32_t page_size() const { return data.size(); }
+    void resize(uint32_t newSize) { data.resize(newSize); }
 };
 
 class FirmwareData: public std::map<uint32_t, PageData>

@@ -1,5 +1,8 @@
 #include "AVR.h"
 
+#include <QCoreApplication>
+#include <vector>
+
 AVR::~AVR()
 {
 
@@ -32,6 +35,58 @@ QString AVR::getIspChipInfo()
     isp_program_disable();
 
     return QString::fromLatin1(buf);
+}
+
+FirmwareData AVR::readFirmware()
+{
+    FirmwareData firmware;
+
+    isp_program_enable();
+
+    try
+    {
+        if ( !check_chip_info() )
+        {
+            throw nano::exception("saveFirmwareToFile() reject: wrong chip signature");
+        }
+
+        if ( !avr.valid() || !avr.paged )
+        {
+            throw nano::exception("saveFirmwareToFile() reject: unsupported chip");
+        }
+
+        printf("saveFirmwareToFile() page_word_size=%u page_count=%u \n", avr.page_word_size, avr.page_count);
+
+        link->beginProgress(0, avr.page_count * avr.page_word_size - 1);
+
+        PageData page;
+        page.resize(avr.page_word_size);
+
+        for(unsigned ipage = 0; ipage < avr.page_count; ipage++)
+        {
+            page.addr = ipage * avr.page_word_size;
+            for(unsigned ibyte = 0; ibyte < avr.page_word_size; ibyte++)
+            {
+                uint32_t addr = page.addr + ibyte;
+                page.data[ibyte] = isp_read_memory(addr);
+                link->reportProgress(addr);
+                QCoreApplication::processEvents();
+            }
+
+            firmware.emplace(page.addr, page);
+        }
+
+        link->endProcess();
+    }
+    catch (...)
+    {
+        link->endProcess();
+        isp_program_disable();
+        throw;
+    }
+
+    isp_program_disable();
+    return firmware;
 }
 
 void AVR::action_test()

@@ -19,7 +19,13 @@ private slots:
 
     void refreshTty();
     void openPigroIni();
+    void openReadFile();
+    void readFirmware();
     void showInfo();
+
+    void beginProgress(int min, int max);
+    void reportProgress(int value);
+    void endProgress();
 
 public:
 

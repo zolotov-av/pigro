@@ -123,6 +123,13 @@
      </widget>
     </item>
     <item>
+     <widget class="QProgressBar" name="progressBar">
+      <property name="value">
+       <number>24</number>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QToolBox" name="toolBox">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -131,7 +138,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="pageInfo">
        <property name="geometry">
@@ -139,7 +146,7 @@
          <x>0</x>
          <y>0</y>
          <width>849</width>
-         <height>215</height>
+         <height>145</height>
         </rect>
        </property>
        <attribute name="label">
@@ -211,7 +218,7 @@
          <x>0</x>
          <y>0</y>
          <width>849</width>
-         <height>215</height>
+         <height>145</height>
         </rect>
        </property>
        <attribute name="label">
@@ -224,12 +231,84 @@
          <x>0</x>
          <y>0</y>
          <width>849</width>
-         <height>215</height>
+         <height>145</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Check:</string>
        </attribute>
+      </widget>
+      <widget class="QWidget" name="page_5">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>849</width>
+         <height>145</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Read:</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QLineEdit" name="leReadFilePath"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pbOpenReadFile">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="PigroResources.qrc">
+              <normaloff>:/icons/save-file.png</normaloff>:/icons/save-file.png</iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>83</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QWidget" name="widget" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <item>
+            <spacer name="horizontalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>715</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pbReadFirmware">
+             <property name="text">
+              <string>Read</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="page_3">
        <property name="geometry">
@@ -237,7 +316,7 @@
          <x>0</x>
          <y>0</y>
          <width>849</width>
-         <height>215</height>
+         <height>145</height>
         </rect>
        </property>
        <attribute name="label">
@@ -250,7 +329,7 @@
          <x>0</x>
          <y>0</y>
          <width>849</width>
-         <height>215</height>
+         <height>145</height>
         </rect>
        </property>
        <attribute name="label">
