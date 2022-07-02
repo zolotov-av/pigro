@@ -90,26 +90,30 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationDomain("shamangrad.net");
     QCoreApplication::setApplicationName("pigro");
 
-    PigroWindow w;
-    w.show();
+    constexpr bool gui = false;
 
-    return app.exec();
+    if constexpr ( gui )
+    {
+        PigroWindow w;
+        w.show();
 
-    /*
-    try
-    {
-        return real_main(argc, argv);
+        return app.exec();
     }
-    catch (const nano::exception &e)
+    else
     {
-        std::cerr << "[nano::exception] " << e.message() << std::endl;
-        return 1;
+        try
+        {
+            return real_main(argc, argv);
+        }
+        catch (const nano::exception &e)
+        {
+            std::cerr << "[nano::exception] " << e.message() << std::endl;
+            return 1;
+        }
+        catch(const std::exception &e)
+        {
+            std::cerr << "[std::exception] " << e.what() << std::endl;
+            return 1;
+        }
     }
-    catch(const std::exception &e)
-    {
-        std::cerr << "[std::exception] " << e.what() << std::endl;
-        return 1;
-    }
-    */
-
 }

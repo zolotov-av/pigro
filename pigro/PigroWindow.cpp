@@ -48,7 +48,7 @@ void PigroWindow::openReadFile()
 
 void PigroWindow::readFirmware()
 {
-    QFile file("/home/ilya/projects/pigro-temp/pigro_avrxx/demo/pigro_avr_2.hex" /* ui.leReadFilePath->text() */);
+    QFile file(ui.leReadFilePath->text());
     if ( file.exists() )
     {
         if ( QMessageBox::question(this, tr("Read Firmware"), tr("File exists, override?"), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes )
@@ -63,13 +63,7 @@ void PigroWindow::readFirmware()
         return;
     }
 
-    const FirmwareData orig = FirmwareData::LoadFromFile("/home/ilya/projects/pigro-temp/pigro_avrxx/demo/pigro_avr.hex");
-
-    QTextStream ts(&file);
-    orig.saveToTextStream(ts);
-
-
-    /*
+    //const FirmwareData orig = FirmwareData::LoadFromFile("/home/ilya/projects/pigro-temp/pigro_avrxx/demo/pigro_avr.hex");
 
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
@@ -82,17 +76,9 @@ void PigroWindow::readFirmware()
         const auto firmware = link->readFirmware();
         link->close();
 
-        for(const auto &page : firmware)
-        {
-            file.write(reinterpret_cast<const char*>(page.second.data.data()), page.second.data.size());
-        }
-
-        // TOD save
-        file.flush();
+        QTextStream ts(&file);
+        firmware.saveToTextStream(ts);
     }
-
-    */
-
 
 }
 

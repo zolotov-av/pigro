@@ -57,15 +57,17 @@ FirmwareData AVR::readFirmware()
 
         printf("saveFirmwareToFile() page_word_size=%u page_count=%u \n", avr.page_word_size, avr.page_count);
 
-        link->beginProgress(0, avr.page_count * avr.page_word_size - 1);
+        link->beginProgress(0, avr.flash_size() - 1);
+
+        const unsigned page_size = avr.page_byte_size();
 
         PageData page;
-        page.resize(avr.page_word_size);
+        page.resize(page_size);
 
         for(unsigned ipage = 0; ipage < avr.page_count; ipage++)
         {
-            page.addr = ipage * avr.page_word_size;
-            for(unsigned ibyte = 0; ibyte < avr.page_word_size; ibyte++)
+            page.addr = ipage * page_size;
+            for(unsigned ibyte = 0; ibyte < page_size; ibyte++)
             {
                 uint32_t addr = page.addr + ibyte;
                 page.data[ibyte] = isp_read_memory(addr);
@@ -153,6 +155,7 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
     check_fuses();
 
     uint8_t counter = 0;
+    bool differs = false;
     for(const auto &[page_addr, page] : pages)
     {
         const size_t size = page.data.size();
@@ -162,12 +165,22 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
             if ( counter == 0 ) printf("MEM[0x%04X]", addr);
             uint8_t byte = isp_read_memory(addr);
             printf("%s", (page.data[i] == byte ? "." : "*" ));
+            if ( page.data[i] == byte ) differs = true;
             if ( counter == 0x1F ) printf("\n");
             counter = (counter + 1) & 0x1F;
         }
     }
 
     isp_program_disable();
+
+    if ( differs )
+    {
+        printf("\ndifferent\n");
+    }
+    else
+    {
+        printf("\nsame\n");
+    }
 }
 
 void AVR::isp_write_firmware(const FirmwareData &pages)
