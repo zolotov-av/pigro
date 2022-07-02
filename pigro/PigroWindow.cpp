@@ -1,6 +1,7 @@
 #include "PigroWindow.h"
 
 #include <QFile>
+#include <QTextStream>
 #include <QSettings>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -47,7 +48,7 @@ void PigroWindow::openReadFile()
 
 void PigroWindow::readFirmware()
 {
-    QFile file(ui.leReadFilePath->text());
+    QFile file("/home/ilya/projects/pigro-temp/pigro_avrxx/demo/pigro_avr_2.hex" /* ui.leReadFilePath->text() */);
     if ( file.exists() )
     {
         if ( QMessageBox::question(this, tr("Read Firmware"), tr("File exists, override?"), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes )
@@ -61,6 +62,14 @@ void PigroWindow::readFirmware()
         QMessageBox::information(this, tr("Read Firmware error"), tr("Cannot open file: %1").arg(file.fileName()));
         return;
     }
+
+    const FirmwareData orig = FirmwareData::LoadFromFile("/home/ilya/projects/pigro-temp/pigro_avrxx/demo/pigro_avr.hex");
+
+    QTextStream ts(&file);
+    orig.saveToTextStream(ts);
+
+
+    /*
 
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
@@ -81,6 +90,8 @@ void PigroWindow::readFirmware()
         // TOD save
         file.flush();
     }
+
+    */
 
 
 }
