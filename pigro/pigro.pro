@@ -1,9 +1,9 @@
 TEMPLATE = app
 
-QT += core serialport
+QT += core gui widgets serialport
 
-CONFIG += console c++17
-CONFIG -= app_bundle
+CONFIG += c++17
+#CONFIG -= app_bundle
 #CONFIG -= qt
 
 SOURCES += \
@@ -11,8 +11,10 @@ SOURCES += \
     AVR.cpp \
     DeviceInfo.cpp \
     FirmwareData.cpp \
+    PigroApp.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
+    PigroWindow.cpp \
     nano/config.cpp \
     nano/ini.cpp \
     nano/map.cpp \
@@ -29,8 +31,10 @@ HEADERS += \
     AVR.h \
     DeviceInfo.h \
     FirmwareData.h \
+    PigroApp.h \
     PigroDriver.h \
     PigroLink.h \
+    PigroWindow.h \
     nano/config.h \
     nano/ini.h \
     nano/map.h \
@@ -40,3 +44,9 @@ HEADERS += \
     nano/TextReader.h \
     nano/exception.h \
     IntelHEX.h
+
+FORMS += \
+    PigroWindow.ui
+
+RESOURCES += \
+    PigroResources.qrc
