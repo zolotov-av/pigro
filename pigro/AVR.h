@@ -332,7 +332,7 @@ public:
     {
         bool status = true;
         const uint32_t limit = page_limit();
-        for(const auto page : pages)
+        for(const auto &page : pages)
         {
             const uint32_t page_addr = page.second.addr;
             const bool page_ok = page_addr < limit;

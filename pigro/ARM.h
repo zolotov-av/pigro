@@ -774,7 +774,7 @@ public:
         bool status = true;
         const uint32_t page_begin = flash_begin();
         const uint32_t page_limit = flash_end();
-        for(const auto page : pages)
+        for(const auto &page : pages)
         {
             const uint32_t page_addr = page.second.addr;
             const bool page_ok = page_in_range(page_addr, page_begin, page_limit);
