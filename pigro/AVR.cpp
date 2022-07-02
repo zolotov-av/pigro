@@ -15,6 +15,25 @@ uint32_t AVR::page_count() const
     return avr.page_count;
 }
 
+QString AVR::getIspChipInfo()
+{
+    printf("\nAVR::isp_chip_info()\n\n");
+
+    isp_program_enable();
+
+    const auto info = isp_read_chip_info();
+    const bool status = (info == parseDeviceCode(chip_info().value("device_code")));
+    const char *status_str = status ? "[ ok ]" : "[diff]";
+    char buf[80];
+    sprintf(buf, "0x%02X, 0x%02X, 0x%02X %s", info[0], info[1], info[2], status_str);
+
+    check_chip_info();
+
+    isp_program_disable();
+
+    return QString::fromLatin1(buf);
+}
+
 void AVR::action_test()
 {
     printf("\nAVR::action_test()\n\n");

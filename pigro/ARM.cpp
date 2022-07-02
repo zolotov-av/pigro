@@ -22,6 +22,11 @@ uint32_t ARM::page_count() const
     return arm.page_count;
 }
 
+QString ARM::getIspChipInfo()
+{
+    return QStringLiteral("ARM::getIspChipInfo() not implemented yet");
+}
+
 void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");

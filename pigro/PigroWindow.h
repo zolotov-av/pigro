@@ -2,6 +2,7 @@
 #define PIGROWINDOW_H
 
 #include <QMainWindow>
+#include "PigroApp.h"
 #include "ui_PigroWindow.h"
 
 class PigroWindow final: public QMainWindow
@@ -12,9 +13,13 @@ private:
 
     Ui::PigroWindow ui;
 
+    PigroApp *link { new PigroApp(this) };
+
 private slots:
 
     void refreshTty();
+    void openPigroIni();
+    void showInfo();
 
 public:
 

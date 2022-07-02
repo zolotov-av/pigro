@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <map>
 #include <vector>
+#include <QString>
 
 #include <nano/exception.h>
 #include <nano/config.h>
@@ -86,6 +87,8 @@ public:
     virtual uint32_t page_size() const = 0;
     virtual uint32_t page_count() const = 0;
     virtual uint8_t page_fill() const;
+
+    virtual QString getIspChipInfo() = 0;
 
     virtual void action_test() = 0;
     virtual void parse_device_info(const nano::options &info) = 0;

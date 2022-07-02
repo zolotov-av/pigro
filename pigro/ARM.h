@@ -793,6 +793,8 @@ public:
         return status;
     }
 
+    virtual QString getIspChipInfo() override;
+
     void action_test() override;
     void parse_device_info(const nano::options &) override;
     void isp_chip_info() override;

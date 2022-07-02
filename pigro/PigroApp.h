@@ -41,10 +41,10 @@ private:
     /**
      * Нужно ли выводить дополнительный отладочный вывод или быть тихим?
      */
-    bool m_verbose = false;
+    bool m_verbose { false };
     bool nack_support { false };
-    uint8_t protoVersionMajor = 0;
-    uint8_t protoVersionMinor = 0;
+    uint8_t m_protoVersionMajor { 0 };
+    uint8_t m_protoVersionMinor { 0 };
     nano::config config;
     QSerialPort *serial { new QSerialPort(this) };
     nano::options m_chip_info;
@@ -55,6 +55,12 @@ private:
 
 public:
 
+    uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
+    uint8_t protoVersionMinor() const { return m_protoVersionMinor; }
+
+    QString protoVersion() const;
+
+    explicit PigroApp(QObject *parent = nullptr);
     PigroApp(const char *path, bool verbose);
     PigroApp(const PigroApp &) = delete;
     PigroApp(PigroApp &&) = delete;
@@ -144,6 +150,9 @@ public:
         }
     }
 
+    bool open(const QString &dev);
+    void close();
+
     void info(const char *msg)
     {
         if ( verbose() )
@@ -184,8 +193,8 @@ public:
                 if ( pkt.len != 2 )
                     throw nano::exception("wrong protocol: len = " + std::to_string(pkt.len));
                 nack_support = true;
-                protoVersionMajor = pkt.data[0];
-                protoVersionMinor = pkt.data[1];
+                m_protoVersionMajor = pkt.data[0];
+                m_protoVersionMinor = pkt.data[1];
                 info("new protocol");
                 return;
             }
@@ -196,8 +205,8 @@ public:
         }
 
         nack_support = false;
-        protoVersionMajor = 0;
-        protoVersionMinor = 1;
+        m_protoVersionMajor = 0;
+        m_protoVersionMinor = 1;
         warn("old protocol? update firmware...");
     }
 
@@ -205,7 +214,7 @@ public:
     {
         if ( verbose() )
         {
-            printf("proto version: %d.%d\n", protoVersionMajor, protoVersionMinor);
+            printf("proto version: %d.%d\n", m_protoVersionMajor, m_protoVersionMinor);
         }
     }
 
@@ -233,6 +242,11 @@ public:
 
         driver->isp_chip_info();
         return 0;
+    }
+
+    QString getChipInfo()
+    {
+        return driver->getIspChipInfo();
     }
 
     /**
@@ -287,48 +301,8 @@ public:
         throw nano::exception("unsupported driver: " + name);
     }
 
-    void loadConfig()
-    {
-        if ( const std::string output = config.value("main", "output", "quiet"); output == "verbose" )
-        {
-            m_verbose = true;
-        }
-
-        std::string device = config.value("main", "device");
-        if ( device.empty() )
-        {
-            throw nano::exception("specify device (pigro.ini)");
-        }
-
-        hexfname = config.value("main", "hex");
-        if ( hexfname.empty() )
-        {
-            throw nano::exception("specify hex file name (pigro.ini)");
-        }
-
-        if ( auto dev = DeviceInfo::LoadByName(device); dev.has_value() )
-        {
-            m_chip_info = std::move(*dev);
-        }
-        else
-        {
-            throw nano::exception("device not found: " + device);
-        }
-
-        device_type = m_chip_info.value("type", "avr");
-        if ( verbose() )
-        {
-            std::cout << "device: " << device << " (" << device_type << ")\n";
-            std::cout << "device name: " << m_chip_info.value("name") << "\n";
-            //std::cout << "flash_size: " << ((m_chip_info.flash_size()+1023) / 1024) << "k\n";
-            std::cout << "hex_file: " << hexfname << "\n";
-
-        }
-
-        if ( driver ) delete driver;
-        driver = lookupDriver(device_type);
-        driver->parse_device_info(m_chip_info);
-    }
+    void loadConfig();
+    void loadConfig(const QString &path);
 
     FirmwareData readHEX()
     {

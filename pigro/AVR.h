@@ -323,6 +323,8 @@ public:
         return avr.page_byte_size() * avr.page_count;
     }
 
+    virtual QString getIspChipInfo() override;
+
     /**
      * Проверить прошивку на корректность
      */

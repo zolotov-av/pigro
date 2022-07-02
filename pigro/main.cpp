@@ -86,6 +86,10 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    QCoreApplication::setOrganizationName("shamangrad");
+    QCoreApplication::setOrganizationDomain("shamangrad.net");
+    QCoreApplication::setApplicationName("pigro");
+
     PigroWindow w;
     w.show();
 
@@ -106,6 +110,6 @@ int main(int argc, char *argv[])
         std::cerr << "[std::exception] " << e.what() << std::endl;
         return 1;
     }
-    *
     */
+
 }
