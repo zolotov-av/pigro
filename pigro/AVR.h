@@ -288,12 +288,15 @@ public:
         }
     }
 
-    void check_fuses()
+    bool check_fuses()
     {
+        bool wrong { false };
+
         if ( auto s = get_option("fuse_low"); !s.empty() )
         {
             const uint8_t fuse_lo = isp_read_fuse_low();
             const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+            if ( x != fuse_lo ) wrong = true;
             const char *status = (x == fuse_lo) ? " ok " : "diff";
             printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
         }
@@ -303,6 +306,7 @@ public:
             const uint8_t fuse_hi = isp_read_fuse_high();
             const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
             const char *status = (x == fuse_hi) ? " ok " : "diff";
+            if ( x != fuse_hi ) wrong = true;
             printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
         }
 
@@ -311,8 +315,11 @@ public:
             const uint8_t fuse_ext = isp_read_fuse_ext();
             const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
             const char *status = (x == fuse_ext) ? " ok " : "diff";
+            if ( x != fuse_ext ) wrong = true;
             printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
         }
+
+        return !wrong;
     }
 
     uint32_t page_size() const override;
@@ -325,6 +332,7 @@ public:
 
     virtual QString getIspChipInfo() override;
     virtual FirmwareData readFirmware() override;
+    virtual bool checkFirmware(const QString &path) override;
 
     /**
      * Проверить прошивку на корректность

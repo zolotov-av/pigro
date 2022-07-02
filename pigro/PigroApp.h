@@ -155,6 +155,7 @@ public:
 
     void beginProgress(int min, int max) override;
     void reportProgress(int value) override;
+    void reportMessage(const QString &message) override;
     void endProcess() override;
 
     bool open(const QString &dev);
@@ -259,6 +260,11 @@ public:
     FirmwareData readFirmware()
     {
         return driver->readFirmware();
+    }
+
+    bool checkFirmware(const QString &path)
+    {
+        return driver->checkFirmware(path);
     }
 
     /**
@@ -387,6 +393,7 @@ signals:
 
     void beginProgress1(int min, int max);
     void reportProgress1(int value);
+    void reportMessage1(const QString &message);
     void endProgress1();
 
 };

@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationDomain("shamangrad.net");
     QCoreApplication::setApplicationName("pigro");
 
-    constexpr bool gui = false;
+    constexpr bool gui = true;
 
     if constexpr ( gui )
     {

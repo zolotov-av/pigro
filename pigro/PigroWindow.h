@@ -20,11 +20,14 @@ private slots:
     void refreshTty();
     void openPigroIni();
     void openReadFile();
+    void openCheckFile();
     void readFirmware();
+    void checkFirmware();
     void showInfo();
 
     void beginProgress(int min, int max);
     void reportProgress(int value);
+    void reportMessage(const QString &message);
     void endProgress();
 
 public:

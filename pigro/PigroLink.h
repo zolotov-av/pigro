@@ -1,6 +1,7 @@
 #ifndef PIGROLINK_H
 #define PIGROLINK_H
 
+#include <QString>
 #include <cstdint>
 #include <string>
 #include <nano/config.h>
@@ -36,6 +37,7 @@ public:
 
     virtual void beginProgress(int min, int max) = 0;
     virtual void reportProgress(int value) = 0;
+    virtual void reportMessage(const QString &message) = 0;
     virtual void endProcess() = 0;
 
 };

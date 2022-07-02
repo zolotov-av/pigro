@@ -91,6 +91,51 @@ FirmwareData AVR::readFirmware()
     return firmware;
 }
 
+bool AVR::checkFirmware(const QString &path)
+{
+    isp_program_enable();
+
+    try
+    {
+        if ( !check_chip_info() )
+        {
+            throw nano::exception("checkFirmware() reject: wrong chip signature");
+        }
+
+        if ( !avr.valid() || !avr.paged )
+        {
+            throw nano::exception("checkFirmware() reject: unsupported chip");
+        }
+
+        link->beginProgress(0, avr.flash_size() - 1);
+
+        link->reportMessage("start check...");
+
+        if ( !check_chip_info() )
+        {
+            link->reportMessage(QObject::tr("wrong chip"));
+        }
+
+        if ( !check_fuses() )
+        {
+            link->reportMessage(QObject::tr("wrong fused"));
+        }
+
+        link->reportMessage("TODO check data...");
+
+        link->endProcess();
+    }
+    catch (...)
+    {
+        link->endProcess();
+        isp_program_disable();
+        throw;
+    }
+
+    isp_program_disable();
+    return false;
+}
+
 void AVR::action_test()
 {
     printf("\nAVR::action_test()\n\n");

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>871</width>
-    <height>628</height>
+    <width>1072</width>
+    <height>896</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -138,15 +138,15 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="pageInfo">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>849</width>
-         <height>145</height>
+         <width>1050</width>
+         <height>206</height>
         </rect>
        </property>
        <attribute name="label">
@@ -212,39 +212,98 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="page_2">
+      <widget class="QWidget" name="pageStats">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>849</width>
-         <height>145</height>
+         <width>1050</width>
+         <height>206</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Stats:</string>
        </attribute>
       </widget>
-      <widget class="QWidget" name="page">
+      <widget class="QWidget" name="pageCheck">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>849</width>
-         <height>145</height>
+         <width>1050</width>
+         <height>206</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Check:</string>
        </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <item>
+           <widget class="QLineEdit" name="leCheckFilePath"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pbOpenCheckFile">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="PigroResources.qrc">
+              <normaloff>:/icons/save-file.png</normaloff>:/icons/save-file.png</iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>25</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QWidget" name="widget_3" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout_8">
+           <item>
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>715</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pbCheckFirmware">
+             <property name="text">
+              <string>Check</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
       </widget>
-      <widget class="QWidget" name="page_5">
+      <widget class="QWidget" name="pageRead">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>849</width>
-         <height>145</height>
+         <width>1050</width>
+         <height>206</height>
         </rect>
        </property>
        <attribute name="label">
@@ -310,32 +369,48 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="page_3">
+      <widget class="QWidget" name="pageWrite">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>849</width>
-         <height>145</height>
+         <width>1050</width>
+         <height>206</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Write:</string>
        </attribute>
       </widget>
-      <widget class="QWidget" name="page_4">
+      <widget class="QWidget" name="pageErase">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>849</width>
-         <height>145</height>
+         <width>1050</width>
+         <height>206</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Erase:</string>
        </attribute>
       </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPlainTextEdit" name="pteMessages">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>200</height>
+       </size>
+      </property>
      </widget>
     </item>
    </layout>
@@ -345,7 +420,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>871</width>
+     <width>1072</width>
      <height>25</height>
     </rect>
    </property>

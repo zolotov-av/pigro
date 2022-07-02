@@ -40,6 +40,11 @@ void PigroApp::reportProgress(int value)
     emit reportProgress1(value);
 }
 
+void PigroApp::reportMessage(const QString &message)
+{
+    emit reportMessage1(message);
+}
+
 void PigroApp::endProcess()
 {
     emit endProgress1();
