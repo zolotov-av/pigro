@@ -5,3 +5,5 @@ INCLUDEPATH = $$PIGRO_DIR
 DEPENDPATH = $$PIGRO_DIR
 
 LIBS += -L$$OUT_PWD/../pigro -lpigro
+
+PRE_TARGETDEPS += $$OUT_PWD/../pigro/libpigro.a

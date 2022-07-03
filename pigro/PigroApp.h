@@ -2,12 +2,14 @@
 #define PIGROAPP_H
 
 #include <QFile>
+#include <QThread>
 #include <QSerialPort>
 
 #include <stdio.h>
 #include <time.h>
 #include <stdint.h>
 #include <string.h>
+#include <atomic>
 
 #include <array>
 #include <nano/exception.h>
@@ -19,6 +21,7 @@
 #include "ARM.h"
 #include "DeviceInfo.h"
 #include "PigroLink.h"
+#include "PigroPrivate.h"
 
 
 constexpr uint8_t PKT_ACK = 1;
@@ -35,11 +38,18 @@ enum PigroAction {
     AT_ACT_TEST
 };
 
-class PigroApp: public QObject, public PigroLink
+class PigroApp final: public QObject, public PigroLink
 {
     Q_OBJECT
 
 private:
+
+    static std::atomic<int> m_init_counter;
+
+    QThread *m_thread { new QThread(this) };
+
+    PigroPrivate *m_private { nullptr };
+
 
     /**
      * Нужно ли выводить дополнительный отладочный вывод или быть тихим?
@@ -56,6 +66,11 @@ private:
 
     PigroDriver *driver = nullptr;
 
+private slots:
+
+    void threadStarted();
+    void threadFinished();
+
 public:
 
     uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
@@ -64,7 +79,6 @@ public:
     QString protoVersion() const;
 
     explicit PigroApp(QObject *parent = nullptr);
-    PigroApp(const char *path, bool verbose);
     PigroApp(const PigroApp &) = delete;
     PigroApp(PigroApp &&) = delete;
 
@@ -73,9 +87,16 @@ public:
     PigroApp& operator = (const PigroApp &) = delete;
     PigroApp& operator = (PigroApp &&) = delete;
 
+    void open(const char *ttyPath, const char *configPath);
+
     bool verbose() const override
     {
         return m_verbose;
+    }
+
+    void setVerbose(bool value)
+    {
+        m_verbose = value;
     }
 
     std::string get_option(const std::string &name, const std::string &default_value = {}) override
@@ -389,7 +410,25 @@ public:
         }
     }
 
+    void start()
+    {
+        m_thread->start();
+    }
+
+    void stop()
+    {
+        m_thread->quit();
+    }
+
+    void wait()
+    {
+        m_thread->wait();
+    }
+
 signals:
+
+    void started();
+    void stopped();
 
     void beginProgress1(int min, int max);
     void reportProgress1(int value);

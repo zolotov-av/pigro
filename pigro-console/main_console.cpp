@@ -12,7 +12,9 @@
 //
 
 #include <QCoreApplication>
+#include <pigro/trace.h>
 #include <pigro/PigroApp.h>
+#include "PigroConsole.h"
 #include <cstdio>
 
 /**
@@ -32,22 +34,30 @@ static int help()
     return 0;
 }
 
-static int real_main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
+    QCoreApplication app(argc, argv);
+
+    QCoreApplication::setApplicationName("pigro");
+    QCoreApplication::setApplicationVersion("0.1");
+    QCoreApplication::setOrganizationDomain("shamangrad.net");
+    QCoreApplication::setOrganizationName("shamangrad");
+
+    trace::setThreadName("main");
+
+    PigroConsole pigro;
+
     if ( argc <= 1 ) return help();
 
-    PigroAction action;
-
-    bool verbose = false;
     for(int i = 1; i < argc; i++)
     {
         if ( strcmp(argv[i], "-v") == 0 )
         {
-            verbose = true;
+            pigro.setVerbose(true);
         }
         else if ( strcmp(argv[i], "-q") == 0 )
         {
-            verbose = false;
+            pigro.setVerbose(true);
         }
     }
 
@@ -62,6 +72,7 @@ static int real_main(int argc, char *argv[])
 
     if ( action_arg == nullptr ) return help();
 
+    PigroAction action;
     if ( strcmp(action_arg, "info") == 0 ) action = AT_ACT_INFO;
     else if ( strcmp(action_arg, "stat") == 0 ) action = AT_ACT_STAT;
     else if ( strcmp(action_arg, "check") == 0 ) action = AT_ACT_CHECK;
@@ -73,36 +84,5 @@ static int real_main(int argc, char *argv[])
     else if ( strcmp(action_arg, "test") == 0 ) action = AT_ACT_TEST;
     else return help();
 
-
-    PigroApp app("/dev/ttyUSB0", verbose);
-    app.checkProtoVersion();
-    app.dumpProtoVersion();
-    app.execute(action);
-
-    return 0;
-}
-
-int main(int argc, char *argv[])
-{
-    QCoreApplication app(argc, argv);
-
-    QCoreApplication::setApplicationName("pigro");
-    QCoreApplication::setApplicationVersion("0.1");
-    QCoreApplication::setOrganizationDomain("shamangrad.net");
-    QCoreApplication::setOrganizationName("shamangrad");
-
-    try
-    {
-        return real_main(argc, argv);
-    }
-    catch (const std::exception &e)
-    {
-        fprintf(stderr, "[std::exception] %s\n", e.what());
-        return 1;
-    }
-    catch(...)
-    {
-        fprintf(stderr, "[unknown exception]\n");
-        return 1;
-    }
+    return pigro.exec(action);
 }

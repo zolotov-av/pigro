@@ -13,6 +13,7 @@ SOURCES += \
     PigroApp.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
+    PigroPrivate.cpp \
     nano/config.cpp \
     nano/ini.cpp \
     nano/map.cpp \
@@ -21,7 +22,8 @@ SOURCES += \
     nano/IniReader.cpp \
     nano/TextReader.cpp \
     nano/exception.cpp \
-    IntelHEX.cpp
+    IntelHEX.cpp \
+    trace.cpp
 
 HEADERS += \
     ARM.h \
@@ -31,6 +33,7 @@ HEADERS += \
     PigroApp.h \
     PigroDriver.h \
     PigroLink.h \
+    PigroPrivate.h \
     nano/config.h \
     nano/ini.h \
     nano/map.h \
@@ -39,7 +42,8 @@ HEADERS += \
     nano/IniReader.h \
     nano/TextReader.h \
     nano/exception.h \
-    IntelHEX.h
+    IntelHEX.h \
+    trace.h
 
 FORMS +=
 

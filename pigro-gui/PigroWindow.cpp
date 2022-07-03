@@ -7,6 +7,16 @@
 #include <QMessageBox>
 #include <QSerialPortInfo>
 
+void PigroWindow::pigroStarted()
+{
+    ui.leState->setText(tr("running"));
+}
+
+void PigroWindow::pigroStopped()
+{
+    ui.leState->setText(tr("stopped"));
+}
+
 void PigroWindow::refreshTty()
 {
     ui.cbTty->clear();
@@ -165,6 +175,8 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
 {
     ui.setupUi(this);
 
+    ui.leState->setText(tr("init"));
+
     {
         QSettings settings;
         ui.lePigroIniPath->setText(settings.value("pigro.ini").toString());
@@ -172,6 +184,8 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
         ui.leCheckFilePath->setText(settings.value("CheckFilePath").toString());
     }
 
+    connect(link, &PigroApp::started, this, &PigroWindow::pigroStarted);
+    connect(link, &PigroApp::stopped, this, &PigroWindow::pigroStopped);
     connect(link, &PigroApp::beginProgress1, this, &PigroWindow::beginProgress);
     connect(link, &PigroApp::reportProgress1, this, &PigroWindow::reportProgress);
     connect(link, &PigroApp::reportMessage1, this, &PigroWindow::reportMessage);
@@ -185,9 +199,13 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);
     connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
 
+    link->start();
+
     refreshTty();
 }
 
 PigroWindow::~PigroWindow()
 {
+    link->stop();
+    link->wait();
 }

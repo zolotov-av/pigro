@@ -17,6 +17,9 @@ private:
 
 private slots:
 
+    void pigroStarted();
+    void pigroStopped();
+
     void refreshTty();
     void openPigroIni();
     void openReadFile();

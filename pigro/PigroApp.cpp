@@ -1,4 +1,24 @@
 #include "PigroApp.h"
+#include "trace.h"
+#include <QDebug>
+
+std::atomic<int> PigroApp::m_init_counter { 0 };
+
+void PigroApp::threadStarted()
+{
+    trace::setThreadName("pigro");
+    trace::log("PigroApp::threadStarted()");
+    m_private = new PigroPrivate();
+    emit started();
+}
+
+void PigroApp::threadFinished()
+{
+    trace::log("PigroApp::threadFinished()");
+    delete m_private;
+    m_private = nullptr;
+    emit stopped();
+}
 
 QString PigroApp::protoVersion() const
 {
@@ -14,20 +34,34 @@ QString PigroApp::protoVersion() const
 
 PigroApp::PigroApp(QObject *parent): QObject(parent)
 {
-
-}
-
-PigroApp::PigroApp(const char *path, bool verbose): m_verbose(verbose), config(nano::IniReader<512>("pigro.ini").data)
-{
-    if ( !open(path) )
+    if ( ++m_init_counter == 1 )
     {
-        throw nano::exception(serial->errorString().toStdString());
+        qDebug() << "Q_INIT_RESOURCE(PigroResources)";
+        Q_INIT_RESOURCE(PigroResources);
     }
+
+    connect(m_thread, &QThread::started, this, &PigroApp::threadStarted, Qt::DirectConnection);
+    connect(m_thread, &QThread::finished, this, &PigroApp::threadFinished, Qt::DirectConnection);
 }
 
 PigroApp::~PigroApp()
 {
     if ( driver ) delete driver;
+    if ( --m_init_counter == 0 )
+    {
+        qDebug() << "Q_CLEANUP_RESOURCE(PigroResources)";
+        Q_CLEANUP_RESOURCE(PigroResources);
+    }
+}
+
+void PigroApp::open(const char *ttyPath, const char *configPath)
+{
+    config = {nano::IniReader<512>(configPath).data};
+
+    if ( !open(ttyPath) )
+    {
+        throw nano::exception(serial->errorString().toStdString());
+    }
 }
 
 void PigroApp::beginProgress(int min, int max)
@@ -111,3 +145,4 @@ void PigroApp::loadConfig(const QString &path)
     config = nano::IniReader<512>(path.toStdString()).data;
     loadConfig();
 }
+
