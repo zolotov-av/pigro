@@ -2,6 +2,7 @@
 #include <nano/IniReader.h>
 #include <DeviceInfo.h>
 #include <QDir>
+#include <QFile>
 
 void FirmwareInfo::loadFromFile(const QString &path)
 {
@@ -37,7 +38,7 @@ void FirmwareInfo::loadFromFile(const QString &path)
         throw nano::exception("specify hex file name (pigro.ini)");
     }
 
-    hexFilePath = QDir(path).filePath(hexFileName);
+    hexFilePath = QFileInfo(path).dir().filePath(hexFileName);
 
     device_type = m_chip_info.value("type", "avr");
     if ( verbose )
