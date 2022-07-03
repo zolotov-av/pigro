@@ -132,6 +132,11 @@ PigroLink::PigroLink(PigroApp *parent): QObject(parent), m_app(parent)
     trace::log("PigroLink create");
 }
 
+PigroLink::PigroLink(PigroApp *app, QObject *parent): QObject(parent), m_app(app)
+{
+    trace::log("PigroLink(app, parent) create");
+}
+
 PigroLink::~PigroLink()
 {
     trace::log("PigroLink destroy");
@@ -149,13 +154,14 @@ QString PigroLink::protoVersion() const
     }
 }
 
-bool PigroLink::open(const QString &device)
+bool PigroLink::open()
 {
-    serial->setPortName(device);
+    serial->setPortName(m_tty);
     serial->setBaudRate(QSerialPort::Baud9600);
     serial->setDataBits(QSerialPort::Data8);
     if ( serial->open(QIODevice::ReadWrite) )
     {
+        trace::log(QStringLiteral("PigroLink %1 opened").arg(serial->portName()));
         try
         {
             checkProtoVersion();
@@ -181,22 +187,11 @@ bool PigroLink::open(const QString &device)
 
 void PigroLink::close()
 {
-    serial->close();
-}
-
-bool PigroLink::verbose() const
-{
-    return m_app->verbose();
-}
-
-std::string PigroLink::get_option(const std::string &name, const std::string &default_value)
-{
-    return m_app->get_option(name, default_value);
-}
-
-const nano::options &PigroLink::chip_info() const
-{
-    return m_app->chip_info();
+    if ( serial->isOpen() )
+    {
+        serial->close();
+        trace::log(QStringLiteral("PigroLink %1 closed").arg(serial->portName()));
+    }
 }
 
 void PigroLink::beginProgress(int min, int max)

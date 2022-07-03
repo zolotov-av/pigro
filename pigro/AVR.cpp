@@ -1,11 +1,17 @@
 #include "AVR.h"
+#include "trace.h"
 
 #include <QCoreApplication>
 #include <vector>
 
+AVR::AVR(PigroLink *link): PigroDriver(link)
+{
+    trace::log("AVR driver created");
+}
+
 AVR::~AVR()
 {
-
+    trace::log("AVR driver destroyed");
 }
 
 uint32_t AVR::page_size() const
@@ -20,6 +26,7 @@ uint32_t AVR::page_count() const
 
 QString AVR::getIspChipInfo()
 {
+    trace::log("AVR::getIspChipInfo()");
     printf("\nAVR::isp_chip_info()\n\n");
 
     isp_program_enable();
@@ -174,6 +181,7 @@ void AVR::parse_device_info(const nano::options &options)
 
 void AVR::isp_chip_info()
 {
+    trace::log("AVR::isp_chip_info()");
     printf("\nAVR::isp_chip_info()\n\n");
 
     isp_program_enable();

@@ -1,6 +1,5 @@
 #include "PigroApp.h"
 #include "trace.h"
-#include <QDebug>
 
 std::atomic<int> PigroApp::m_init_counter { 0 };
 
@@ -8,7 +7,7 @@ void PigroApp::threadStarted()
 {
     trace::setThreadName("pigro");
     trace::log("PigroApp::threadStarted()");
-    m_private = new PigroPrivate();
+    m_private = new PigroPrivate(this);
     emit started();
 }
 
@@ -24,7 +23,7 @@ PigroApp::PigroApp(QObject *parent): QObject(parent)
 {
     if ( ++m_init_counter == 1 )
     {
-        qDebug() << "Q_INIT_RESOURCE(PigroResources)";
+        trace::log("Q_INIT_RESOURCE(PigroResources)");
         Q_INIT_RESOURCE(PigroResources);
     }
 
@@ -37,24 +36,26 @@ PigroApp::~PigroApp()
     if ( driver ) delete driver;
     if ( --m_init_counter == 0 )
     {
-        qDebug() << "Q_CLEANUP_RESOURCE(PigroResources)";
+        trace::log("Q_CLEANUP_RESOURCE(PigroResources)");
         Q_CLEANUP_RESOURCE(PigroResources);
     }
 }
 
 void PigroApp::open(const char *ttyPath, const char *configPath)
 {
-    projectPath = configPath;
-
-    if ( !open(ttyPath) )
-    {
-        throw nano::exception(link->errorString().toStdString());
-    }
+    setTTY(ttyPath);
+    setProjectPath(configPath);
 }
 
 void PigroApp::loadConfig()
 {
-    firmwareInfo.loadFromFile(projectPath);
+    if ( !open() )
+    {
+        throw nano::exception(link->errorString().toStdString());
+    }
+
+    FirmwareInfo firmwareInfo{ link->projectPath() };
+    link->setFirmwareInfo(firmwareInfo);
 
     if ( driver ) delete driver;
     driver = lookupDriver(firmwareInfo);
@@ -62,7 +63,7 @@ void PigroApp::loadConfig()
 
 void PigroApp::loadConfig(const QString &path)
 {
-    projectPath = path;
+    link->setProjectPath(path);
     loadConfig();
 }
 

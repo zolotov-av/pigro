@@ -36,9 +36,6 @@ private:
     PigroLink *link { new PigroLink(this) };
     PigroDriver *driver = nullptr;
 
-    QString projectPath;
-    FirmwareInfo firmwareInfo;
-
 private slots:
 
     void threadStarted();
@@ -63,31 +60,42 @@ public:
 
     bool verbose() const
     {
-        return firmwareInfo.verbose;
+        return link->verbose();
     }
 
     void setVerbose(bool value)
     {
-        firmwareInfo.verbose = value;
+        link->setVerbose(value);
     }
 
-    std::string get_option(const std::string &name, const std::string &default_value = {}) const
+    void setTTY(const QString &device)
     {
-        return firmwareInfo.projectInfo.value(name, default_value);
+        link->setTTY(device);
     }
 
-    const nano::options& chip_info() const
+    void setProjectPath(const QString &path)
     {
-        return firmwareInfo.m_chip_info;
+        link->setProjectPath(path);
     }
 
     bool open(const QString &dev)
     {
-        return link->open(dev);
+        link->setTTY(dev);
+        return link->open();
+    }
+
+    bool open()
+    {
+        return link->open();
     }
 
     void close()
     {
+        if ( driver )
+        {
+            delete driver;
+            driver = nullptr;
+        }
         link->close();
     }
 
@@ -114,6 +122,11 @@ public:
         return driver->getIspChipInfo();
     }
 
+    void execChipInfo()
+    {
+        QMetaObject::invokeMethod(m_private, "execChipInfo", Q_ARG(QString, link->tty()), Q_ARG(QString, link->projectPath()));
+    }
+
     FirmwareData readFirmware()
     {
         return driver->readFirmware();
@@ -137,6 +150,7 @@ public:
         loadConfig();
 
         driver->isp_read_fuse();
+
         return 0;
     }
 
@@ -190,7 +204,7 @@ public:
     {
         loadConfig();
 
-        auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
+        auto pages = FirmwareData::LoadFromFile(link->firmwareInfo().hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
         printf("page usages: %ld / %d\n", pages.size(), driver->page_count());
         return pages;
     }
@@ -204,6 +218,7 @@ public:
         loadConfig();
 
         driver->isp_chip_info();
+        close();
         return 0;
     }
 
@@ -271,6 +286,8 @@ signals:
     void reportProgress(int value);
     void reportMessage(const QString &message);
     void endProgress();
+
+    void chipInfo(const QString &info);
 
 };
 

@@ -13,6 +13,7 @@
 
 
 #include <QApplication>
+#include <pigro/trace.h>
 #include "PigroWindow.h"
 
 
@@ -24,6 +25,8 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationVersion("0.1");
     QCoreApplication::setOrganizationDomain("shamangrad.net");
     QCoreApplication::setOrganizationName("shamangrad");
+
+    trace::setThreadName("gui");
 
     PigroWindow w;
     w.show();

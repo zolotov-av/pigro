@@ -97,7 +97,7 @@ void PigroWindow::readFirmware()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
-    if ( link->open(dev) )
+    link->setTTY(dev);
     {
         link->loadConfig(ui.lePigroIniPath->text());
         const auto firmware = link->readFirmware();
@@ -114,7 +114,7 @@ void PigroWindow::checkFirmware()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
-    if ( link->open(dev) )
+    link->setTTY(dev);
     {
         link->loadConfig(ui.lePigroIniPath->text());
         if ( link->checkFirmware(ui.leCheckFilePath->text()) )
@@ -135,12 +135,17 @@ void PigroWindow::showInfo()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
-    if ( link->open(dev) )
+    link->setTTY(dev);
+    link->setProjectPath(ui.lePigroIniPath->text());
+    link->execChipInfo();
+
+    /*
     {
         link->loadConfig(ui.lePigroIniPath->text());
         ui.leChipModel->setText(link->getChipInfo());
         link->close();
     }
+    */
 }
 
 void PigroWindow::beginProgress(int min, int max)
@@ -190,6 +195,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::reportProgress, this, &PigroWindow::reportProgress);
     connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
     connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress);
+    connect(link, &PigroApp::chipInfo, this, &PigroWindow::chipInfo);
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
     connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::openPigroIni);
@@ -208,4 +214,9 @@ PigroWindow::~PigroWindow()
 {
     link->stop();
     link->wait();
+}
+
+void PigroWindow::chipInfo(const QString &info)
+{
+    ui.leChipModel->setText(info);
 }

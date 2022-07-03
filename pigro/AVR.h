@@ -65,7 +65,7 @@ public:
 
     AvrDeviceInfo avr;
 
-    AVR(PigroLink *link): PigroDriver(link) { }
+    AVR(PigroLink *link);
     ~AVR() override;
 
     /**

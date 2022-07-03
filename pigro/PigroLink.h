@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <nano/config.h>
+#include <FirmwareInfo.h>
 
 constexpr auto PACKET_MAXLEN = 12;
 
@@ -27,6 +28,10 @@ private:
     PigroApp *m_app;
 
     QSerialPort *serial { new QSerialPort(this) };
+
+    QString m_tty;
+    QString m_project_path;
+    FirmwareInfo m_firmware_info;
 
     bool nack_support { false };
 
@@ -51,12 +56,44 @@ protected:
 
 public:
 
+    const FirmwareInfo& firmwareInfo() const { return m_firmware_info; }
+
+    void setFirmwareInfo(const FirmwareInfo &info)
+    {
+        m_firmware_info = info;
+    }
+
+    bool verbose() const
+    {
+        return m_firmware_info.verbose;
+    }
+
+    void setVerbose(bool value)
+    {
+        m_firmware_info.verbose = value;
+    }
+
+    const QString& tty() const { return m_tty; }
+
+    void setTTY(const QString &device)
+    {
+        m_tty = device;
+    }
+
+    const QString& projectPath() const { return m_project_path; }
+
+    void setProjectPath(const QString &path)
+    {
+        m_project_path = path;
+    }
+
     void info(const char *message);
 
     void warn(const char *message);
     void error(const char *message);
 
     PigroLink(PigroApp *parent);
+    PigroLink(PigroApp *app, QObject *parent);
     PigroLink(const PigroLink &) = delete;
     PigroLink(PigroLink &&) = delete;
 
@@ -69,7 +106,7 @@ public:
     uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
     uint8_t protoVersionMinor() const { return m_protoVersionMinor; }
 
-    bool open(const QString &device);
+    bool open();
     void close();
 
     QString errorString()
@@ -77,11 +114,15 @@ public:
         return serial->errorString();
     }
 
-    bool verbose() const;
+    std::string get_option(const std::string &name, const std::string &default_value = {})
+    {
+        return m_firmware_info.projectInfo.value(name, default_value);
+    }
 
-    std::string get_option(const std::string &name, const std::string &default_value = {});
-
-    const nano::options& chip_info() const;
+    const nano::options& chip_info() const
+    {
+        return m_firmware_info.m_chip_info;
+    }
 
     void beginProgress(int min, int max);
     void reportProgress(int value);

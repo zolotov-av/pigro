@@ -46,6 +46,5 @@ void FirmwareInfo::loadFromFile(const QString &path)
         std::cout << "device name: " << m_chip_info.value("name") << "\n";
         //std::cout << "flash_size: " << ((m_chip_info.flash_size()+1023) / 1024) << "k\n";
         std::cout << "hex_file: " << hexFilePath.toStdString() << "\n";
-
     }
 }

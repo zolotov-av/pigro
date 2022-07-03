@@ -34,6 +34,8 @@ private slots:
     void reportMessage(const QString &message);
     void endProgress();
 
+    void chipInfo(const QString &info);
+
 public:
 
     explicit PigroWindow(QWidget *parent = nullptr);

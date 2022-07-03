@@ -2,14 +2,50 @@
 #define PIGROPRIVATE_H
 
 #include <QObject>
+#include <PigroLink.h>
+#include <PigroDriver.h>
+#include <AVR.h>
+#include <ARM.h>
+#include <FirmwareInfo.h>
+#include <mutex>
+
+class PigroApp;
 
 class PigroPrivate: public QObject
 {
     Q_OBJECT
 
+private:
+
+    std::mutex m_mutex { };
+
+    PigroApp *m_app;
+    PigroLink *m_link { new PigroLink(m_app, this) };
+
+    QString m_project_path;
+    FirmwareInfo m_firmware_info;
+
+    PigroDriver* lookupDriver(const std::string &name)
+    {
+        if ( name == "avr" ) return new AVR(m_link);
+        if ( name == "arm" ) return new ARM(m_link);
+        throw nano::exception("unsupported driver: " + name);
+    }
+
+    PigroDriver* lookupDriver(const FirmwareInfo &name)
+    {
+        const auto driver = lookupDriver(name.device_type);
+        driver->parse_device_info(name.m_chip_info);
+        return driver;
+    }
+
+private slots:
+
+    void execChipInfo(const QString tty, const QString project_path);
+
 public:
 
-    explicit PigroPrivate(QObject *parent = nullptr);
+    explicit PigroPrivate(PigroApp *app, QObject *parent = nullptr);
     PigroPrivate(const PigroPrivate &) = delete;
     PigroPrivate(PigroPrivate &&) = delete;
 
@@ -17,6 +53,10 @@ public:
 
     PigroPrivate& operator = (const PigroPrivate &) = delete;
     PigroPrivate& operator = (PigroPrivate &&) = delete;
+
+    void setProjectPath(const QString &path);
+
+
 
 };
 
