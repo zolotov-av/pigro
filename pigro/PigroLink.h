@@ -1,6 +1,7 @@
 #ifndef PIGROLINK_H
 #define PIGROLINK_H
 
+#include <QtSerialPort>
 #include <QString>
 #include <cstdint>
 #include <string>
@@ -15,30 +16,103 @@ struct packet_t
     unsigned char data[PACKET_MAXLEN];
 };
 
-class PigroLink
+class PigroApp;
+
+class PigroLink: public QObject
 {
-public:
+    friend class PigroDriver;
 
-    virtual bool verbose() const = 0;
+private:
 
-    virtual std::string get_option(const std::string &name, const std::string &default_value = {}) = 0;
+    PigroApp *m_app;
 
-    virtual const nano::options& chip_info() const = 0;
+    QSerialPort *serial { new QSerialPort(this) };
+
+    bool nack_support { false };
+
+    uint8_t m_protoVersionMajor { 0 };
+    uint8_t m_protoVersionMinor { 0 };
+
+protected:
+
+    uint8_t read_sync();
 
     /**
      * Отправить пакет данных
      */
-    virtual bool send_packet(const packet_t *pkt) = 0;
+    bool send_packet(const packet_t *pkt);
 
     /**
      * Прочитать пакет данных
      */
-    virtual void recv_packet(packet_t *pkt) = 0;
+    void recv_packet(packet_t *pkt);
 
-    virtual void beginProgress(int min, int max) = 0;
-    virtual void reportProgress(int value) = 0;
-    virtual void reportMessage(const QString &message) = 0;
-    virtual void endProcess() = 0;
+public:
+
+    void info(const char *msg)
+    {
+        if ( verbose() )
+        {
+            printf("info: %s\n", msg);
+        }
+    }
+
+    void warn(const char *msg)
+    {
+        fprintf(stderr, "warn: %s\n", msg);
+    }
+
+    void error(const char *msg)
+    {
+        fprintf(stderr, "error: %s\n", msg);
+    }
+
+    PigroLink(PigroApp *parent);
+    PigroLink(const PigroLink &) = delete;
+    PigroLink(PigroLink &&) = delete;
+
+    ~PigroLink();
+
+    PigroLink& operator = (const PigroLink &) = delete;
+    PigroLink& operator = (PigroLink &&) = delete;
+
+    bool open(const QString &device);
+    void close();
+
+    QString errorString()
+    {
+        return serial->errorString();
+    }
+
+    bool verbose() const;
+
+    std::string get_option(const std::string &name, const std::string &default_value = {});
+
+    const nano::options& chip_info() const;
+
+    void beginProgress(int min, int max);
+    void reportProgress(int value);
+    void reportMessage(const QString &message);
+    void endProcess();
+
+    void checkProtoVersion();
+
+    uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
+    uint8_t protoVersionMinor() const { return m_protoVersionMinor; }
+
+    /**
+     * @brief set PORTA
+     * @param value
+     * @return
+     */
+    void cmd_seta(uint8_t value)
+    {
+        packet_t pkt;
+        pkt.cmd = 1;
+        pkt.len = 1;
+        pkt.data[0] = value;
+        send_packet(&pkt);
+    }
 
 };
 

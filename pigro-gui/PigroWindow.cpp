@@ -186,10 +186,10 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
 
     connect(link, &PigroApp::started, this, &PigroWindow::pigroStarted);
     connect(link, &PigroApp::stopped, this, &PigroWindow::pigroStopped);
-    connect(link, &PigroApp::beginProgress1, this, &PigroWindow::beginProgress);
-    connect(link, &PigroApp::reportProgress1, this, &PigroWindow::reportProgress);
-    connect(link, &PigroApp::reportMessage1, this, &PigroWindow::reportMessage);
-    connect(link, &PigroApp::endProgress1, this, &PigroWindow::endProgress);
+    connect(link, &PigroApp::beginProgress, this, &PigroWindow::beginProgress);
+    connect(link, &PigroApp::reportProgress, this, &PigroWindow::reportProgress);
+    connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
+    connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress);
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
     connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::openPigroIni);

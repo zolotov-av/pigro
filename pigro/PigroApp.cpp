@@ -60,41 +60,8 @@ void PigroApp::open(const char *ttyPath, const char *configPath)
 
     if ( !open(ttyPath) )
     {
-        throw nano::exception(serial->errorString().toStdString());
+        throw nano::exception(link->errorString().toStdString());
     }
-}
-
-void PigroApp::beginProgress(int min, int max)
-{
-    emit beginProgress1(min, max);
-}
-
-void PigroApp::reportProgress(int value)
-{
-    emit reportProgress1(value);
-}
-
-void PigroApp::reportMessage(const QString &message)
-{
-    emit reportMessage1(message);
-}
-
-void PigroApp::endProcess()
-{
-    emit endProgress1();
-}
-
-bool PigroApp::open(const QString &dev)
-{
-    serial->setPortName(dev);
-    serial->setBaudRate(QSerialPort::Baud9600);
-    serial->setDataBits(QSerialPort::Data8);
-    return serial->open(QIODevice::ReadWrite);
-}
-
-void PigroApp::close()
-{
-    serial->close();
 }
 
 void PigroApp::loadConfig()

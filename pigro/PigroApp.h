@@ -1,9 +1,7 @@
 #ifndef PIGROAPP_H
 #define PIGROAPP_H
 
-#include <QFile>
 #include <QThread>
-#include <QSerialPort>
 
 #include <stdio.h>
 #include <time.h>
@@ -24,9 +22,6 @@
 #include "PigroPrivate.h"
 
 
-constexpr uint8_t PKT_ACK = 1;
-constexpr uint8_t PKT_NACK = 2;
-
 enum PigroAction {
     AT_ACT_INFO,
     AT_ACT_STAT,
@@ -38,7 +33,7 @@ enum PigroAction {
     AT_ACT_TEST
 };
 
-class PigroApp final: public QObject, public PigroLink
+class PigroApp final: public QObject
 {
     Q_OBJECT
 
@@ -50,16 +45,10 @@ private:
 
     PigroPrivate *m_private { nullptr };
 
-
-    /**
-     * Нужно ли выводить дополнительный отладочный вывод или быть тихим?
-     */
     bool m_verbose { false };
     bool nack_support { false };
-    uint8_t m_protoVersionMajor { 0 };
-    uint8_t m_protoVersionMinor { 0 };
     nano::config config;
-    QSerialPort *serial { new QSerialPort(this) };
+    PigroLink *link { new PigroLink(this) };
     nano::options m_chip_info;
     std::string device_type;
     std::string hexfname;
@@ -73,8 +62,8 @@ private slots:
 
 public:
 
-    uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
-    uint8_t protoVersionMinor() const { return m_protoVersionMinor; }
+    uint8_t protoVersionMajor() const { return link->protoVersionMajor(); }
+    uint8_t protoVersionMinor() const { return link->protoVersionMinor(); }
 
     QString protoVersion() const;
 
@@ -89,7 +78,7 @@ public:
 
     void open(const char *ttyPath, const char *configPath);
 
-    bool verbose() const override
+    bool verbose() const
     {
         return m_verbose;
     }
@@ -99,88 +88,25 @@ public:
         m_verbose = value;
     }
 
-    std::string get_option(const std::string &name, const std::string &default_value = {}) override
+    std::string get_option(const std::string &name, const std::string &default_value = {}) const
     {
         return config.value("main", name, default_value);
     }
 
-    const nano::options& chip_info() const override
+    const nano::options& chip_info() const
     {
         return m_chip_info;
     }
 
-    uint8_t read_sync()
+    bool open(const QString &dev)
     {
-        char data;
-        if ( serial->read(&data, 1) == 1 )
-        {
-            return data;
-        }
-
-        if ( serial->waitForReadyRead(200) )
-        {
-            char data;
-            if ( serial->read(&data, 1) == 1 )
-            {
-                return data;
-            }
-
-            throw nano::exception("read fail: " + serial->errorString().toStdString());
-        }
-        else
-        {
-            // timeout
-            throw nano::exception("read timeout");
-        }
+        return link->open(dev);
     }
 
-    /**
-     * Отправить пакет данных
-     */
-    bool send_packet(const packet_t *pkt) override
+    void close()
     {
-        ssize_t r = serial->write(reinterpret_cast<const char *>(pkt), pkt->len + 2);
-        serial->waitForBytesWritten(200);
-        if ( r != pkt->len + 2 )
-        {
-            // TODO обработка ошибок
-            throw nano::exception("send_packet(): send fail");
-        }
-
-        if ( nack_support )
-        {
-            switch ( read_sync() )
-            {
-            case PKT_ACK: return true;
-            case PKT_NACK: throw nano::exception("send_packet(): NACK");
-            default: throw nano::exception("send_packet(): out of sync");
-            }
-        }
-
-        return true;
+        link->close();
     }
-
-    void recv_packet(packet_t *pkt) override
-    {
-        pkt->cmd = read_sync();
-        pkt->len = read_sync();
-        if ( pkt->len > PACKET_MAXLEN )
-        {
-            throw nano::exception("packet to big: " + std::to_string(pkt->len) + "/" + std::to_string((PACKET_MAXLEN)));
-        }
-        for(int i = 0; i < pkt->len; i++)
-        {
-            pkt->data[i] = read_sync();
-        }
-    }
-
-    void beginProgress(int min, int max) override;
-    void reportProgress(int value) override;
-    void reportMessage(const QString &message) override;
-    void endProcess() override;
-
-    bool open(const QString &dev);
-    void close();
 
     void info(const char *msg)
     {
@@ -202,63 +128,15 @@ public:
 
     void checkProtoVersion()
     {
-        serial->waitForReadyRead(200);
-        serial->readAll();
-
-        packet_t pkt;
-        pkt.cmd = 1;
-        pkt.len = 2;
-        pkt.data[0] = 0;
-        pkt.data[1] = 0;
-        send_packet(&pkt);
-
-        if ( serial->waitForReadyRead(200) )
-        {
-            char ack;
-            serial->read(&ack, sizeof(ack));
-            if ( ack == PKT_ACK )
-            {
-                recv_packet(&pkt);
-                if ( pkt.len != 2 )
-                    throw nano::exception("wrong protocol: len = " + std::to_string(pkt.len));
-                nack_support = true;
-                m_protoVersionMajor = pkt.data[0];
-                m_protoVersionMinor = pkt.data[1];
-                info("new protocol");
-                return;
-            }
-            else
-            {
-                throw nano::exception("wrong protocol: ack = " + std::to_string(ack));
-            }
-        }
-
-        nack_support = false;
-        m_protoVersionMajor = 0;
-        m_protoVersionMinor = 1;
-        warn("old protocol? update firmware...");
+        link->checkProtoVersion();
     }
 
     void dumpProtoVersion()
     {
         if ( verbose() )
         {
-            printf("proto version: %d.%d\n", m_protoVersionMajor, m_protoVersionMinor);
+            printf("proto version: %d.%d\n", protoVersionMajor(), protoVersionMinor());
         }
-    }
-
-    /**
-     * @brief set PORTA
-     * @param value
-     * @return
-     */
-    void cmd_seta(uint8_t value)
-    {
-        packet_t pkt;
-        pkt.cmd = 1;
-        pkt.len = 1;
-        pkt.data[0] = value;
-        send_packet(&pkt);
     }
 
     /**
@@ -335,8 +213,8 @@ public:
 
     PigroDriver* lookupDriver(const std::string &name)
     {
-        if ( name == "avr" ) return new AVR(this);
-        if ( name == "arm" ) return new ARM(this);
+        if ( name == "avr" ) return new AVR(link);
+        if ( name == "arm" ) return new ARM(link);
         throw nano::exception("unsupported driver: " + name);
     }
 
@@ -430,10 +308,10 @@ signals:
     void started();
     void stopped();
 
-    void beginProgress1(int min, int max);
-    void reportProgress1(int value);
-    void reportMessage1(const QString &message);
-    void endProgress1();
+    void beginProgress(int min, int max);
+    void reportProgress(int value);
+    void reportMessage(const QString &message);
+    void endProgress();
 
 };
 
