@@ -126,19 +126,6 @@ public:
         fprintf(stderr, "error: %s\n", msg);
     }
 
-    void checkProtoVersion()
-    {
-        link->checkProtoVersion();
-    }
-
-    void dumpProtoVersion()
-    {
-        if ( verbose() )
-        {
-            printf("proto version: %d.%d\n", protoVersionMajor(), protoVersionMinor());
-        }
-    }
-
     /**
      * @brief Действие - вывести информацию об устройстве
      * @return
@@ -307,6 +294,7 @@ signals:
 
     void started();
     void stopped();
+    void sessionStarted(int major, int minor);
 
     void beginProgress(int min, int max);
     void reportProgress(int value);

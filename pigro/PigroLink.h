@@ -33,9 +33,11 @@ private:
     uint8_t m_protoVersionMajor { 0 };
     uint8_t m_protoVersionMinor { 0 };
 
-protected:
+    uint8_t readBlocked();
 
-    uint8_t read_sync();
+    void checkProtoVersion();
+
+protected:
 
     /**
      * Отправить пакет данных
@@ -49,23 +51,10 @@ protected:
 
 public:
 
-    void info(const char *msg)
-    {
-        if ( verbose() )
-        {
-            printf("info: %s\n", msg);
-        }
-    }
+    void info(const char *message);
 
-    void warn(const char *msg)
-    {
-        fprintf(stderr, "warn: %s\n", msg);
-    }
-
-    void error(const char *msg)
-    {
-        fprintf(stderr, "error: %s\n", msg);
-    }
+    void warn(const char *message);
+    void error(const char *message);
 
     PigroLink(PigroApp *parent);
     PigroLink(const PigroLink &) = delete;
@@ -94,8 +83,6 @@ public:
     void reportProgress(int value);
     void reportMessage(const QString &message);
     void endProcess();
-
-    void checkProtoVersion();
 
     uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
     uint8_t protoVersionMinor() const { return m_protoVersionMinor; }

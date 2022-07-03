@@ -17,6 +17,11 @@ void PigroWindow::pigroStopped()
     ui.leState->setText(tr("stopped"));
 }
 
+void PigroWindow::sessionStarted(int major, int minor)
+{
+    ui.leProtoVersion->setText(QStringLiteral("%1.%2").arg(major).arg(minor));
+}
+
 void PigroWindow::refreshTty()
 {
     ui.cbTty->clear();
@@ -94,8 +99,6 @@ void PigroWindow::readFirmware()
 
     if ( link->open(dev) )
     {
-        link->checkProtoVersion();
-        ui.leProtoVersion->setText(link->protoVersion());
         link->loadConfig(ui.lePigroIniPath->text());
         const auto firmware = link->readFirmware();
         link->close();
@@ -113,8 +116,6 @@ void PigroWindow::checkFirmware()
 
     if ( link->open(dev) )
     {
-        link->checkProtoVersion();
-        ui.leProtoVersion->setText(link->protoVersion());
         link->loadConfig(ui.lePigroIniPath->text());
         if ( link->checkFirmware(ui.leCheckFilePath->text()) )
         {
@@ -136,8 +137,6 @@ void PigroWindow::showInfo()
 
     if ( link->open(dev) )
     {
-        link->checkProtoVersion();
-        ui.leProtoVersion->setText(link->protoVersion());
         link->loadConfig(ui.lePigroIniPath->text());
         ui.leChipModel->setText(link->getChipInfo());
         link->close();
@@ -186,6 +185,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
 
     connect(link, &PigroApp::started, this, &PigroWindow::pigroStarted);
     connect(link, &PigroApp::stopped, this, &PigroWindow::pigroStopped);
+    connect(link, &PigroApp::sessionStarted, this, &PigroWindow::sessionStarted);
     connect(link, &PigroApp::beginProgress, this, &PigroWindow::beginProgress);
     connect(link, &PigroApp::reportProgress, this, &PigroWindow::reportProgress);
     connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
