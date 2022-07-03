@@ -1,10 +1,9 @@
-TEMPLATE = app
+TEMPLATE = lib
+CONFIG +=
 
 QT += core gui widgets serialport
 
-CONFIG += c++17
-#CONFIG -= app_bundle
-#CONFIG -= qt
+CONFIG += c++17 utf8_source staticlib
 
 SOURCES += \
     ARM.cpp \
@@ -14,7 +13,6 @@ SOURCES += \
     PigroApp.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
-    PigroWindow.cpp \
     nano/config.cpp \
     nano/ini.cpp \
     nano/map.cpp \
@@ -23,8 +21,7 @@ SOURCES += \
     nano/IniReader.cpp \
     nano/TextReader.cpp \
     nano/exception.cpp \
-    IntelHEX.cpp \
-    main.cpp
+    IntelHEX.cpp
 
 HEADERS += \
     ARM.h \
@@ -34,7 +31,6 @@ HEADERS += \
     PigroApp.h \
     PigroDriver.h \
     PigroLink.h \
-    PigroWindow.h \
     nano/config.h \
     nano/ini.h \
     nano/map.h \
@@ -45,8 +41,7 @@ HEADERS += \
     nano/exception.h \
     IntelHEX.h
 
-FORMS += \
-    PigroWindow.ui
+FORMS +=
 
 RESOURCES += \
     PigroResources.qrc

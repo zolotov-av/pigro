@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1072</width>
-    <height>896</height>
+    <width>731</width>
+    <height>709</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -49,8 +49,8 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="PigroResources.qrc">
-             <normaloff>:/icons/reload.png</normaloff>:/icons/reload.png</iconset>
+            <iconset resource="PigroGuiResources.qrc">
+             <normaloff>:/pigro-gui/icons/reload.png</normaloff>:/pigro-gui/icons/reload.png</iconset>
            </property>
           </widget>
          </item>
@@ -84,8 +84,8 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="PigroResources.qrc">
-             <normaloff>:/icons/open-file.png</normaloff>:/icons/open-file.png</iconset>
+            <iconset resource="PigroGuiResources.qrc">
+             <normaloff>:/pigro-gui/icons/open-file.png</normaloff>:/pigro-gui/icons/open-file.png</iconset>
            </property>
           </widget>
          </item>
@@ -138,15 +138,15 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="pageInfo">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1050</width>
-         <height>206</height>
+         <width>699</width>
+         <height>98</height>
         </rect>
        </property>
        <attribute name="label">
@@ -217,8 +217,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1050</width>
-         <height>206</height>
+         <width>713</width>
+         <height>90</height>
         </rect>
        </property>
        <attribute name="label">
@@ -230,8 +230,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1050</width>
-         <height>206</height>
+         <width>699</width>
+         <height>98</height>
         </rect>
        </property>
        <attribute name="label">
@@ -249,8 +249,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="PigroResources.qrc">
-              <normaloff>:/icons/save-file.png</normaloff>:/icons/save-file.png</iconset>
+             <iconset resource="PigroGuiResources.qrc">
+              <normaloff>:/pigro-gui/icons/save-file.png</normaloff>:/pigro-gui/icons/save-file.png</iconset>
             </property>
            </widget>
           </item>
@@ -302,8 +302,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1050</width>
-         <height>206</height>
+         <width>699</width>
+         <height>98</height>
         </rect>
        </property>
        <attribute name="label">
@@ -321,8 +321,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="PigroResources.qrc">
-              <normaloff>:/icons/save-file.png</normaloff>:/icons/save-file.png</iconset>
+             <iconset resource="PigroGuiResources.qrc">
+              <normaloff>:/pigro-gui/icons/save-file.png</normaloff>:/pigro-gui/icons/save-file.png</iconset>
             </property>
            </widget>
           </item>
@@ -374,8 +374,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1050</width>
-         <height>206</height>
+         <width>713</width>
+         <height>90</height>
         </rect>
        </property>
        <attribute name="label">
@@ -387,8 +387,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1050</width>
-         <height>206</height>
+         <width>713</width>
+         <height>90</height>
         </rect>
        </property>
        <attribute name="label">
@@ -420,15 +420,15 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1072</width>
-     <height>25</height>
+     <width>731</width>
+     <height>21</height>
     </rect>
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources>
-  <include location="PigroResources.qrc"/>
+  <include location="PigroGuiResources.qrc"/>
  </resources>
  <connections/>
 </ui>

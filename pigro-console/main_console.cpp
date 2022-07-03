@@ -1,6 +1,6 @@
 //
-// Программатор микроконтроллеров AVR.
-// 
+// Программатор микроконтроллеров AVR и STM32
+//
 // Изначально был написан на Raspberry Pi и для Raspberry Pi и использовал
 // шину GPIO на Raspberry Pi, к которой непосредственно подключался
 // программируемый контроллер. Эта версия программатора использует внешений
@@ -11,31 +11,31 @@
 //    Fill free to copy, to compile, to use, to redistribute etc on your own risk.
 //
 
-#include <QApplication>
-#include "PigroApp.h"
-#include "PigroWindow.h"
+#include <QCoreApplication>
+#include <pigro/PigroApp.h>
+#include <cstdio>
 
 /**
-* Отобразить подсказку
-*/
-int help()
+ * Отобразить подсказку
+ */
+static int help()
 {
-	printf("pigro :action: :filename: :verbose|quiet:\n");
-	printf("  action:\n");
-	printf("    info  - read chip info\n");
+    printf("pigro :action: :filename: :verbose|quiet:\n");
+    printf("  action:\n");
+    printf("    info  - read chip info\n");
     printf("    stat  - read file and check stats\n");
-	printf("    check - read file and compare with device\n");
-	printf("    write - read file and write to device\n");
-	printf("    erase - just erase chip\n");
-	printf("    rfuse - read fuses\n");
+    printf("    check - read file and compare with device\n");
+    printf("    write - read file and write to device\n");
+    printf("    erase - just erase chip\n");
+    printf("    rfuse - read fuses\n");
     printf("    wfuse - write fuses from pigro.ini\n");
-	return 0;
+    return 0;
 }
 
-int real_main(int argc, char *argv[])
+static int real_main(int argc, char *argv[])
 {
-	if ( argc <= 1 ) return help();
-	
+    if ( argc <= 1 ) return help();
+
     PigroAction action;
 
     bool verbose = false;
@@ -71,8 +71,8 @@ int real_main(int argc, char *argv[])
     else if ( strcmp(action_arg, "wfuse") == 0 ) action = AT_ACT_WRITE_FUSE;
     else if ( strcmp(action_arg, "arm") == 0 ) action = AT_ACT_TEST;
     else if ( strcmp(action_arg, "test") == 0 ) action = AT_ACT_TEST;
-	else return help();
-	
+    else return help();
+
 
     PigroApp app("/dev/ttyUSB0", verbose);
     app.checkProtoVersion();
@@ -84,36 +84,25 @@ int real_main(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-    QApplication app(argc, argv);
+    QCoreApplication app(argc, argv);
 
-    QCoreApplication::setOrganizationName("shamangrad");
-    QCoreApplication::setOrganizationDomain("shamangrad.net");
     QCoreApplication::setApplicationName("pigro");
+    QCoreApplication::setApplicationVersion("0.1");
+    QCoreApplication::setOrganizationDomain("shamangrad.net");
+    QCoreApplication::setOrganizationName("shamangrad");
 
-    constexpr bool gui = true;
-
-    if constexpr ( gui )
+    try
     {
-        PigroWindow w;
-        w.show();
-
-        return app.exec();
+        return real_main(argc, argv);
     }
-    else
+    catch (const std::exception &e)
     {
-        try
-        {
-            return real_main(argc, argv);
-        }
-        catch (const nano::exception &e)
-        {
-            std::cerr << "[nano::exception] " << e.message() << std::endl;
-            return 1;
-        }
-        catch(const std::exception &e)
-        {
-            std::cerr << "[std::exception] " << e.what() << std::endl;
-            return 1;
-        }
+        fprintf(stderr, "[std::exception] %s\n", e.what());
+        return 1;
+    }
+    catch(...)
+    {
+        fprintf(stderr, "[unknown exception]\n");
+        return 1;
     }
 }
