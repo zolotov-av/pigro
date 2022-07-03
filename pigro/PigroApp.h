@@ -20,18 +20,8 @@
 #include "DeviceInfo.h"
 #include "PigroLink.h"
 #include "PigroPrivate.h"
+#include "FirmwareInfo.h"
 
-
-enum PigroAction {
-    AT_ACT_INFO,
-    AT_ACT_STAT,
-    AT_ACT_CHECK,
-    AT_ACT_WRITE,
-    AT_ACT_ERASE,
-    AT_ACT_READ_FUSE,
-    AT_ACT_WRITE_FUSE,
-    AT_ACT_TEST
-};
 
 class PigroApp final: public QObject
 {
@@ -42,18 +32,12 @@ private:
     static std::atomic<int> m_init_counter;
 
     QThread *m_thread { new QThread(this) };
-
     PigroPrivate *m_private { nullptr };
-
-    bool m_verbose { false };
-    bool nack_support { false };
-    nano::config config;
     PigroLink *link { new PigroLink(this) };
-    nano::options m_chip_info;
-    std::string device_type;
-    std::string hexfname;
-
     PigroDriver *driver = nullptr;
+
+    QString projectPath;
+    FirmwareInfo firmwareInfo;
 
 private slots:
 
@@ -62,10 +46,9 @@ private slots:
 
 public:
 
+    QString protoVersion() const { return  link->protoVersion(); }
     uint8_t protoVersionMajor() const { return link->protoVersionMajor(); }
     uint8_t protoVersionMinor() const { return link->protoVersionMinor(); }
-
-    QString protoVersion() const;
 
     explicit PigroApp(QObject *parent = nullptr);
     PigroApp(const PigroApp &) = delete;
@@ -80,22 +63,22 @@ public:
 
     bool verbose() const
     {
-        return m_verbose;
+        return firmwareInfo.verbose;
     }
 
     void setVerbose(bool value)
     {
-        m_verbose = value;
+        firmwareInfo.verbose = value;
     }
 
     std::string get_option(const std::string &name, const std::string &default_value = {}) const
     {
-        return config.value("main", name, default_value);
+        return firmwareInfo.projectInfo.value(name, default_value);
     }
 
     const nano::options& chip_info() const
     {
-        return m_chip_info;
+        return firmwareInfo.m_chip_info;
     }
 
     bool open(const QString &dev)
@@ -124,18 +107,6 @@ public:
     void error(const char *msg)
     {
         fprintf(stderr, "error: %s\n", msg);
-    }
-
-    /**
-     * @brief Действие - вывести информацию об устройстве
-     * @return
-     */
-    int action_info()
-    {
-        loadConfig();
-
-        driver->isp_chip_info();
-        return 0;
     }
 
     QString getChipInfo()
@@ -205,6 +176,13 @@ public:
         throw nano::exception("unsupported driver: " + name);
     }
 
+    PigroDriver* lookupDriver(const FirmwareInfo &name)
+    {
+        const auto driver = lookupDriver(name.device_type);
+        driver->parse_device_info(name.m_chip_info);
+        return driver;
+    }
+
     void loadConfig();
     void loadConfig(const QString &path);
 
@@ -212,9 +190,21 @@ public:
     {
         loadConfig();
 
-        auto pages = FirmwareData::LoadFromFile(hexfname, driver->page_size(), driver->page_fill());
+        auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
         printf("page usages: %ld / %d\n", pages.size(), driver->page_count());
         return pages;
+    }
+
+    /**
+     * @brief Действие - вывести информацию об устройстве
+     * @return
+     */
+    int action_info()
+    {
+        loadConfig();
+
+        driver->isp_chip_info();
+        return 0;
     }
 
     /**
@@ -254,25 +244,6 @@ public:
 
         driver->action_test();
         return 0;
-    }
-
-    /**
-     * Запус команды
-     */
-    int execute(PigroAction action)
-    {
-        switch ( action )
-        {
-        case AT_ACT_INFO: return action_info();
-        case AT_ACT_STAT: return action_stat();
-        case AT_ACT_CHECK: return action_check();
-        case AT_ACT_WRITE: return action_write();
-        case AT_ACT_ERASE: return action_erase();
-        case AT_ACT_READ_FUSE: return action_read_fuse();
-        case AT_ACT_WRITE_FUSE: return action_write_fuse();
-        case AT_ACT_TEST: return action_test();
-        default: throw nano::exception("Victory!");
-        }
     }
 
     void start()

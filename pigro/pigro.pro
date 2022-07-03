@@ -10,6 +10,7 @@ SOURCES += \
     AVR.cpp \
     DeviceInfo.cpp \
     FirmwareData.cpp \
+    FirmwareInfo.cpp \
     PigroApp.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
@@ -30,6 +31,7 @@ HEADERS += \
     AVR.h \
     DeviceInfo.h \
     FirmwareData.h \
+    FirmwareInfo.h \
     PigroApp.h \
     PigroDriver.h \
     PigroLink.h \

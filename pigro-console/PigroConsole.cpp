@@ -1,6 +1,23 @@
 #include "PigroConsole.h"
 #include <pigro/trace.h>
 
+
+int PigroConsole::execute(PigroAction action)
+{
+    switch ( action )
+    {
+    case AT_ACT_INFO: return link->action_info();
+    case AT_ACT_STAT: return link->action_stat();
+    case AT_ACT_CHECK: return link->action_check();
+    case AT_ACT_WRITE: return link->action_write();
+    case AT_ACT_ERASE: return link->action_erase();
+    case AT_ACT_READ_FUSE: return link->action_read_fuse();
+    case AT_ACT_WRITE_FUSE: return link->action_write_fuse();
+    case AT_ACT_TEST: return link->action_test();
+    default: throw nano::exception("Victory!");
+    }
+}
+
 void PigroConsole::pigroStarted()
 {
     trace::log("PigroConsole::pigroStarted()");
@@ -41,7 +58,7 @@ int PigroConsole::exec(PigroAction action)
     link->start();
     link->setVerbose(m_verbose);
     link->open("/dev/ttyUSB0", "pigro.ini");
-    link->execute(m_action);
+    execute(m_action);
     link->stop();
     link->wait();
     return 0;

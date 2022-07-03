@@ -137,6 +137,18 @@ PigroLink::~PigroLink()
     trace::log("PigroLink destroy");
 }
 
+QString PigroLink::protoVersion() const
+{
+    if ( nack_support )
+    {
+        return QStringLiteral("%1.%2 (NACK support)").arg(protoVersionMajor()).arg(protoVersionMinor());
+    }
+    else
+    {
+        return QStringLiteral("%1.%2").arg(protoVersionMajor()).arg(protoVersionMinor());
+    }
+}
+
 bool PigroLink::open(const QString &device)
 {
     serial->setPortName(device);
@@ -206,5 +218,4 @@ void PigroLink::endProcess()
 {
     emit m_app->endProgress();
 }
-
 

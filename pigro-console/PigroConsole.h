@@ -4,6 +4,17 @@
 #include <QObject>
 #include <pigro/PigroApp.h>
 
+enum PigroAction {
+    AT_ACT_INFO,
+    AT_ACT_STAT,
+    AT_ACT_CHECK,
+    AT_ACT_WRITE,
+    AT_ACT_ERASE,
+    AT_ACT_READ_FUSE,
+    AT_ACT_WRITE_FUSE,
+    AT_ACT_TEST
+};
+
 class PigroConsole final: public QObject
 {
     Q_OBJECT
@@ -18,6 +29,11 @@ private:
     PigroAction m_action;
 
     bool m_verbose { false };
+
+    /**
+     * Запус команды
+     */
+    int execute(PigroAction action);
 
 private slots:
 

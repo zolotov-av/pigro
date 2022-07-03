@@ -65,6 +65,10 @@ public:
     PigroLink& operator = (const PigroLink &) = delete;
     PigroLink& operator = (PigroLink &&) = delete;
 
+    QString protoVersion() const;
+    uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
+    uint8_t protoVersionMinor() const { return m_protoVersionMinor; }
+
     bool open(const QString &device);
     void close();
 
@@ -83,9 +87,6 @@ public:
     void reportProgress(int value);
     void reportMessage(const QString &message);
     void endProcess();
-
-    uint8_t protoVersionMajor() const { return m_protoVersionMajor; }
-    uint8_t protoVersionMinor() const { return m_protoVersionMinor; }
 
     /**
      * @brief set PORTA
