@@ -98,51 +98,6 @@ FirmwareData AVR::readFirmware()
     return firmware;
 }
 
-bool AVR::checkFirmware(const QString &path)
-{
-    isp_program_enable();
-
-    try
-    {
-        if ( !check_chip_info() )
-        {
-            throw nano::exception("checkFirmware() reject: wrong chip signature");
-        }
-
-        if ( !avr.valid() || !avr.paged )
-        {
-            throw nano::exception("checkFirmware() reject: unsupported chip");
-        }
-
-        link->beginProgress(0, avr.flash_size() - 1);
-
-        link->reportMessage("start check...");
-
-        if ( !check_chip_info() )
-        {
-            link->reportMessage(QObject::tr("wrong chip"));
-        }
-
-        if ( !check_fuses() )
-        {
-            link->reportMessage(QObject::tr("wrong fused"));
-        }
-
-        link->reportMessage("TODO check data...");
-
-        link->endProcess();
-    }
-    catch (...)
-    {
-        link->endProcess();
-        isp_program_disable();
-        throw;
-    }
-
-    isp_program_disable();
-    return false;
-}
-
 void AVR::action_test()
 {
     printf("\nAVR::action_test()\n\n");
@@ -209,17 +164,25 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
 
     uint8_t counter = 0;
     bool differs = false;
+    char line[128];
+    int line_offset = 0;
     for(const auto &[page_addr, page] : pages)
     {
         const size_t size = page.data.size();
         for(size_t i = 0; i < size; i++)
         {
             const uint32_t addr = page_addr + i;
-            if ( counter == 0 ) printf("MEM[0x%04X]", addr);
+            if ( counter == 0 )
+            {
+                line_offset = sprintf(line, "MEM[0x%04X]", addr);
+            }
             uint8_t byte = isp_read_memory(addr);
-            printf("%s", (page.data[i] == byte ? "." : "*" ));
+            line[line_offset++] = (page.data[i] == byte ? '.' : '*' );
             if ( page.data[i] == byte ) differs = true;
-            if ( counter == 0x1F ) printf("\n");
+            if ( counter == 0x1F )
+            {
+                link->reportMessage(QString::fromUtf8(line, line_offset));
+            }
             counter = (counter + 1) & 0x1F;
         }
     }
@@ -228,11 +191,11 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
 
     if ( differs )
     {
-        printf("\ndifferent\n");
+        link->reportMessage("[ FAIL ] firmware is different");
     }
     else
     {
-        printf("\nsame\n");
+        link->reportMessage("[ OK ] firmware is same");
     }
 }
 

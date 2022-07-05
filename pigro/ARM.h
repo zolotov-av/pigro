@@ -795,7 +795,6 @@ public:
 
     virtual QString getIspChipInfo() override;
     virtual FirmwareData readFirmware() override;
-    virtual bool checkFirmware(const QString &path) override;
 
     void action_test() override;
     void parse_device_info(const nano::options &) override;

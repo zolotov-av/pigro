@@ -115,19 +115,8 @@ void PigroWindow::checkFirmware()
     ui.leDevicePath->setText(dev);
 
     link->setTTY(dev);
-    {
-        link->loadConfig(ui.lePigroIniPath->text());
-        if ( link->checkFirmware(ui.leCheckFilePath->text()) )
-        {
-            reportMessage(tr("ok, firmware is same"));
-        }
-        else
-        {
-            reportMessage(tr("bad, firmware is differnt"));
-        }
-        link->close();
-
-    }
+    link->setProjectPath(ui.lePigroIniPath->text());
+    link->execCheckFirmware();
 }
 
 void PigroWindow::showInfo()

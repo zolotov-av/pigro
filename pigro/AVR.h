@@ -332,7 +332,6 @@ public:
 
     virtual QString getIspChipInfo() override;
     virtual FirmwareData readFirmware() override;
-    virtual bool checkFirmware(const QString &path) override;
 
     /**
      * Проверить прошивку на корректность

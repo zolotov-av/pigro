@@ -32,11 +32,6 @@ FirmwareData ARM::readFirmware()
     throw nano::exception("ARM::readFirmware() not implemented yet");
 }
 
-bool ARM::checkFirmware(const QString &)
-{
-    throw nano::exception("ARM::checkFirmware() not implemented yet");
-}
-
 void ARM::action_test()
 {
     printf("\ntest STM32/JTAG\n");

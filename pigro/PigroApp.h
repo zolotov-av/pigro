@@ -127,14 +127,14 @@ public:
         QMetaObject::invokeMethod(m_private, "execChipInfo", Q_ARG(QString, link->tty()), Q_ARG(QString, link->projectPath()));
     }
 
+    void execCheckFirmware()
+    {
+        QMetaObject::invokeMethod(m_private, "checkFirmware", Q_ARG(QString, link->tty()), Q_ARG(QString, link->projectPath()));
+    }
+
     FirmwareData readFirmware()
     {
         return driver->readFirmware();
-    }
-
-    bool checkFirmware(const QString &path)
-    {
-        return driver->checkFirmware(path);
     }
 
     /**

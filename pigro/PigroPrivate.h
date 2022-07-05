@@ -42,6 +42,7 @@ private:
 private slots:
 
     void execChipInfo(const QString tty, const QString project_path);
+    void checkFirmware(const QString tty, const QString project_path);
 
 public:
 
@@ -55,8 +56,6 @@ public:
     PigroPrivate& operator = (PigroPrivate &&) = delete;
 
     void setProjectPath(const QString &path);
-
-
 
 };
 

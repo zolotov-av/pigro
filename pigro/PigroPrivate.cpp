@@ -14,9 +14,57 @@ void PigroPrivate::execChipInfo(const QString tty, const QString project_path)
     m_link->setTTY(tty);
     if ( m_link->open() )
     {
-        const auto info = driver->getIspChipInfo();
+        try
+        {
+            const auto info = driver->getIspChipInfo();
+            m_link->close();
+            emit m_app->chipInfo(info);
+        }
+        catch (const std::exception &e)
+        {
+            emit m_app->reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+        }
+        catch (...)
+        {
+            emit m_app->reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+        }
+
+    }
+
+    delete driver;
+}
+
+void PigroPrivate::checkFirmware(const QString tty, const QString project_path)
+{
+    trace::log("PigroPrivate::checkFirmware()");
+
+    const FirmwareInfo firmwareInfo{project_path};
+    m_link->setFirmwareInfo(firmwareInfo);
+
+    const auto driver = lookupDriver(firmwareInfo);
+
+    m_link->setTTY(tty);
+    if ( m_link->open() )
+    {
+        try
+        {
+            const auto info = driver->getIspChipInfo();
+            emit m_app->chipInfo(info);
+
+            const auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
+            emit m_app->reportMessage(QStringLiteral("page usages: %1 / %2").arg(pages.size()).arg(driver->page_count()));
+            driver->isp_check_firmware(pages);
+        }
+        catch (const std::exception &e)
+        {
+            emit m_app->reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+        }
+        catch (...)
+        {
+            emit m_app->reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+        }
+
         m_link->close();
-        emit m_app->chipInfo(info);
     }
 
     delete driver;
