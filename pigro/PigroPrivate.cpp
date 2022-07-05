@@ -16,9 +16,7 @@ void PigroPrivate::execChipInfo(const QString tty, const QString project_path)
     {
         try
         {
-            const auto info = driver->getIspChipInfo();
-            m_link->close();
-            emit m_app->chipInfo(info);
+            emit m_app->chipInfo(driver->getIspChipInfo());
         }
         catch (const std::exception &e)
         {
@@ -29,6 +27,7 @@ void PigroPrivate::execChipInfo(const QString tty, const QString project_path)
             emit m_app->reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
         }
 
+        m_link->close();
     }
 
     delete driver;
@@ -48,8 +47,7 @@ void PigroPrivate::checkFirmware(const QString tty, const QString project_path)
     {
         try
         {
-            const auto info = driver->getIspChipInfo();
-            emit m_app->chipInfo(info);
+            emit m_app->chipInfo(driver->getIspChipInfo());
 
             const auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
             emit m_app->reportMessage(QStringLiteral("page usages: %1 / %2").arg(pages.size()).arg(driver->page_count()));

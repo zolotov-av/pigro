@@ -23,8 +23,7 @@ private slots:
 
     void refreshTty();
     void openPigroIni();
-    void openReadFile();
-    void openCheckFile();
+    void openExportFile();
     void readFirmware();
     void checkFirmware();
     void showInfo();

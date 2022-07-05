@@ -36,6 +36,8 @@ void PigroLink::checkProtoVersion()
     serial->waitForReadyRead(200);
     serial->readAll();
 
+    nack_support = false;
+
     packet_t pkt;
     pkt.cmd = 1;
     pkt.len = 2;
@@ -170,7 +172,7 @@ bool PigroLink::open()
         catch (const std::exception &e)
         {
             serial->close();
-            emit m_app->reportMessage(QStringLiteral("error: %s").arg(e.what()));
+            emit m_app->reportMessage(QStringLiteral("error: %1").arg(e.what()));
             return false;
         }
         catch (...)

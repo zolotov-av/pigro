@@ -30,7 +30,6 @@ void PigroWindow::refreshTty()
     {
         ui.cbTty->addItem(QStringLiteral("%1 (%2)").arg(port.portName(), port.systemLocation()), port.systemLocation());
     }
-
 }
 
 void PigroWindow::openPigroIni()
@@ -47,21 +46,7 @@ void PigroWindow::openPigroIni()
     }
 }
 
-void PigroWindow::openReadFile()
-{
-    QFileDialog dialog;
-    dialog.setFileMode(QFileDialog::AnyFile);
-    //dialog.setNameFilter(tr("pigro.ini (pigro.ini);;INI (*.ini);;All files (*.*)"));
-    if ( dialog.exec() )
-    {
-        const auto fileNames = dialog.selectedFiles();
-        const QString path = fileNames.at(0);
-        ui.leReadFilePath->setText(path);
-        QSettings().setValue("ReadFilePath", path);
-    }
-}
-
-void PigroWindow::openCheckFile()
+void PigroWindow::openExportFile()
 {
     QFileDialog dialog;
     dialog.setFileMode(QFileDialog::AnyFile);
@@ -70,8 +55,8 @@ void PigroWindow::openCheckFile()
     {
         const auto fileNames = dialog.selectedFiles();
         const QString path = fileNames.at(0);
-        ui.leCheckFilePath->setText(path);
-        QSettings().setValue("CheckFilePath", path);
+        ui.leReadFilePath->setText(path);
+        QSettings().setValue("ReadFilePath", path);
     }
 }
 
@@ -91,8 +76,6 @@ void PigroWindow::readFirmware()
         QMessageBox::information(this, tr("Read Firmware error"), tr("Cannot open file: %1").arg(file.fileName()));
         return;
     }
-
-    //const FirmwareData orig = FirmwareData::LoadFromFile("/home/ilya/projects/pigro-temp/pigro_avrxx/demo/pigro_avr.hex");
 
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
@@ -127,14 +110,6 @@ void PigroWindow::showInfo()
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execChipInfo();
-
-    /*
-    {
-        link->loadConfig(ui.lePigroIniPath->text());
-        ui.leChipModel->setText(link->getChipInfo());
-        link->close();
-    }
-    */
 }
 
 void PigroWindow::beginProgress(int min, int max)
@@ -174,7 +149,6 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
         QSettings settings;
         ui.lePigroIniPath->setText(settings.value("pigro.ini").toString());
         ui.leReadFilePath->setText(settings.value("ReadFilePath").toString());
-        ui.leCheckFilePath->setText(settings.value("CheckFilePath").toString());
     }
 
     connect(link, &PigroApp::started, this, &PigroWindow::pigroStarted);
@@ -188,9 +162,8 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
     connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::openPigroIni);
-    connect(ui.pbOpenReadFile, &QPushButton::clicked, this, &PigroWindow::openReadFile);
-    connect(ui.pbOpenCheckFile, &QPushButton::clicked, this, &PigroWindow::openCheckFile);
-    connect(ui.pbReadFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
+    connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
+    connect(ui.pbExportFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
     connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);
     connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
 
