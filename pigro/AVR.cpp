@@ -98,6 +98,29 @@ FirmwareData AVR::readFirmware()
     return firmware;
 }
 
+bool AVR::check_firmware(const FirmwareData &pages, bool verbose)
+{
+    bool status = true;
+    const uint32_t limit = page_limit();
+    for(const auto &page : pages)
+    {
+        const uint32_t page_addr = page.second.addr;
+        const bool page_ok = page_addr < limit;
+        status = status && page_ok;
+        if ( verbose )
+        {
+            const char *page_status = page_ok ? "ok" : "out of range [fail]";
+            link->reportMessage(QStringLiteral("PAGE[0x%05X] - %1").arg(page_status));
+        }
+    }
+    if ( verbose )
+    {
+        const char *status_str = status ? "[ ok ]" : "[fail]";
+        link->reportMessage(QStringLiteral("overall status %1").arg(status_str));
+    }
+    return status;
+}
+
 void AVR::action_test()
 {
     printf("\nAVR::action_test()\n\n");
@@ -155,7 +178,7 @@ void AVR::isp_stat_firmware(const FirmwareData &pages)
 
 void AVR::isp_check_firmware(const FirmwareData &pages)
 {
-    printf("\nAVR::isp_check_firmware()\n");
+    link->reportMessage("AVR::isp_check_firmware()");
 
     isp_program_enable();
 
@@ -201,7 +224,7 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
 
 void AVR::isp_write_firmware(const FirmwareData &pages)
 {
-    printf("\nAVR::isp_write_firmware()\n\n");
+    link->reportMessage("AVR::isp_write_firmware()");
 
     if ( !check_firmware(pages, false) )
     {
@@ -225,23 +248,32 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
     chip_erase();
 
     uint8_t counter = 0;
+    char line[128];
+    int line_len = 0;
     for(const auto &[page_addr, page] : pages)
     {
         const size_t size = page.data.size();
         for(size_t i = 0; i < size; i++)
         {
             const uint32_t addr = page_addr + i;
-            if ( counter == 0 ) printf("MEM[0x%04X]", addr);
+            if ( counter == 0 )
+            {
+                line_len = sprintf(line, "MEM[0x%04X]", addr);
+            }
             isp_load_memory_page(addr, page.data[i]);
-            printf(".");
-            if ( counter == 0x1F ) printf("\n");
+            line[line_len++] = '.';
+            if ( counter == 0x1F )
+            {
+                link->reportMessage(QString::fromUtf8(line, line_len));
+            }
             counter = (counter + 1) & 0x1F;
-
         }
         isp_write_memory_page(page_addr);
     }
 
     isp_program_disable();
+
+    link->reportMessage("[ DONE ]");
 }
 
 void AVR::isp_read_fuse()

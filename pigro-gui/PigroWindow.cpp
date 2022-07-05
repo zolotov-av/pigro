@@ -102,6 +102,16 @@ void PigroWindow::checkFirmware()
     link->execCheckFirmware();
 }
 
+void PigroWindow::writeFirmware()
+{
+    const QString dev = ui.cbTty->currentData().toString();
+    ui.leDevicePath->setText(dev);
+
+    link->setTTY(dev);
+    link->setProjectPath(ui.lePigroIniPath->text());
+    link->execWriteFirmware();
+}
+
 void PigroWindow::showInfo()
 {
     const QString dev = ui.cbTty->currentData().toString();
@@ -165,6 +175,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
     connect(ui.pbExportFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
     connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);
+    connect(ui.pbWriteFirmware, &QPushButton::clicked, this, &PigroWindow::writeFirmware);
     connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
 
     link->start();

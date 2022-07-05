@@ -26,6 +26,7 @@ private slots:
     void openExportFile();
     void readFirmware();
     void checkFirmware();
+    void writeFirmware();
     void showInfo();
 
     void beginProgress(int min, int max);

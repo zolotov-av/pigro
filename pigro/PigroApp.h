@@ -132,6 +132,11 @@ public:
         QMetaObject::invokeMethod(m_private, "checkFirmware", Q_ARG(QString, link->tty()), Q_ARG(QString, link->projectPath()));
     }
 
+    void execWriteFirmware()
+    {
+        QMetaObject::invokeMethod(m_private, "writeFirmware", Q_ARG(QString, link->tty()), Q_ARG(QString, link->projectPath()));
+    }
+
     FirmwareData readFirmware()
     {
         return driver->readFirmware();

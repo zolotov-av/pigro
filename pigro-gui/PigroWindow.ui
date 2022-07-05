@@ -222,6 +222,13 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QPushButton" name="pbWriteFirmware">
+         <property name="text">
+          <string>write</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
     </item>

@@ -36,27 +36,27 @@ public:
         return link->chip_info();
     }
 
-    inline void info(const char *msg) const
+    void info(const char *msg) const
     {
         if ( verbose() )
         {
-            printf("info: %s\n", msg);
+            link->reportMessage(QStringLiteral("info: %1").arg(msg));
         }
     }
 
-    static inline void warn(const char *msg)
+    void warn(const char *msg)
     {
-        fprintf(stderr, "warn: %s\n", msg);
+        link->reportMessage(QStringLiteral("warn: %1").arg(msg));
     }
 
-    static inline void warn(const std::string &msg)
+    void warn(const std::string &msg)
     {
         warn( msg.c_str() );
     }
 
-    inline void error(const char *msg) const
+    void error(const char *msg) const
     {
-        fprintf(stderr, "error: %s\n", msg);
+        link->reportMessage(QStringLiteral("error: %1").arg(msg));
     }
 
     /**

@@ -698,7 +698,7 @@ public:
     uint32_t page_size() const override;
     uint32_t page_count() const override;
 
-    static uint32_t parse_page_size(const std::string &ps)
+    uint32_t parse_page_size(const std::string &ps)
     {
         if ( ps.empty() ) return 1024;
 

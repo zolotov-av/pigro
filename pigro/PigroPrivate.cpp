@@ -68,6 +68,41 @@ void PigroPrivate::checkFirmware(const QString tty, const QString project_path)
     delete driver;
 }
 
+void PigroPrivate::writeFirmware(const QString tty, const QString project_path)
+{
+    trace::log("PigroPrivate::writeFirmware()");
+
+    const FirmwareInfo firmwareInfo{project_path};
+    m_link->setFirmwareInfo(firmwareInfo);
+
+    const auto driver = lookupDriver(firmwareInfo);
+
+    m_link->setTTY(tty);
+    if ( m_link->open() )
+    {
+        try
+        {
+            emit m_app->chipInfo(driver->getIspChipInfo());
+
+            const auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
+            emit m_app->reportMessage(QStringLiteral("page usages: %1 / %2").arg(pages.size()).arg(driver->page_count()));
+            driver->isp_write_firmware(pages);
+        }
+        catch (const std::exception &e)
+        {
+            emit m_app->reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+        }
+        catch (...)
+        {
+            emit m_app->reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+        }
+
+        m_link->close();
+    }
+
+    delete driver;
+}
+
 PigroPrivate::PigroPrivate(PigroApp *app, QObject *parent): QObject(parent), m_app(app)
 {
     trace::log("PigroPrivate create");

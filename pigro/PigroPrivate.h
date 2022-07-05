@@ -39,10 +39,11 @@ private:
         return driver;
     }
 
-private slots:
+public slots:
 
     void execChipInfo(const QString tty, const QString project_path);
     void checkFirmware(const QString tty, const QString project_path);
+    void writeFirmware(const QString tty, const QString project_path);
 
 public:
 
