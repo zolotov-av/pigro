@@ -102,6 +102,16 @@ void PigroWindow::checkFirmware()
     link->execCheckFirmware();
 }
 
+void PigroWindow::chipErase()
+{
+    const QString dev = ui.cbTty->currentData().toString();
+    ui.leDevicePath->setText(dev);
+
+    link->setTTY(dev);
+    link->setProjectPath(ui.lePigroIniPath->text());
+    link->execChipErase();
+}
+
 void PigroWindow::writeFirmware()
 {
     const QString dev = ui.cbTty->currentData().toString();
@@ -110,6 +120,16 @@ void PigroWindow::writeFirmware()
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execWriteFirmware();
+}
+
+void PigroWindow::writeFuse()
+{
+    const QString dev = ui.cbTty->currentData().toString();
+    ui.leDevicePath->setText(dev);
+
+    link->setTTY(dev);
+    link->setProjectPath(ui.lePigroIniPath->text());
+    link->execWriteFuse();
 }
 
 void PigroWindow::showInfo()
@@ -175,7 +195,9 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
     connect(ui.pbExportFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
     connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);
+    connect(ui.pbChipErase, &QPushButton::clicked, this, &PigroWindow::chipErase);
     connect(ui.pbWriteFirmware, &QPushButton::clicked, this, &PigroWindow::writeFirmware);
+    connect(ui.pbWriteFuse, &QPushButton::clicked, this, &PigroWindow::writeFuse);
     connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
 
     link->start();

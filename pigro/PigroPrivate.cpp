@@ -68,6 +68,41 @@ void PigroPrivate::checkFirmware(const QString tty, const QString project_path)
     delete driver;
 }
 
+void PigroPrivate::chipErase(const QString tty, const QString project_path)
+{
+    trace::log("PigroPrivate::chipErase()");
+
+    const FirmwareInfo firmwareInfo{project_path};
+    m_link->setFirmwareInfo(firmwareInfo);
+
+    const auto driver = lookupDriver(firmwareInfo);
+
+    m_link->setTTY(tty);
+    if ( m_link->open() )
+    {
+        try
+        {
+            emit m_app->chipInfo(driver->getIspChipInfo());
+
+            //const auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
+            //emit m_app->reportMessage(QStringLiteral("page usages: %1 / %2").arg(pages.size()).arg(driver->page_count()));
+            driver->isp_chip_erase();
+        }
+        catch (const std::exception &e)
+        {
+            emit m_app->reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+        }
+        catch (...)
+        {
+            emit m_app->reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+        }
+
+        m_link->close();
+    }
+
+    delete driver;
+}
+
 void PigroPrivate::writeFirmware(const QString tty, const QString project_path)
 {
     trace::log("PigroPrivate::writeFirmware()");
@@ -87,6 +122,38 @@ void PigroPrivate::writeFirmware(const QString tty, const QString project_path)
             const auto pages = FirmwareData::LoadFromFile(firmwareInfo.hexFilePath.toStdString(), driver->page_size(), driver->page_fill());
             emit m_app->reportMessage(QStringLiteral("page usages: %1 / %2").arg(pages.size()).arg(driver->page_count()));
             driver->isp_write_firmware(pages);
+        }
+        catch (const std::exception &e)
+        {
+            emit m_app->reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+        }
+        catch (...)
+        {
+            emit m_app->reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+        }
+
+        m_link->close();
+    }
+
+    delete driver;
+}
+
+void PigroPrivate::writeFuse(const QString tty, const QString project_path)
+{
+    trace::log("PigroPrivate::writeFirmware()");
+
+    const FirmwareInfo firmwareInfo{project_path};
+    m_link->setFirmwareInfo(firmwareInfo);
+
+    const auto driver = lookupDriver(firmwareInfo);
+
+    m_link->setTTY(tty);
+    if ( m_link->open() )
+    {
+        try
+        {
+            emit m_app->chipInfo(driver->getIspChipInfo());
+            driver->isp_write_fuse();
         }
         catch (const std::exception &e)
         {

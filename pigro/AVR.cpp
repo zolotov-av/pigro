@@ -109,8 +109,10 @@ bool AVR::check_firmware(const FirmwareData &pages, bool verbose)
         status = status && page_ok;
         if ( verbose )
         {
+            char line[128];
             const char *page_status = page_ok ? "ok" : "out of range [fail]";
-            link->reportMessage(QStringLiteral("PAGE[0x%05X] - %1").arg(page_status));
+            const auto line_size = snprintf(line, sizeof(line), "PAGE[0x%05X] - %s", page_addr, page_status);
+            link->reportMessage(QString::fromUtf8(line, line_size));
         }
     }
     if ( verbose )
@@ -119,6 +121,44 @@ bool AVR::check_firmware(const FirmwareData &pages, bool verbose)
         link->reportMessage(QStringLiteral("overall status %1").arg(status_str));
     }
     return status;
+}
+
+void AVR::check_fuse()
+{
+    uint8_t fuse_lo = isp_read_fuse_low();  // cmd_isp_io(0x50000000) & 0xFF;
+    uint8_t fuse_hi = isp_read_fuse_high(); // cmd_isp_io(0x58080000) & 0xFF;
+    uint8_t fuse_ex = isp_read_fuse_ext();  // cmd_isp_io(0x50080000) & 0xFF;
+
+    const char *status;
+    char line[128];
+    int line_size;
+
+    if ( auto s = get_option("fuse_low"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
+        status = (x == fuse_lo) ? " ok " : "diff";
+    }
+    else status = " NA ";
+    line_size = snprintf(line, sizeof(line), "fuse low:  0x%02X [%s]", fuse_lo, status);
+    link->reportMessage(QString::fromUtf8(line, line_size));
+
+    if ( auto s = get_option("fuse_high"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
+        status = (x == fuse_hi) ? " ok " : "diff";
+    }
+    else status = " NA ";
+    line_size = snprintf(line, sizeof(line), "fuse high: 0x%02X [%s]", fuse_hi, status);
+    link->reportMessage(QString::fromUtf8(line, line_size));
+
+    if ( auto s = get_option("fuse_ext"); !s.empty() )
+    {
+        const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
+        status = (x == fuse_ex) ? " ok " : "diff";
+    }
+    else status = " NA ";
+    line_size = snprintf(line, sizeof(line), "fuse ext:  0x%02X [%s]", fuse_ex, status);
+    link->reportMessage(QString::fromUtf8(line, line_size));
 }
 
 void AVR::action_test()
@@ -183,7 +223,7 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
     isp_program_enable();
 
     check_chip_info();
-    check_fuses();
+    check_fuse();
 
     uint8_t counter = 0;
     bool differs = false;
@@ -201,7 +241,7 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
             }
             uint8_t byte = isp_read_memory(addr);
             line[line_offset++] = (page.data[i] == byte ? '.' : '*' );
-            if ( page.data[i] == byte ) differs = true;
+            if ( page.data[i] != byte ) differs = true;
             if ( counter == 0x1F )
             {
                 link->reportMessage(QString::fromUtf8(line, line_offset));
@@ -284,42 +324,14 @@ void AVR::isp_read_fuse()
 
     check_chip_info();
 
-    uint8_t fuse_lo = isp_read_fuse_low();  // cmd_isp_io(0x50000000) & 0xFF;
-    uint8_t fuse_hi = isp_read_fuse_high(); // cmd_isp_io(0x58080000) & 0xFF;
-    uint8_t fuse_ex = isp_read_fuse_ext();  // cmd_isp_io(0x50080000) & 0xFF;
-
-    const char *status;
-
-    if ( auto s = get_option("fuse_low"); !s.empty() )
-    {
-        const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
-        status = (x == fuse_lo) ? " ok " : "diff";
-    }
-    else status = " NA ";
-    printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
-
-    if ( auto s = get_option("fuse_high"); !s.empty() )
-    {
-        const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
-        status = (x == fuse_hi) ? " ok " : "diff";
-    }
-    else status = " NA ";
-    printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
-
-    if ( auto s = get_option("fuse_ext"); !s.empty() )
-    {
-        const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
-        status = (x == fuse_ex) ? " ok " : "diff";
-    }
-    else status = " NA ";
-    printf("fuse ext:  0x%02X [%s]\n", fuse_ex, status);
+    check_fuse();
 
     isp_program_disable();
 }
 
 void AVR::isp_write_fuse()
 {
-    printf("\nAVR::isp_write_fuse()\n\n");
+    link->reportMessage("AVR::isp_write_fuse()");
 
     isp_program_enable();
 
@@ -327,7 +339,6 @@ void AVR::isp_write_fuse()
     {
         throw nano::exception("isp_write_firmware() reject: wrong chip signature");
     }
-
 
     if ( auto s = get_option("fuse_low"); !s.empty() )
     {
@@ -352,11 +363,13 @@ void AVR::isp_write_fuse()
 
 void AVR::isp_chip_erase()
 {
-    printf("\nAVR::isp_chip_erase()\n\n");
+    link->reportMessage("AVR::isp_chip_erase()");
 
     isp_program_enable();
 
     chip_erase();
 
     isp_program_disable();
+
+    link->reportMessage("[ DONE ]");
 }

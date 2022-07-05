@@ -223,9 +223,23 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="pbChipErase">
+         <property name="text">
+          <string>erase</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="pbWriteFirmware">
          <property name="text">
           <string>write</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pbWriteFuse">
+         <property name="text">
+          <string>write fuse</string>
          </property>
         </widget>
        </item>

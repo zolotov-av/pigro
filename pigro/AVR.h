@@ -260,7 +260,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's low fuse bits %s\n", status);
+            link->reportMessage(QStringLiteral("write device's low fuse bits %1").arg(status));
         }
     }
 
@@ -272,7 +272,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's high fuse bits %s\n", status);
+            link->reportMessage(QStringLiteral("write device's high fuse bits %1").arg(status));
         }
     }
 
@@ -284,42 +284,8 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's extended fuse bits %s\n", status);
+            link->reportMessage(QStringLiteral("write device's extended fuse bits %1").arg(status));
         }
-    }
-
-    bool check_fuses()
-    {
-        bool wrong { false };
-
-        if ( auto s = get_option("fuse_low"); !s.empty() )
-        {
-            const uint8_t fuse_lo = isp_read_fuse_low();
-            const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
-            if ( x != fuse_lo ) wrong = true;
-            const char *status = (x == fuse_lo) ? " ok " : "diff";
-            printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
-        }
-
-        if ( auto s = get_option("fuse_high"); !s.empty() )
-        {
-            const uint8_t fuse_hi = isp_read_fuse_high();
-            const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
-            const char *status = (x == fuse_hi) ? " ok " : "diff";
-            if ( x != fuse_hi ) wrong = true;
-            printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
-        }
-
-        if ( auto s = get_option("fuse_ext"); !s.empty() )
-        {
-            const uint8_t fuse_ext = isp_read_fuse_ext();
-            const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
-            const char *status = (x == fuse_ext) ? " ok " : "diff";
-            if ( x != fuse_ext ) wrong = true;
-            printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
-        }
-
-        return !wrong;
     }
 
     uint32_t page_size() const override;
@@ -337,6 +303,7 @@ public:
      * Проверить прошивку на корректность
      */
     bool check_firmware(const FirmwareData &pages, bool verbose);
+    void check_fuse();
 
     void action_test() override;
     void parse_device_info(const nano::options &info) override;

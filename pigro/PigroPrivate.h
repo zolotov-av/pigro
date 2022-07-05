@@ -43,7 +43,9 @@ public slots:
 
     void execChipInfo(const QString tty, const QString project_path);
     void checkFirmware(const QString tty, const QString project_path);
+    void chipErase(const QString tty, const QString project_path);
     void writeFirmware(const QString tty, const QString project_path);
+    void writeFuse(const QString tty, const QString project_path);
 
 public:
 
