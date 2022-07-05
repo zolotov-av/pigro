@@ -4,7 +4,5 @@ Makefile
 *.o
 *.a
 *.s
-*.hex
-*.dump
-
-/build-pigro-Desktop-Release/
+#*.hex
+#*.dump

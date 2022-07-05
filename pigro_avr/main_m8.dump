@@ -1,0 +1,435 @@
+
+main_m8.o:     file format elf32-avr
+
+
+Disassembly of section .text.cmd_isp_io.part.0:
+
+00000000 <cmd_isp_io.part.0>:
+   0:	0f 93       	push	r16
+   2:	1f 93       	push	r17
+   4:	cf 93       	push	r28
+   6:	df 93       	push	r29
+   8:	c0 e0       	ldi	r28, 0x00	; 0
+   a:	d0 e0       	ldi	r29, 0x00	; 0
+   c:	8e 01       	movw	r16, r28
+   e:	f8 01       	movw	r30, r16
+  10:	81 91       	ld	r24, Z+
+  12:	8f 01       	movw	r16, r30
+  14:	00 d0       	rcall	.+0      	; 0x16 <cmd_isp_io.part.0+0x16>
+  16:	f0 e0       	ldi	r31, 0x00	; 0
+  18:	00 30       	cpi	r16, 0x00	; 0
+  1a:	1f 07       	cpc	r17, r31
+  1c:	01 f4       	brne	.+0      	; 0x1e <cmd_isp_io.part.0+0x1e>
+  1e:	00 e0       	ldi	r16, 0x00	; 0
+  20:	10 e0       	ldi	r17, 0x00	; 0
+  22:	00 c0       	rjmp	.+0      	; 0x24 <cmd_isp_io.part.0+0x24>
+  24:	85 b7       	in	r24, 0x35	; 53
+  26:	8f 78       	andi	r24, 0x8F	; 143
+  28:	85 bf       	out	0x35, r24	; 53
+  2a:	85 b7       	in	r24, 0x35	; 53
+  2c:	80 68       	ori	r24, 0x80	; 128
+  2e:	85 bf       	out	0x35, r24	; 53
+  30:	88 95       	sleep
+  32:	80 e0       	ldi	r24, 0x00	; 0
+  34:	90 e0       	ldi	r25, 0x00	; 0
+  36:	00 d0       	rcall	.+0      	; 0x38 <cmd_isp_io.part.0+0x38>
+  38:	88 23       	and	r24, r24
+  3a:	01 f0       	breq	.+0      	; 0x3c <cmd_isp_io.part.0+0x3c>
+  3c:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  40:	f8 01       	movw	r30, r16
+  42:	81 93       	st	Z+, r24
+  44:	8f 01       	movw	r16, r30
+  46:	f0 e0       	ldi	r31, 0x00	; 0
+  48:	00 30       	cpi	r16, 0x00	; 0
+  4a:	1f 07       	cpc	r17, r31
+  4c:	01 f4       	brne	.+0      	; 0x4e <cmd_isp_io.part.0+0x4e>
+  4e:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  52:	00 d0       	rcall	.+0      	; 0x54 <cmd_isp_io.part.0+0x54>
+  54:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  58:	00 d0       	rcall	.+0      	; 0x5a <cmd_isp_io.part.0+0x5a>
+  5a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  5e:	88 23       	and	r24, r24
+  60:	01 f0       	breq	.+0      	; 0x62 <cmd_isp_io.part.0+0x62>
+  62:	0e ef       	ldi	r16, 0xFE	; 254
+  64:	1f ef       	ldi	r17, 0xFF	; 255
+  66:	00 50       	subi	r16, 0x00	; 0
+  68:	10 40       	sbci	r17, 0x00	; 0
+  6a:	89 91       	ld	r24, Y+
+  6c:	00 d0       	rcall	.+0      	; 0x6e <cmd_isp_io.part.0+0x6e>
+  6e:	20 91 00 00 	lds	r18, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  72:	c8 01       	movw	r24, r16
+  74:	8c 0f       	add	r24, r28
+  76:	9d 1f       	adc	r25, r29
+  78:	28 17       	cp	r18, r24
+  7a:	19 06       	cpc	r1, r25
+  7c:	01 f0       	breq	.+0      	; 0x7e <cmd_isp_io.part.0+0x7e>
+  7e:	04 f4       	brge	.+0      	; 0x80 <cmd_isp_io.part.0+0x80>
+  80:	df 91       	pop	r29
+  82:	cf 91       	pop	r28
+  84:	1f 91       	pop	r17
+  86:	0f 91       	pop	r16
+  88:	08 95       	ret
+
+Disassembly of section .text.usart_getc_sync:
+
+00000000 <usart_getc_sync>:
+   0:	00 c0       	rjmp	.+0      	; 0x2 <usart_getc_sync+0x2>
+   2:	85 b7       	in	r24, 0x35	; 53
+   4:	8f 78       	andi	r24, 0x8F	; 143
+   6:	85 bf       	out	0x35, r24	; 53
+   8:	85 b7       	in	r24, 0x35	; 53
+   a:	80 68       	ori	r24, 0x80	; 128
+   c:	85 bf       	out	0x35, r24	; 53
+   e:	88 95       	sleep
+  10:	80 e0       	ldi	r24, 0x00	; 0
+  12:	90 e0       	ldi	r25, 0x00	; 0
+  14:	00 d0       	rcall	.+0      	; 0x16 <usart_getc_sync+0x16>
+  16:	88 23       	and	r24, r24
+  18:	01 f0       	breq	.+0      	; 0x1a <usart_getc_sync+0x1a>
+  1a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  1e:	08 95       	ret
+
+Disassembly of section .text.spi_getc_sync:
+
+00000000 <spi_getc_sync>:
+   0:	00 c0       	rjmp	.+0      	; 0x2 <spi_getc_sync+0x2>
+   2:	85 b7       	in	r24, 0x35	; 53
+   4:	8f 78       	andi	r24, 0x8F	; 143
+   6:	85 bf       	out	0x35, r24	; 53
+   8:	85 b7       	in	r24, 0x35	; 53
+   a:	80 68       	ori	r24, 0x80	; 128
+   c:	85 bf       	out	0x35, r24	; 53
+   e:	88 95       	sleep
+  10:	80 e0       	ldi	r24, 0x00	; 0
+  12:	90 e0       	ldi	r25, 0x00	; 0
+  14:	00 d0       	rcall	.+0      	; 0x16 <spi_getc_sync+0x16>
+  16:	88 23       	and	r24, r24
+  18:	01 f0       	breq	.+0      	; 0x1a <spi_getc_sync+0x1a>
+  1a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  1e:	08 95       	ret
+
+Disassembly of section .text.send_packet:
+
+00000000 <send_packet>:
+   0:	0f 93       	push	r16
+   2:	1f 93       	push	r17
+   4:	cf 93       	push	r28
+   6:	df 93       	push	r29
+   8:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   c:	00 d0       	rcall	.+0      	; 0xe <send_packet+0xe>
+   e:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  12:	00 d0       	rcall	.+0      	; 0x14 <send_packet+0x14>
+  14:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  18:	88 23       	and	r24, r24
+  1a:	01 f0       	breq	.+0      	; 0x1c <send_packet+0x1c>
+  1c:	c0 e0       	ldi	r28, 0x00	; 0
+  1e:	d0 e0       	ldi	r29, 0x00	; 0
+  20:	0e ef       	ldi	r16, 0xFE	; 254
+  22:	1f ef       	ldi	r17, 0xFF	; 255
+  24:	00 50       	subi	r16, 0x00	; 0
+  26:	10 40       	sbci	r17, 0x00	; 0
+  28:	89 91       	ld	r24, Y+
+  2a:	00 d0       	rcall	.+0      	; 0x2c <send_packet+0x2c>
+  2c:	20 91 00 00 	lds	r18, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  30:	c8 01       	movw	r24, r16
+  32:	8c 0f       	add	r24, r28
+  34:	9d 1f       	adc	r25, r29
+  36:	28 17       	cp	r18, r24
+  38:	19 06       	cpc	r1, r25
+  3a:	01 f0       	breq	.+0      	; 0x3c <send_packet+0x3c>
+  3c:	04 f4       	brge	.+0      	; 0x3e <send_packet+0x3e>
+  3e:	df 91       	pop	r29
+  40:	cf 91       	pop	r28
+  42:	1f 91       	pop	r17
+  44:	0f 91       	pop	r16
+  46:	08 95       	ret
+
+Disassembly of section .text.cmd_seta:
+
+00000000 <cmd_seta>:
+   0:	08 95       	ret
+
+Disassembly of section .text.cmd_isp_reset:
+
+00000000 <cmd_isp_reset>:
+   0:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   4:	81 30       	cpi	r24, 0x01	; 1
+   6:	01 f0       	breq	.+0      	; 0x8 <cmd_isp_reset+0x8>
+   8:	08 95       	ret
+   a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   e:	88 23       	and	r24, r24
+  10:	01 f0       	breq	.+0      	; 0x12 <cmd_isp_reset+0x12>
+  12:	c1 9a       	sbi	0x18, 1	; 24
+  14:	08 95       	ret
+  16:	c1 98       	cbi	0x18, 1	; 24
+  18:	08 95       	ret
+
+Disassembly of section .text.cmd_isp_io:
+
+00000000 <cmd_isp_io>:
+   0:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   4:	84 30       	cpi	r24, 0x04	; 4
+   6:	01 f0       	breq	.+0      	; 0x8 <cmd_isp_io+0x8>
+   8:	08 95       	ret
+   a:	00 c0       	rjmp	.+0      	; 0xc <adc_en+0x2>
+
+Disassembly of section .text.__vector_14:
+
+00000000 <__vector_14>:
+   0:	1f 92       	push	r1
+   2:	0f 92       	push	r0
+   4:	0f b6       	in	r0, 0x3f	; 63
+   6:	0f 92       	push	r0
+   8:	11 24       	eor	r1, r1
+   a:	0f 93       	push	r16
+   c:	1f 93       	push	r17
+   e:	2f 93       	push	r18
+  10:	3f 93       	push	r19
+  12:	4f 93       	push	r20
+  14:	5f 93       	push	r21
+  16:	6f 93       	push	r22
+  18:	7f 93       	push	r23
+  1a:	8f 93       	push	r24
+  1c:	9f 93       	push	r25
+  1e:	af 93       	push	r26
+  20:	bf 93       	push	r27
+  22:	cf 93       	push	r28
+  24:	df 93       	push	r29
+  26:	ef 93       	push	r30
+  28:	ff 93       	push	r31
+  2a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  2e:	81 11       	cpse	r24, r1
+  30:	00 c0       	rjmp	.+0      	; 0x32 <__vector_14+0x32>
+  32:	10 92 00 00 	sts	0x0000, r1	; 0x800000 <__SREG__+0x7fffc1>
+  36:	37 98       	cbi	0x06, 7	; 6
+  38:	ff 91       	pop	r31
+  3a:	ef 91       	pop	r30
+  3c:	df 91       	pop	r29
+  3e:	cf 91       	pop	r28
+  40:	bf 91       	pop	r27
+  42:	af 91       	pop	r26
+  44:	9f 91       	pop	r25
+  46:	8f 91       	pop	r24
+  48:	7f 91       	pop	r23
+  4a:	6f 91       	pop	r22
+  4c:	5f 91       	pop	r21
+  4e:	4f 91       	pop	r20
+  50:	3f 91       	pop	r19
+  52:	2f 91       	pop	r18
+  54:	1f 91       	pop	r17
+  56:	0f 91       	pop	r16
+  58:	0f 90       	pop	r0
+  5a:	0f be       	out	0x3f, r0	; 63
+  5c:	0f 90       	pop	r0
+  5e:	1f 90       	pop	r1
+  60:	18 95       	reti
+  62:	84 e0       	ldi	r24, 0x04	; 4
+  64:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  68:	82 e0       	ldi	r24, 0x02	; 2
+  6a:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  6e:	84 b1       	in	r24, 0x04	; 4
+  70:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  74:	85 b1       	in	r24, 0x05	; 5
+  76:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  7a:	84 e0       	ldi	r24, 0x04	; 4
+  7c:	00 d0       	rcall	.+0      	; 0x7e <__vector_14+0x7e>
+  7e:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  82:	00 d0       	rcall	.+0      	; 0x84 <__vector_14+0x84>
+  84:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  88:	88 23       	and	r24, r24
+  8a:	01 f0       	breq	.+0      	; 0x8c <__vector_14+0x8c>
+  8c:	c0 e0       	ldi	r28, 0x00	; 0
+  8e:	d0 e0       	ldi	r29, 0x00	; 0
+  90:	0e ef       	ldi	r16, 0xFE	; 254
+  92:	1f ef       	ldi	r17, 0xFF	; 255
+  94:	00 50       	subi	r16, 0x00	; 0
+  96:	10 40       	sbci	r17, 0x00	; 0
+  98:	89 91       	ld	r24, Y+
+  9a:	00 d0       	rcall	.+0      	; 0x9c <__vector_14+0x9c>
+  9c:	20 91 00 00 	lds	r18, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  a0:	c8 01       	movw	r24, r16
+  a2:	8c 0f       	add	r24, r28
+  a4:	9d 1f       	adc	r25, r29
+  a6:	28 17       	cp	r18, r24
+  a8:	19 06       	cpc	r1, r25
+  aa:	01 f0       	breq	.+0      	; 0xac <__vector_14+0xac>
+  ac:	04 f4       	brge	.+0      	; 0xae <__vector_14+0xae>
+  ae:	00 c0       	rjmp	.+0      	; 0xb0 <__SREG__+0x71>
+
+Disassembly of section .text.cmd_adc:
+
+00000000 <cmd_adc>:
+   0:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   4:	81 30       	cpi	r24, 0x01	; 1
+   6:	01 f4       	brne	.+0      	; 0x8 <cmd_adc+0x8>
+   8:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   c:	8f 7d       	andi	r24, 0xDF	; 223
+   e:	87 b9       	out	0x07, r24	; 7
+  10:	81 e0       	ldi	r24, 0x01	; 1
+  12:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  16:	37 9a       	sbi	0x06, 7	; 6
+  18:	08 95       	ret
+
+Disassembly of section .text.handle_packet:
+
+00000000 <handle_packet>:
+   0:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+   4:	83 30       	cpi	r24, 0x03	; 3
+   6:	01 f0       	breq	.+0      	; 0x8 <handle_packet+0x8>
+   8:	84 30       	cpi	r24, 0x04	; 4
+   a:	01 f0       	breq	.+0      	; 0xc <handle_packet+0xc>
+   c:	82 30       	cpi	r24, 0x02	; 2
+   e:	01 f0       	breq	.+0      	; 0x10 <handle_packet+0x10>
+  10:	08 95       	ret
+  12:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  16:	81 30       	cpi	r24, 0x01	; 1
+  18:	01 f4       	brne	.+0      	; 0x1a <handle_packet+0x1a>
+  1a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  1e:	88 23       	and	r24, r24
+  20:	01 f0       	breq	.+0      	; 0x22 <handle_packet+0x22>
+  22:	c1 9a       	sbi	0x18, 1	; 24
+  24:	08 95       	ret
+  26:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  2a:	81 30       	cpi	r24, 0x01	; 1
+  2c:	01 f0       	breq	.+0      	; 0x2e <handle_packet+0x2e>
+  2e:	81 e0       	ldi	r24, 0x01	; 1
+  30:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  34:	37 9a       	sbi	0x06, 7	; 6
+  36:	08 95       	ret
+  38:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  3c:	84 30       	cpi	r24, 0x04	; 4
+  3e:	01 f4       	brne	.+0      	; 0x40 <handle_packet+0x40>
+  40:	00 c0       	rjmp	.+0      	; 0x42 <handle_packet+0x42>
+  42:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  46:	8f 7d       	andi	r24, 0xDF	; 223
+  48:	87 b9       	out	0x07, r24	; 7
+  4a:	00 c0       	rjmp	.+0      	; 0x4c <handle_packet+0x4c>
+  4c:	c1 98       	cbi	0x18, 1	; 24
+  4e:	08 95       	ret
+
+Disassembly of section .text.read_packet:
+
+00000000 <read_packet>:
+   0:	0f 93       	push	r16
+   2:	1f 93       	push	r17
+   4:	cf 93       	push	r28
+   6:	df 93       	push	r29
+   8:	00 c0       	rjmp	.+0      	; 0xa <read_packet+0xa>
+   a:	85 b7       	in	r24, 0x35	; 53
+   c:	8f 78       	andi	r24, 0x8F	; 143
+   e:	85 bf       	out	0x35, r24	; 53
+  10:	85 b7       	in	r24, 0x35	; 53
+  12:	80 68       	ori	r24, 0x80	; 128
+  14:	85 bf       	out	0x35, r24	; 53
+  16:	88 95       	sleep
+  18:	80 e0       	ldi	r24, 0x00	; 0
+  1a:	90 e0       	ldi	r25, 0x00	; 0
+  1c:	00 d0       	rcall	.+0      	; 0x1e <read_packet+0x1e>
+  1e:	88 23       	and	r24, r24
+  20:	01 f0       	breq	.+0      	; 0x22 <read_packet+0x22>
+  22:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  26:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  2a:	00 c0       	rjmp	.+0      	; 0x2c <read_packet+0x2c>
+  2c:	85 b7       	in	r24, 0x35	; 53
+  2e:	8f 78       	andi	r24, 0x8F	; 143
+  30:	85 bf       	out	0x35, r24	; 53
+  32:	85 b7       	in	r24, 0x35	; 53
+  34:	80 68       	ori	r24, 0x80	; 128
+  36:	85 bf       	out	0x35, r24	; 53
+  38:	88 95       	sleep
+  3a:	80 e0       	ldi	r24, 0x00	; 0
+  3c:	90 e0       	ldi	r25, 0x00	; 0
+  3e:	00 d0       	rcall	.+0      	; 0x40 <read_packet+0x40>
+  40:	88 23       	and	r24, r24
+  42:	01 f0       	breq	.+0      	; 0x44 <read_packet+0x44>
+  44:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  48:	80 93 00 00 	sts	0x0000, r24	; 0x800000 <__SREG__+0x7fffc1>
+  4c:	87 30       	cpi	r24, 0x07	; 7
+  4e:	00 f4       	brcc	.+0      	; 0x50 <read_packet+0x50>
+  50:	88 23       	and	r24, r24
+  52:	01 f0       	breq	.+0      	; 0x54 <read_packet+0x54>
+  54:	c0 e0       	ldi	r28, 0x00	; 0
+  56:	d0 e0       	ldi	r29, 0x00	; 0
+  58:	0e ef       	ldi	r16, 0xFE	; 254
+  5a:	1f ef       	ldi	r17, 0xFF	; 255
+  5c:	00 50       	subi	r16, 0x00	; 0
+  5e:	10 40       	sbci	r17, 0x00	; 0
+  60:	00 c0       	rjmp	.+0      	; 0x62 <read_packet+0x62>
+  62:	85 b7       	in	r24, 0x35	; 53
+  64:	8f 78       	andi	r24, 0x8F	; 143
+  66:	85 bf       	out	0x35, r24	; 53
+  68:	85 b7       	in	r24, 0x35	; 53
+  6a:	80 68       	ori	r24, 0x80	; 128
+  6c:	85 bf       	out	0x35, r24	; 53
+  6e:	88 95       	sleep
+  70:	80 e0       	ldi	r24, 0x00	; 0
+  72:	90 e0       	ldi	r25, 0x00	; 0
+  74:	00 d0       	rcall	.+0      	; 0x76 <read_packet+0x76>
+  76:	88 23       	and	r24, r24
+  78:	01 f0       	breq	.+0      	; 0x7a <read_packet+0x7a>
+  7a:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  7e:	89 93       	st	Y+, r24
+  80:	20 91 00 00 	lds	r18, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  84:	c8 01       	movw	r24, r16
+  86:	8c 0f       	add	r24, r28
+  88:	9d 1f       	adc	r25, r29
+  8a:	28 17       	cp	r18, r24
+  8c:	19 06       	cpc	r1, r25
+  8e:	01 f0       	breq	.+0      	; 0x90 <read_packet+0x90>
+  90:	04 f4       	brge	.+0      	; 0x92 <read_packet+0x92>
+  92:	df 91       	pop	r29
+  94:	cf 91       	pop	r28
+  96:	1f 91       	pop	r17
+  98:	0f 91       	pop	r16
+  9a:	00 c0       	rjmp	.+0      	; 0x9c <read_packet+0x9c>
+  9c:	d0 e0       	ldi	r29, 0x00	; 0
+  9e:	c0 e0       	ldi	r28, 0x00	; 0
+  a0:	00 c0       	rjmp	.+0      	; 0xa2 <read_packet+0xa2>
+  a2:	85 b7       	in	r24, 0x35	; 53
+  a4:	8f 78       	andi	r24, 0x8F	; 143
+  a6:	85 bf       	out	0x35, r24	; 53
+  a8:	85 b7       	in	r24, 0x35	; 53
+  aa:	80 68       	ori	r24, 0x80	; 128
+  ac:	85 bf       	out	0x35, r24	; 53
+  ae:	88 95       	sleep
+  b0:	80 e0       	ldi	r24, 0x00	; 0
+  b2:	90 e0       	ldi	r25, 0x00	; 0
+  b4:	00 d0       	rcall	.+0      	; 0xb6 <read_packet+0xb6>
+  b6:	88 23       	and	r24, r24
+  b8:	01 f0       	breq	.+0      	; 0xba <read_packet+0xba>
+  ba:	21 96       	adiw	r28, 0x01	; 1
+  bc:	80 91 00 00 	lds	r24, 0x0000	; 0x800000 <__SREG__+0x7fffc1>
+  c0:	8c 17       	cp	r24, r28
+  c2:	1d 06       	cpc	r1, r29
+  c4:	01 f0       	breq	.+0      	; 0xc6 <read_packet+0xc6>
+  c6:	04 f4       	brge	.+0      	; 0xc8 <read_packet+0xc8>
+  c8:	df 91       	pop	r29
+  ca:	cf 91       	pop	r28
+  cc:	1f 91       	pop	r17
+  ce:	0f 91       	pop	r16
+  d0:	08 95       	ret
+
+Disassembly of section .text.startup.main:
+
+00000000 <main>:
+   0:	8e e2       	ldi	r24, 0x2E	; 46
+   2:	87 bb       	out	0x17, r24	; 23
+   4:	83 ed       	ldi	r24, 0xD3	; 211
+   6:	8d b9       	out	0x0d, r24	; 13
+   8:	00 d0       	rcall	.+0      	; 0xa <main+0xa>
+   a:	1b b8       	out	0x0b, r1	; 11
+   c:	88 ef       	ldi	r24, 0xF8	; 248
+   e:	8a b9       	out	0x0a, r24	; 10
+  10:	86 e8       	ldi	r24, 0x86	; 134
+  12:	80 bd       	out	0x20, r24	; 32
+  14:	10 bc       	out	0x20, r1	; 32
+  16:	83 e3       	ldi	r24, 0x33	; 51
+  18:	89 b9       	out	0x09, r24	; 9
+  1a:	80 e2       	ldi	r24, 0x20	; 32
+  1c:	87 b9       	out	0x07, r24	; 7
+  1e:	8e e0       	ldi	r24, 0x0E	; 14
+  20:	86 b9       	out	0x06, r24	; 6
+  22:	10 be       	out	0x30, r1	; 48
+  24:	00 d0       	rcall	.+0      	; 0x26 <main+0x26>
+  26:	00 d0       	rcall	.+0      	; 0x28 <main+0x28>
+  28:	00 c0       	rjmp	.+0      	; 0x2a <adc_en+0x20>
