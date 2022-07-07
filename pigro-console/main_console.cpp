@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
         }
         else if ( strcmp(argv[i], "-q") == 0 )
         {
-            pigro.setVerbose(true);
+            pigro.setVerbose(false);
         }
     }
 

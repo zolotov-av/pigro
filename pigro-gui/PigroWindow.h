@@ -37,6 +37,7 @@ private slots:
     void endProgress();
 
     void chipInfo(const QString &info);
+    void dataReady();
 
 public:
 

@@ -65,8 +65,14 @@ public:
 
     AvrDeviceInfo avr;
 
-    AVR(PigroLink *link);
-    ~AVR() override;
+    AVR(PigroLink *link, Pigro *owner);
+    AVR(const AVR &) = delete;
+    AVR(AVR &&) = delete;
+
+    ~AVR();
+
+    AVR& operator = (const AVR &) = delete;
+    AVR& operator = (AVR &&) = delete;
 
     /**
      * @brief Управление линией RESET программируемого контроллера
@@ -260,7 +266,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            link->reportMessage(QStringLiteral("write device's low fuse bits %1").arg(status));
+            reportMessage(QStringLiteral("write device's low fuse bits %1").arg(status));
         }
     }
 
@@ -272,7 +278,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            link->reportMessage(QStringLiteral("write device's high fuse bits %1").arg(status));
+            reportMessage(QStringLiteral("write device's high fuse bits %1").arg(status));
         }
     }
 
@@ -284,7 +290,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            link->reportMessage(QStringLiteral("write device's extended fuse bits %1").arg(status));
+            reportMessage(QStringLiteral("write device's extended fuse bits %1").arg(status));
         }
     }
 

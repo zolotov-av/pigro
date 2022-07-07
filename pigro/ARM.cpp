@@ -7,6 +7,11 @@ static void not_implemented_yet(const std::string &func)
     throw nano::exception(func + " not implemented yet...");
 }
 
+ARM::ARM(PigroLink *link, Pigro *owner): PigroDriver(link, owner)
+{
+
+}
+
 ARM::~ARM()
 {
 
@@ -136,7 +141,7 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
 
     unlock_fpec();
 
-    link->reportMessage("TODO check chip info...");
+    reportMessage("TODO check chip info...");
     /* TODO:
     auto signature = isp_chip_info();
     if ( signature != avr.signature )
@@ -192,7 +197,7 @@ void ARM::isp_chip_erase()
 
     unlock_fpec();
 
-    link->reportMessage("TODO check chip info...");
+    reportMessage("TODO check chip info...");
     /* TODO:
     auto signature = isp_chip_info();
     if ( signature != avr.signature )

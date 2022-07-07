@@ -71,25 +71,12 @@ void PigroWindow::readFirmware()
         }
     }
 
-    if ( !file.open(QIODevice::WriteOnly | QIODevice::Truncate) )
-    {
-        QMessageBox::information(this, tr("Read Firmware error"), tr("Cannot open file: %1").arg(file.fileName()));
-        return;
-    }
-
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
     link->setTTY(dev);
-    {
-        link->loadConfig(ui.lePigroIniPath->text());
-        const auto firmware = link->readFirmware();
-        link->close();
-
-        QTextStream ts(&file);
-        firmware.saveToTextStream(ts);
-    }
-
+    link->setProjectPath(ui.lePigroIniPath->text());
+    link->readFirmware();
 }
 
 void PigroWindow::checkFirmware()
@@ -189,6 +176,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
     connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress);
     connect(link, &PigroApp::chipInfo, this, &PigroWindow::chipInfo);
+    connect(link, &PigroApp::dataReady, this, &PigroWindow::dataReady);
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
     connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::openPigroIni);
@@ -214,4 +202,19 @@ PigroWindow::~PigroWindow()
 void PigroWindow::chipInfo(const QString &info)
 {
     ui.leChipModel->setText(info);
+}
+
+void PigroWindow::dataReady()
+{
+    const auto firmware = link->getFirmwareData();
+
+    QFile file(ui.leReadFilePath->text());
+    if ( !file.open(QIODevice::WriteOnly | QIODevice::Truncate) )
+    {
+        QMessageBox::information(this, tr("Read Firmware error"), tr("Cannot open file: %1").arg(file.fileName()));
+        return;
+    }
+
+    QTextStream ts(&file);
+    firmware.saveToTextStream(ts);
 }

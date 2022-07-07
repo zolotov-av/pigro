@@ -2,7 +2,7 @@
 #define PIGROCONSOLE_H
 
 #include <QObject>
-#include <pigro/PigroApp.h>
+#include <pigro/Pigro.h>
 
 enum PigroAction {
     AT_ACT_INFO,
@@ -21,25 +21,19 @@ class PigroConsole final: public QObject
 
 private:
 
-    PigroApp *link { new PigroApp(this) };
-
-    QString m_tty { QStringLiteral("/dev/ttyUSB0")};
-    QString m_pigro_ini { QStringLiteral("pigro.ini") };
+    Pigro *pigro { new Pigro(this) };
 
     PigroAction m_action;
-
-    bool m_verbose { false };
 
     /**
      * Запус команды
      */
-    int execute(PigroAction action);
+    void execute(PigroAction action);
 
 private slots:
 
-    void pigroStarted();
-    void pigroStopped();
     void sessionStarted(int major, int minor);
+    void sessionStopped();
     void reportMessage(const QString &message);
 
 public:
@@ -53,21 +47,11 @@ public:
     PigroConsole& operator = (const PigroConsole &) = delete;
     PigroConsole& operator = (PigroConsole &&) = delete;
 
-    bool verbose() const { return m_verbose; }
+    bool verbose() const { return pigro->verbose(); }
 
     void setVerbose(bool value)
     {
-        m_verbose = value;
-    }
-
-    void setTTY(const QString &dev)
-    {
-        m_tty = dev;
-    }
-
-    void setPigroIniPath(const QString &path)
-    {
-        m_pigro_ini = path;
+        pigro->setVerbose(value);
     }
 
     int exec(PigroAction action);

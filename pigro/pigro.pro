@@ -11,10 +11,10 @@ SOURCES += \
     DeviceInfo.cpp \
     FirmwareData.cpp \
     FirmwareInfo.cpp \
+    Pigro.cpp \
     PigroApp.cpp \
     PigroDriver.cpp \
     PigroLink.cpp \
-    PigroPrivate.cpp \
     nano/config.cpp \
     nano/ini.cpp \
     nano/map.cpp \
@@ -32,10 +32,10 @@ HEADERS += \
     DeviceInfo.h \
     FirmwareData.h \
     FirmwareInfo.h \
+    Pigro.h \
     PigroApp.h \
     PigroDriver.h \
     PigroLink.h \
-    PigroPrivate.h \
     nano/config.h \
     nano/ini.h \
     nano/map.h \

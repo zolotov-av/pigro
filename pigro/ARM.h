@@ -50,8 +50,14 @@ public:
 
     ArmDeviceInfo arm;
 
-    ARM(PigroLink *link): PigroDriver(link) { }
-    ~ARM() override;
+    ARM(PigroLink *link, Pigro *owner);
+    ARM(const ARM &) = delete;
+    ARM(ARM &&) = delete;
+
+    ~ARM();
+
+    ARM& operator = (const ARM &) = delete;
+    ARM& operator = (ARM &&) = delete;
 
     /**
      * Error code

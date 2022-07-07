@@ -10,61 +10,48 @@
 #include <nano/exception.h>
 #include <nano/config.h>
 
+#include "FirmwareInfo.h"
 #include "FirmwareData.h"
 #include "PigroLink.h"
 
+class Pigro;
+
 class PigroDriver
 {
+private:
+
+    Pigro *m_owner {nullptr};
+    PigroLink *m_link {nullptr};
+
+    FirmwareInfo m_firmware_info;
+
 protected:
 
-    PigroLink *link;
-
-public:
-
-    PigroDriver(PigroLink *pl): link(pl) { }
-    virtual ~PigroDriver() { }
-
-    bool verbose() const { return link->verbose(); }
-
-    std::string get_option(const std::string &name, const std::string &default_value = {})
+    std::string get_option(const std::string &name, const std::string &default_value = {}) const
     {
-        return link->get_option(name, default_value);
+        return m_firmware_info.projectInfo.value(name, default_value);
     }
 
     const nano::options& chip_info() const
     {
-        return link->chip_info();
+        return m_firmware_info.m_chip_info;
     }
 
-    void info(const char *msg) const
-    {
-        if ( verbose() )
-        {
-            link->reportMessage(QStringLiteral("info: %1").arg(msg));
-        }
-    }
-
-    void warn(const char *msg)
-    {
-        link->reportMessage(QStringLiteral("warn: %1").arg(msg));
-    }
-
+    void info(const char *msg) const;
+    void warn(const char *msg);
     void warn(const std::string &msg)
     {
         warn( msg.c_str() );
     }
 
-    void error(const char *msg) const
-    {
-        link->reportMessage(QStringLiteral("error: %1").arg(msg));
-    }
+    void error(const char *msg) const;
 
     /**
      * Отправить пакет данных
      */
     bool send_packet(const packet_t &pkt)
     {
-        return link->send_packet(&pkt);
+        return m_link->send_packet(&pkt);
     }
 
     /**
@@ -72,10 +59,10 @@ public:
      */
     void recv_packet(packet_t &pkt)
     {
-        return link->recv_packet(&pkt);
+        return m_link->recv_packet(&pkt);
     }
 
-    void dump_packet(const char *message, const packet_t &pkt)
+    static void dump_packet(const char *message, const packet_t &pkt)
     {
         printf("%s [cmd=0x%02X]:", message, pkt.cmd);
         for(uint8_t i = 0; i < pkt.len; i++)
@@ -83,6 +70,42 @@ public:
             printf(" 0x%02X", pkt.data[i]);
         }
         printf("\n");
+    }
+
+    void beginProgress(int min, int max);
+    void reportProgress(int value);
+    void reportMessage(const QString &message);
+    void endProgress();
+
+public:
+
+    bool verbose() const
+    {
+        return m_firmware_info.verbose;
+    }
+
+    const FirmwareInfo& firmwareInfo() const
+    {
+        return m_firmware_info;
+    }
+
+    PigroDriver(PigroLink *link, Pigro *owner);
+    PigroDriver(const PigroDriver &) = delete;
+    PigroDriver(PigroDriver &&) = delete;
+
+    virtual ~PigroDriver();
+
+    PigroDriver& operator = (const PigroDriver &) = delete;
+    PigroDriver& operator = (PigroDriver &&) = delete;
+
+    void setVerbose(bool value)
+    {
+        m_firmware_info.verbose = value;
+    }
+
+    void setFirmwareInfo(const FirmwareInfo &info)
+    {
+        m_firmware_info = info;
     }
 
     virtual uint32_t page_size() const = 0;

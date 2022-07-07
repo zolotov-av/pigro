@@ -4,7 +4,7 @@
 #include <QCoreApplication>
 #include <vector>
 
-AVR::AVR(PigroLink *link): PigroDriver(link)
+AVR::AVR(PigroLink *link, Pigro *owner): PigroDriver(link, owner)
 {
     trace::log("AVR driver created");
 }
@@ -64,7 +64,7 @@ FirmwareData AVR::readFirmware()
 
         printf("saveFirmwareToFile() page_word_size=%u page_count=%u \n", avr.page_word_size, avr.page_count);
 
-        link->beginProgress(0, avr.flash_size() - 1);
+        beginProgress(0, avr.flash_size() - 1);
 
         const unsigned page_size = avr.page_byte_size();
 
@@ -78,18 +78,18 @@ FirmwareData AVR::readFirmware()
             {
                 uint32_t addr = page.addr + ibyte;
                 page.data[ibyte] = isp_read_memory(addr);
-                link->reportProgress(addr);
+                reportProgress(addr);
                 QCoreApplication::processEvents();
             }
 
             firmware.emplace(page.addr, page);
         }
 
-        link->endProcess();
+        endProgress();
     }
     catch (...)
     {
-        link->endProcess();
+        endProgress();
         isp_program_disable();
         throw;
     }
@@ -112,13 +112,13 @@ bool AVR::check_firmware(const FirmwareData &pages, bool verbose)
             char line[128];
             const char *page_status = page_ok ? "ok" : "out of range [fail]";
             const auto line_size = snprintf(line, sizeof(line), "PAGE[0x%05X] - %s", page_addr, page_status);
-            link->reportMessage(QString::fromUtf8(line, line_size));
+            reportMessage(QString::fromUtf8(line, line_size));
         }
     }
     if ( verbose )
     {
         const char *status_str = status ? "[ ok ]" : "[fail]";
-        link->reportMessage(QStringLiteral("overall status %1").arg(status_str));
+        reportMessage(QStringLiteral("overall status %1").arg(status_str));
     }
     return status;
 }
@@ -140,7 +140,7 @@ void AVR::check_fuse()
     }
     else status = " NA ";
     line_size = snprintf(line, sizeof(line), "fuse low:  0x%02X [%s]", fuse_lo, status);
-    link->reportMessage(QString::fromUtf8(line, line_size));
+    reportMessage(QString::fromUtf8(line, line_size));
 
     if ( auto s = get_option("fuse_high"); !s.empty() )
     {
@@ -149,7 +149,7 @@ void AVR::check_fuse()
     }
     else status = " NA ";
     line_size = snprintf(line, sizeof(line), "fuse high: 0x%02X [%s]", fuse_hi, status);
-    link->reportMessage(QString::fromUtf8(line, line_size));
+    reportMessage(QString::fromUtf8(line, line_size));
 
     if ( auto s = get_option("fuse_ext"); !s.empty() )
     {
@@ -158,7 +158,7 @@ void AVR::check_fuse()
     }
     else status = " NA ";
     line_size = snprintf(line, sizeof(line), "fuse ext:  0x%02X [%s]", fuse_ex, status);
-    link->reportMessage(QString::fromUtf8(line, line_size));
+    reportMessage(QString::fromUtf8(line, line_size));
 }
 
 void AVR::action_test()
@@ -218,7 +218,7 @@ void AVR::isp_stat_firmware(const FirmwareData &pages)
 
 void AVR::isp_check_firmware(const FirmwareData &pages)
 {
-    link->reportMessage("AVR::isp_check_firmware()");
+    reportMessage("AVR::isp_check_firmware()");
 
     isp_program_enable();
 
@@ -244,7 +244,7 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
             if ( page.data[i] != byte ) differs = true;
             if ( counter == 0x1F )
             {
-                link->reportMessage(QString::fromUtf8(line, line_offset));
+                reportMessage(QString::fromUtf8(line, line_offset));
             }
             counter = (counter + 1) & 0x1F;
         }
@@ -254,17 +254,17 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
 
     if ( differs )
     {
-        link->reportMessage("[ FAIL ] firmware is different");
+        reportMessage("[ FAIL ] firmware is different");
     }
     else
     {
-        link->reportMessage("[ OK ] firmware is same");
+        reportMessage("[ OK ] firmware is same");
     }
 }
 
 void AVR::isp_write_firmware(const FirmwareData &pages)
 {
-    link->reportMessage("AVR::isp_write_firmware()");
+    reportMessage("AVR::isp_write_firmware()");
 
     if ( !check_firmware(pages, false) )
     {
@@ -304,7 +304,7 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
             line[line_len++] = '.';
             if ( counter == 0x1F )
             {
-                link->reportMessage(QString::fromUtf8(line, line_len));
+                reportMessage(QString::fromUtf8(line, line_len));
             }
             counter = (counter + 1) & 0x1F;
         }
@@ -313,7 +313,7 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
 
     isp_program_disable();
 
-    link->reportMessage("[ DONE ]");
+    reportMessage("[ DONE ]");
 }
 
 void AVR::isp_read_fuse()
@@ -331,7 +331,7 @@ void AVR::isp_read_fuse()
 
 void AVR::isp_write_fuse()
 {
-    link->reportMessage("AVR::isp_write_fuse()");
+    reportMessage("AVR::isp_write_fuse()");
 
     isp_program_enable();
 
@@ -363,7 +363,7 @@ void AVR::isp_write_fuse()
 
 void AVR::isp_chip_erase()
 {
-    link->reportMessage("AVR::isp_chip_erase()");
+    reportMessage("AVR::isp_chip_erase()");
 
     isp_program_enable();
 
@@ -371,5 +371,5 @@ void AVR::isp_chip_erase()
 
     isp_program_disable();
 
-    link->reportMessage("[ DONE ]");
+    reportMessage("[ DONE ]");
 }

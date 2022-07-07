@@ -1,5 +1,6 @@
 #include "PigroLink.h"
-#include "PigroApp.h"
+#include "Pigro.h"
+#include <nano/exception.h>
 #include "trace.h"
 
 constexpr uint8_t PKT_ACK = 1;
@@ -57,8 +58,6 @@ void PigroLink::checkProtoVersion()
             nack_support = true;
             m_protoVersionMajor = pkt.data[0];
             m_protoVersionMinor = pkt.data[1];
-            emit m_app->sessionStarted(protoVersionMajor(), protoVersionMinor());
-            info("new protocol");
             return;
         }
         else
@@ -70,8 +69,20 @@ void PigroLink::checkProtoVersion()
     nack_support = false;
     m_protoVersionMajor = 0;
     m_protoVersionMinor = 1;
-    emit m_app->sessionStarted(protoVersionMajor(), protoVersionMinor());
-    warn("old protocol, update pigro's firmware");
+}
+
+void PigroLink::serialErrorOccurred(QSerialPort::SerialPortError error)
+{
+    if ( error == QSerialPort::NoError )
+    {
+        trace::log(QStringLiteral("PigroLink::serialErrorOccurred(NoError): %1").arg(serial->errorString()));
+        return;
+    }
+
+    const std::string error_message = serial->errorString().toStdString();
+    char buf[128];
+    const int len = snprintf(buf, sizeof(buf), "serial port error: %s", error_message.c_str());
+    emit errorOccurred(QString::fromUtf8(buf, len));
 }
 
 bool PigroLink::send_packet(const packet_t *pkt)
@@ -111,37 +122,16 @@ void PigroLink::recv_packet(packet_t *pkt)
     }
 }
 
-void PigroLink::info(const char *message)
+PigroLink::PigroLink(QObject *parent): QObject(parent)
 {
-    if ( verbose() )
-    {
-        emit m_app->reportMessage(tr("info: ") + tr(message));
-    }
-}
+    connect(serial, &QSerialPort::errorOccurred, this, &PigroLink::serialErrorOccurred, Qt::DirectConnection);
 
-void PigroLink::warn(const char *message)
-{
-    emit m_app->reportMessage(tr("warn: ") + tr(message));
-}
-
-void PigroLink::error(const char *message)
-{
-    emit m_app->reportMessage(tr("error: ") + tr(message));
-}
-
-PigroLink::PigroLink(PigroApp *parent): QObject(parent), m_app(parent)
-{
-    trace::log("PigroLink create");
-}
-
-PigroLink::PigroLink(PigroApp *app, QObject *parent): QObject(parent), m_app(app)
-{
-    trace::log("PigroLink(app, parent) create");
+    trace::log("PigroLink created");
 }
 
 PigroLink::~PigroLink()
 {
-    trace::log("PigroLink destroy");
+    trace::log("PigroLink destroyed");
 }
 
 QString PigroLink::protoVersion() const
@@ -156,9 +146,9 @@ QString PigroLink::protoVersion() const
     }
 }
 
-bool PigroLink::open()
+bool PigroLink::open(const QString &tty)
 {
-    serial->setPortName(m_tty);
+    serial->setPortName(tty);
     serial->setBaudRate(QSerialPort::Baud9600);
     serial->setDataBits(QSerialPort::Data8);
     if ( serial->open(QIODevice::ReadWrite) )
@@ -167,23 +157,24 @@ bool PigroLink::open()
         try
         {
             checkProtoVersion();
+            emit sessionStarted(protoVersionMajor(), protoVersionMinor());
             return true;
         }
         catch (const std::exception &e)
         {
             serial->close();
-            emit m_app->reportMessage(QStringLiteral("error: %1").arg(e.what()));
+            emit errorOccurred(QStringLiteral("error: %1").arg(e.what()));
             return false;
         }
         catch (...)
         {
             serial->close();
-            emit m_app->reportMessage(QStringLiteral("unknown exception"));
+            emit errorOccurred(QStringLiteral("unknown exception"));
             return false;
         }
     }
 
-    emit m_app->reportMessage(QStringLiteral("Unable open serial port: ").append(serial->errorString()));
+    emit errorOccurred(QStringLiteral("Unable open serial port: ").append(serial->errorString()));
     return false;
 }
 
@@ -191,28 +182,8 @@ void PigroLink::close()
 {
     if ( serial->isOpen() )
     {
+        emit sessionStopped();
         serial->close();
         trace::log(QStringLiteral("PigroLink %1 closed").arg(serial->portName()));
     }
 }
-
-void PigroLink::beginProgress(int min, int max)
-{
-    emit m_app->beginProgress(min, max);
-}
-
-void PigroLink::reportProgress(int value)
-{
-    emit m_app->reportProgress(value);
-}
-
-void PigroLink::reportMessage(const QString &message)
-{
-    emit m_app->reportMessage(message);
-}
-
-void PigroLink::endProcess()
-{
-    emit m_app->endProgress();
-}
-
