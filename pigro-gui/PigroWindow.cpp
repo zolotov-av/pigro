@@ -7,6 +7,21 @@
 #include <QMessageBox>
 #include <QSerialPortInfo>
 
+void PigroWindow::actionOpenProject()
+{
+    QFileDialog dialog;
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setNameFilter(tr("pigro.ini (pigro.ini);;INI (*.ini);;All files (*.*)"));
+    if ( dialog.exec() )
+    {
+        const auto fileNames = dialog.selectedFiles();
+        const QString path = fileNames.at(0);
+        ui.lePigroIniPath->setText(path);
+        QSettings().setValue("pigro.ini", path);
+        link->setProjectPath(path);
+    }
+}
+
 void PigroWindow::pigroStarted()
 {
     ui.leState->setText(tr("running"));
@@ -29,20 +44,6 @@ void PigroWindow::refreshTty()
     for(const auto &port : ports)
     {
         ui.cbTty->addItem(QStringLiteral("%1 (%2)").arg(port.portName(), port.systemLocation()), port.systemLocation());
-    }
-}
-
-void PigroWindow::openPigroIni()
-{
-    QFileDialog dialog;
-    dialog.setFileMode(QFileDialog::ExistingFile);
-    dialog.setNameFilter(tr("pigro.ini (pigro.ini);;INI (*.ini);;All files (*.*)"));
-    if ( dialog.exec() )
-    {
-        const auto fileNames = dialog.selectedFiles();
-        const QString path = fileNames.at(0);
-        ui.lePigroIniPath->setText(path);
-        QSettings().setValue("pigro.ini", path);
     }
 }
 
@@ -178,8 +179,10 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::chipInfo, this, &PigroWindow::chipInfo);
     connect(link, &PigroApp::dataReady, this, &PigroWindow::dataReady);
 
+    connect(ui.actionOpenProject, &QAction::triggered, this, &PigroWindow::actionOpenProject);
+
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
-    connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::openPigroIni);
+    connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::actionOpenProject);
     connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
     connect(ui.pbExportFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
     connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);

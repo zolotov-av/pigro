@@ -17,12 +17,13 @@ private:
 
 private slots:
 
+    void actionOpenProject();
+
     void pigroStarted();
     void pigroStopped();
     void sessionStarted(int major, int minor);
 
     void refreshTty();
-    void openPigroIni();
     void openExportFile();
     void readFirmware();
     void checkFirmware();
