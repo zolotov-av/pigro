@@ -6,7 +6,7 @@
 
 void FirmwareInfo::loadFromFile(const QString &path)
 {
-    projectInfo = nano::IniReader<512>(path.toStdString()).data.at("main");
+    projectInfo = nano::IniReader(path).data.at("main");
 
     if ( const std::string output = projectInfo.value("output", "quiet"); output == "verbose" )
     {

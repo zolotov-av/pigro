@@ -21,7 +21,6 @@ SOURCES += \
     nano/math.cpp \
     nano/string.cpp \
     nano/IniReader.cpp \
-    nano/TextReader.cpp \
     nano/exception.cpp \
     IntelHEX.cpp \
     trace.cpp
@@ -42,7 +41,6 @@ HEADERS += \
     nano/math.h \
     nano/string.h \
     nano/IniReader.h \
-    nano/TextReader.h \
     nano/exception.h \
     IntelHEX.h \
     trace.h

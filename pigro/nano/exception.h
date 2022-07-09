@@ -1,6 +1,7 @@
 #ifndef EXCEPTION_H
 #define EXCEPTION_H
 
+#include <QString>
 #include <string>
 #include <exception>
 #include <iostream>
@@ -18,7 +19,9 @@ namespace nano
 
     public:
 
-        exception(const std::string &msg): m_message(msg) { }
+        explicit exception(const char *msg): m_message(msg) { }
+        explicit exception(const std::string &msg): m_message(msg) { }
+        explicit exception(const QString &msg): m_message(msg.toStdString()) { }
 
         std::string message() const { return m_message; }
 

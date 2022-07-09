@@ -11,10 +11,9 @@ namespace nano
     {
     public:
 
-        template <int linesize = 512>
         static config loadFromFile(const string &path)
         {
-            return IniReader<linesize>(path).data;
+            return IniReader(QString::fromStdString(path)).data;
         }
 
     };
