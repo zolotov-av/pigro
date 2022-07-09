@@ -17,8 +17,8 @@ void FirmwareInfo::loadFromFile(const QString &path)
         verbose = false;
     }
 
-    device = projectInfo.value("device");
-    if ( device.empty() )
+    device = QString::fromStdString(projectInfo.value("device"));
+    if ( device.isEmpty() )
     {
         throw nano::exception("specify device (pigro.ini)");
     }
@@ -40,10 +40,10 @@ void FirmwareInfo::loadFromFile(const QString &path)
 
     hexFilePath = QFileInfo(path).dir().filePath(hexFileName);
 
-    device_type = m_chip_info.value("type", "avr");
+    device_type = QString::fromStdString(m_chip_info.value("type", "avr"));
     if ( verbose )
     {
-        std::cout << "device: " << device << " (" << device_type << ")\n";
+        //std::cout << "device: " << device << " (" << device_type << ")\n";
         std::cout << "device name: " << m_chip_info.value("name") << "\n";
         //std::cout << "flash_size: " << ((m_chip_info.flash_size()+1023) / 1024) << "k\n";
         std::cout << "hex_file: " << hexFilePath.toStdString() << "\n";

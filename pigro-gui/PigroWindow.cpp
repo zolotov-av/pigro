@@ -17,6 +17,27 @@ void PigroWindow::setButtonsEnabled(bool value)
     ui.pbWriteFuse->setEnabled(value);
 }
 
+void PigroWindow::openProject(const QString &path)
+{
+    firmwareInfo.loadFromFile(path);
+
+    if ( firmwareInfo.m_chip_info.have("name") )
+    {
+        const QString chipName = QString::fromStdString(firmwareInfo.m_chip_info.value("name"));
+        ui.leChipName->setText(QStringLiteral("%1 (%2)").arg(chipName, firmwareInfo.device_type));
+
+    }
+    else
+    {
+        ui.leChipName->setText(QStringLiteral("%1 (%2)").arg(firmwareInfo.device, firmwareInfo.device_type));
+
+    }
+    ui.leHexFile->setText(firmwareInfo.hexFileName);
+
+    ui.lePigroIniPath->setText(path);
+    link->setProjectPath(path);
+}
+
 void PigroWindow::actionOpenProject()
 {
     QFileDialog dialog;
@@ -26,20 +47,27 @@ void PigroWindow::actionOpenProject()
     {
         const auto fileNames = dialog.selectedFiles();
         const QString path = fileNames.at(0);
-        ui.lePigroIniPath->setText(path);
-        QSettings().setValue("pigro.ini", path);
-        link->setProjectPath(path);
+        try
+        {
+            openProject(path);
+
+            QSettings().setValue("pigro.ini", path);
+        }
+        catch (const std::exception &e)
+        {
+            QMessageBox::information(this, tr("Error"), tr("Fail to open project file: %1").arg(e.what()));
+        }
     }
 }
 
 void PigroWindow::pigroStarted()
 {
-    ui.leState->setText(tr("running"));
+    //ui.leState->setText(tr("running"));
 }
 
 void PigroWindow::pigroStopped()
 {
-    ui.leState->setText(tr("stopped"));
+    //ui.leState->setText(tr("stopped"));
 }
 
 void PigroWindow::sessionStarted(int major, int minor)
@@ -83,7 +111,6 @@ void PigroWindow::readFirmware()
     }
 
     const QString dev = ui.cbTty->currentData().toString();
-    ui.leDevicePath->setText(dev);
 
     setButtonsEnabled(false);
     link->setTTY(dev);
@@ -94,7 +121,6 @@ void PigroWindow::readFirmware()
 void PigroWindow::checkFirmware()
 {
     const QString dev = ui.cbTty->currentData().toString();
-    ui.leDevicePath->setText(dev);
 
     setButtonsEnabled(false);
     link->setTTY(dev);
@@ -105,7 +131,6 @@ void PigroWindow::checkFirmware()
 void PigroWindow::chipErase()
 {
     const QString dev = ui.cbTty->currentData().toString();
-    ui.leDevicePath->setText(dev);
 
     setButtonsEnabled(false);
     link->setTTY(dev);
@@ -116,7 +141,6 @@ void PigroWindow::chipErase()
 void PigroWindow::writeFirmware()
 {
     const QString dev = ui.cbTty->currentData().toString();
-    ui.leDevicePath->setText(dev);
 
     setButtonsEnabled(false);
     link->setTTY(dev);
@@ -127,7 +151,6 @@ void PigroWindow::writeFirmware()
 void PigroWindow::writeFuse()
 {
     const QString dev = ui.cbTty->currentData().toString();
-    ui.leDevicePath->setText(dev);
 
     setButtonsEnabled(false);
     link->setTTY(dev);
@@ -138,7 +161,6 @@ void PigroWindow::writeFuse()
 void PigroWindow::showInfo()
 {
     const QString dev = ui.cbTty->currentData().toString();
-    ui.leDevicePath->setText(dev);
 
     setButtonsEnabled(false);
     link->setTTY(dev);
@@ -183,11 +205,16 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
 {
     ui.setupUi(this);
 
-    ui.leState->setText(tr("init"));
-
     {
         QSettings settings;
-        ui.lePigroIniPath->setText(settings.value("pigro.ini").toString());
+        try
+        {
+            openProject(settings.value("pigro.ini").toString());
+        }
+        catch (...)
+        {
+            // ignore
+        }
         ui.leReadFilePath->setText(settings.value("ReadFilePath").toString());
     }
 
@@ -204,7 +231,6 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.actionOpenProject, &QAction::triggered, this, &PigroWindow::actionOpenProject);
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
-    connect(ui.pbOpenPigroIni, &QPushButton::clicked, this, &PigroWindow::actionOpenProject);
     connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
     connect(ui.pbExportFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
     connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);

@@ -15,9 +15,14 @@ private:
 
     PigroApp *link { new PigroApp(this) };
 
+    FirmwareInfo firmwareInfo;
+
     void setButtonsEnabled(bool value);
 
+    void openProject(const QString &path);
+
 private slots:
+
 
     void actionOpenProject();
 

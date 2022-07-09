@@ -11,10 +11,10 @@ public:
 
     bool verbose { false };
 
-    std::string device { };
+    QString device { };
     QString hexFileName { };
     QString hexFilePath { };
-    std::string device_type { };
+    QString device_type { };
 
     nano::options projectInfo { };
     nano::options m_chip_info { };
