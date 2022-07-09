@@ -11,9 +11,14 @@ namespace nano
     {
     public:
 
-        static config loadFromFile(const string &path)
+        static config loadFromFile(const std::string &path)
         {
             return IniReader(QString::fromStdString(path)).data;
+        }
+
+        static config loadFromFile(const QString &path)
+        {
+            return IniReader(path).data;
         }
 
     };
