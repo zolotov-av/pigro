@@ -225,6 +225,8 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
 {
     reportMessage("AVR::isp_check_firmware()");
 
+    beginProgress(0, pages.getDataSize());
+
     isp_program_enable();
 
     check_chip_info();
@@ -234,11 +236,22 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
     bool differs = false;
     char line[128];
     int line_offset = 0;
+    uint32_t pos = 0;
     for(const auto &[page_addr, page] : pages)
     {
         const size_t size = page.data.size();
         for(size_t i = 0; i < size; i++)
         {
+            if ( m_cancel )
+            {
+                isp_program_disable();
+                reportMessage("[ FAIL ] canceled");
+                endProgress();
+                throw nano::exception("canceled");
+            }
+
+            reportProgress(pos++);
+
             const uint32_t addr = page_addr + i;
             if ( counter == 0 )
             {
@@ -252,6 +265,9 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
                 reportMessage(QString::fromUtf8(line, line_offset));
             }
             counter = (counter + 1) & 0x1F;
+
+            reportProgress(addr);
+            QCoreApplication::processEvents();
         }
     }
 
@@ -265,6 +281,9 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
     {
         reportMessage("[ OK ] firmware is same");
     }
+
+    reportProgress(pos++);
+    endProgress();
 }
 
 void AVR::isp_write_firmware(const FirmwareData &pages)
@@ -277,6 +296,8 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
         check_firmware(pages, true);
         return;
     }
+
+    beginProgress(0, pages.getDataSize());
 
     isp_program_enable();
 
@@ -295,11 +316,20 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
     uint8_t counter = 0;
     char line[128];
     int line_len = 0;
+    uint32_t pos = 0;
     for(const auto &[page_addr, page] : pages)
     {
         const size_t size = page.data.size();
         for(size_t i = 0; i < size; i++)
         {
+            if ( m_cancel )
+            {
+                reportMessage("[ FAIL ] canceled");
+                endProgress();
+                throw nano::exception("canceled");
+            }
+
+            reportProgress(pos++);
             const uint32_t addr = page_addr + i;
             if ( counter == 0 )
             {
@@ -316,9 +346,12 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
         isp_write_memory_page(page_addr);
     }
 
+
+
     isp_program_disable();
 
     reportMessage("[ DONE ]");
+    endProgress();
 }
 
 void AVR::isp_read_fuse()
@@ -336,6 +369,8 @@ void AVR::isp_read_fuse()
 
 void AVR::isp_write_fuse()
 {
+    beginProgress(0, 1);
+    reportProgress(0);
     reportMessage("AVR::isp_write_fuse()");
 
     isp_program_enable();
@@ -364,6 +399,9 @@ void AVR::isp_write_fuse()
     }
 
     isp_program_disable();
+
+    reportProgress(1);
+    endProgress();
 }
 
 void AVR::isp_chip_erase()

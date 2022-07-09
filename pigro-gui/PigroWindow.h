@@ -15,6 +15,8 @@ private:
 
     PigroApp *link { new PigroApp(this) };
 
+    void setButtonsEnabled(bool value);
+
 private slots:
 
     void actionOpenProject();

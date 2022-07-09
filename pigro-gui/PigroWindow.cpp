@@ -7,6 +7,16 @@
 #include <QMessageBox>
 #include <QSerialPortInfo>
 
+void PigroWindow::setButtonsEnabled(bool value)
+{
+    ui.pbInfo->setEnabled(value);
+    ui.pbCheckFirmware->setEnabled(value);
+    ui.pbExportFirmware->setEnabled(value);
+    ui.pbChipErase->setEnabled(value);
+    ui.pbWriteFirmware->setEnabled(value);
+    ui.pbWriteFuse->setEnabled(value);
+}
+
 void PigroWindow::actionOpenProject()
 {
     QFileDialog dialog;
@@ -75,6 +85,7 @@ void PigroWindow::readFirmware()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
+    setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->readFirmware();
@@ -85,6 +96,7 @@ void PigroWindow::checkFirmware()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
+    setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execCheckFirmware();
@@ -95,6 +107,7 @@ void PigroWindow::chipErase()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
+    setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execChipErase();
@@ -105,6 +118,7 @@ void PigroWindow::writeFirmware()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
+    setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execWriteFirmware();
@@ -115,6 +129,7 @@ void PigroWindow::writeFuse()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
+    setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execWriteFuse();
@@ -125,6 +140,7 @@ void PigroWindow::showInfo()
     const QString dev = ui.cbTty->currentData().toString();
     ui.leDevicePath->setText(dev);
 
+    setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execChipInfo();
@@ -132,7 +148,8 @@ void PigroWindow::showInfo()
 
 void PigroWindow::beginProgress(int min, int max)
 {
-    //this->setEnabled(false);
+    setButtonsEnabled(false);
+
     ui.progressBar->setMinimum(min);
     ui.progressBar->setMaximum(max);
     ui.progressBar->setValue(min);
@@ -154,7 +171,12 @@ void PigroWindow::reportMessage(const QString &message)
 
 void PigroWindow::endProgress()
 {
-    this->setEnabled(true);
+    ui.pbInfo->setEnabled(true);
+    ui.pbCheckFirmware->setEnabled(true);
+    ui.pbExportFirmware->setEnabled(true);
+    ui.pbChipErase->setEnabled(true);
+    ui.pbWriteFirmware->setEnabled(true);
+    ui.pbWriteFuse->setEnabled(true);
 }
 
 PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)

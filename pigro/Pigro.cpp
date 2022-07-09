@@ -84,7 +84,9 @@ void Pigro::isp_chip_info(const QString tty, const QString project_path)
     emit reportMessage("Pigro::isp_chip_info()");
 
     const FirmwareInfo firmwareInfo{project_path};
-    const auto driver = lookupDriver(firmwareInfo);
+    driver = lookupDriver(firmwareInfo);
+
+    emit beginProgress(0, 100);
 
     if ( m_link->open(tty) )
     {
@@ -105,6 +107,9 @@ void Pigro::isp_chip_info(const QString tty, const QString project_path)
     }
 
     delete driver;
+    driver = nullptr;
+
+    emit endProgress();
 }
 
 void Pigro::isp_check_firmware(const QString tty, const QString project_path)
@@ -112,7 +117,7 @@ void Pigro::isp_check_firmware(const QString tty, const QString project_path)
     emit reportMessage("Pigro::isp_check_firmware()");
 
     const FirmwareInfo firmwareInfo{project_path};
-    const auto driver = lookupDriver(firmwareInfo);
+    driver = lookupDriver(firmwareInfo);
 
     if ( m_link->open(tty) )
     {
@@ -136,7 +141,9 @@ void Pigro::isp_check_firmware(const QString tty, const QString project_path)
         m_link->close();
     }
 
+    emit endProgress();
     delete driver;
+    driver = nullptr;
 }
 
 void Pigro::isp_write_firmware(const QString tty, const QString project_path)
@@ -144,7 +151,7 @@ void Pigro::isp_write_firmware(const QString tty, const QString project_path)
     trace::log("PigroPrivate::writeFirmware()");
 
     const FirmwareInfo firmwareInfo{project_path};
-    const auto driver = lookupDriver(firmwareInfo);
+    driver = lookupDriver(firmwareInfo);
 
     if ( m_link->open(tty) )
     {
@@ -170,6 +177,7 @@ void Pigro::isp_write_firmware(const QString tty, const QString project_path)
     }
 
     delete driver;
+    driver = nullptr;
 }
 
 void Pigro::isp_chip_erase(const QString tty, const QString project_path)
@@ -177,7 +185,7 @@ void Pigro::isp_chip_erase(const QString tty, const QString project_path)
     trace::log("PigroPrivate::chipErase()");
 
     const FirmwareInfo firmwareInfo{project_path};
-    const auto driver = lookupDriver(firmwareInfo);
+    driver = lookupDriver(firmwareInfo);
 
     if ( m_link->open(tty) )
     {
@@ -201,7 +209,10 @@ void Pigro::isp_chip_erase(const QString tty, const QString project_path)
         m_link->close();
     }
 
+    emit endProgress();
+
     delete driver;
+    driver = nullptr;
 }
 
 void Pigro::isp_write_fuse(const QString tty, const QString project_path)
