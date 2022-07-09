@@ -7,14 +7,25 @@
 #include <QMessageBox>
 #include <QSerialPortInfo>
 
+#include <QDebug>
+
 void PigroWindow::setButtonsEnabled(bool value)
 {
+    qDebug() << QStringLiteral("PigroWindow::setButtonsEnabled(%1): thread: %2").arg((value ? "true" : "false"), QThread::currentThread()->objectName());
+
     ui.pbInfo->setEnabled(value);
     ui.pbCheckFirmware->setEnabled(value);
     ui.pbExportFirmware->setEnabled(value);
     ui.pbChipErase->setEnabled(value);
     ui.pbWriteFirmware->setEnabled(value);
     ui.pbWriteFuse->setEnabled(value);
+
+    ui.actionInfo->setEnabled(value);
+    ui.actionCheck->setEnabled(value);
+    ui.actionWrite->setEnabled(value);
+    ui.actionWriteFuse->setEnabled(value);
+    ui.actionErase->setEnabled(value);
+    ui.actionExport->setEnabled(value);
 }
 
 void PigroWindow::openProject(const QString &path)
@@ -193,12 +204,7 @@ void PigroWindow::reportMessage(const QString &message)
 
 void PigroWindow::endProgress()
 {
-    ui.pbInfo->setEnabled(true);
-    ui.pbCheckFirmware->setEnabled(true);
-    ui.pbExportFirmware->setEnabled(true);
-    ui.pbChipErase->setEnabled(true);
-    ui.pbWriteFirmware->setEnabled(true);
-    ui.pbWriteFuse->setEnabled(true);
+    setButtonsEnabled(true);
 }
 
 PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
@@ -221,10 +227,10 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::started, this, &PigroWindow::pigroStarted);
     connect(link, &PigroApp::stopped, this, &PigroWindow::pigroStopped);
     connect(link, &PigroApp::sessionStarted, this, &PigroWindow::sessionStarted);
-    connect(link, &PigroApp::beginProgress, this, &PigroWindow::beginProgress);
+    connect(link, &PigroApp::beginProgress, this, &PigroWindow::beginProgress, Qt::QueuedConnection);
     connect(link, &PigroApp::reportProgress, this, &PigroWindow::reportProgress);
     connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
-    connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress);
+    connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress, Qt::QueuedConnection);
     connect(link, &PigroApp::chipInfo, this, &PigroWindow::chipInfo);
     connect(link, &PigroApp::dataReady, this, &PigroWindow::dataReady);
 
@@ -239,6 +245,13 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.pbWriteFuse, &QPushButton::clicked, this, &PigroWindow::writeFuse);
     connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
     connect(ui.pbCancel, &QPushButton::clicked, link, &PigroApp::cancel);
+
+    connect(ui.actionInfo, &QAction::triggered, this, &PigroWindow::showInfo);
+    connect(ui.actionCheck, &QAction::triggered, this, &PigroWindow::checkFirmware);
+    connect(ui.actionWrite, &QAction::triggered, this, &PigroWindow::writeFirmware);
+    connect(ui.actionWriteFuse, &QAction::triggered, this, &PigroWindow::writeFuse);
+    connect(ui.actionErase, &QAction::triggered, this, &PigroWindow::chipErase);
+    connect(ui.actionExport, &QAction::triggered, this, &PigroWindow::readFirmware);
 
     link->start();
 

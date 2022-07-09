@@ -291,23 +291,130 @@
    </property>
    <widget class="QMenu" name="menu">
     <property name="title">
-     <string>Файл</string>
+     <string>File</string>
     </property>
     <addaction name="actionOpenProject"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
+   <widget class="QMenu" name="menuAction">
+    <property name="title">
+     <string>Action</string>
+    </property>
+    <addaction name="actionInfo"/>
+    <addaction name="actionCheck"/>
+    <addaction name="actionExport"/>
+    <addaction name="actionWrite"/>
+    <addaction name="actionErase"/>
+    <addaction name="actionWriteFuse"/>
+   </widget>
    <addaction name="menu"/>
+   <addaction name="menuAction"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionOpenProject"/>
+   <addaction name="separator"/>
+   <addaction name="actionInfo"/>
+   <addaction name="actionCheck"/>
+   <addaction name="actionExport"/>
+   <addaction name="actionWrite"/>
+   <addaction name="actionErase"/>
+   <addaction name="actionWriteFuse"/>
+  </widget>
   <action name="actionOpenProject">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/open-file.png</normaloff>:/pigro-gui/icons/open-file.png</iconset>
+   </property>
    <property name="text">
     <string>Открыть проект...</string>
    </property>
   </action>
   <action name="actionExit">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/icons8-exit.png</normaloff>:/pigro-gui/icons/icons8-exit.png</iconset>
+   </property>
    <property name="text">
     <string>Выход</string>
+   </property>
+  </action>
+  <action name="actionInfo">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/icons8-info.svg</normaloff>:/pigro-gui/icons/icons8-info.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Info</string>
+   </property>
+   <property name="toolTip">
+    <string>chip info</string>
+   </property>
+  </action>
+  <action name="actionCheck">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/icons8-compare.png</normaloff>:/pigro-gui/icons/icons8-compare.png</iconset>
+   </property>
+   <property name="text">
+    <string>Check</string>
+   </property>
+   <property name="toolTip">
+    <string>Check firmware in the chip</string>
+   </property>
+  </action>
+  <action name="actionExport">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/icons8-export-csv.png</normaloff>:/pigro-gui/icons/icons8-export-csv.png</iconset>
+   </property>
+   <property name="text">
+    <string>Export</string>
+   </property>
+   <property name="toolTip">
+    <string>Read firmware from chip</string>
+   </property>
+  </action>
+  <action name="actionWrite">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/icons8-write.png</normaloff>:/pigro-gui/icons/icons8-write.png</iconset>
+   </property>
+   <property name="text">
+    <string>Write</string>
+   </property>
+   <property name="toolTip">
+    <string>Write firmware to chip</string>
+   </property>
+  </action>
+  <action name="actionErase">
+   <property name="icon">
+    <iconset resource="PigroGuiResources.qrc">
+     <normaloff>:/pigro-gui/icons/icons8-erase.png</normaloff>:/pigro-gui/icons/icons8-erase.png</iconset>
+   </property>
+   <property name="text">
+    <string>Erase</string>
+   </property>
+   <property name="toolTip">
+    <string>Chip erase</string>
+   </property>
+  </action>
+  <action name="actionWriteFuse">
+   <property name="text">
+    <string>Write fuses</string>
+   </property>
+   <property name="toolTip">
+    <string>Write fuses to chip</string>
    </property>
   </action>
  </widget>

@@ -32,7 +32,7 @@ protected:
     QString m_tty;
     QString m_project_path;
 
-    PigroDriver* lookupDriver(const std::string &name)
+    PigroDriver* lookupDriver(const QString &name)
     {
         if ( name == "avr" ) return new AVR(m_link, this);
         if ( name == "arm" ) return new ARM(m_link, this);

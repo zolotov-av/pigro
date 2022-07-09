@@ -19,3 +19,12 @@ FORMS += \
 
 HEADERS += \
     PigroWindow.h
+
+DISTFILES += \
+    pigro-gui/icons/icons8-cancel.png \
+    pigro-gui/icons/icons8-compare.png \
+    pigro-gui/icons/icons8-erase.png \
+    pigro-gui/icons/icons8-export-csv.png \
+    pigro-gui/icons/icons8-info.png \
+    pigro-gui/icons/icons8-info.svg \
+    pigro-gui/icons/icons8-write.png
