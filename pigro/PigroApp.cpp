@@ -6,6 +6,8 @@ void PigroApp::threadStarted()
     trace::setThreadName("pigro");
     emit reportMessage("PigroApp::threadStarted()");
 
+    const std::lock_guard lock(m_mutex);
+
     m_private = new Pigro(nullptr);
 
     connect(m_private, &Pigro::sessionStarted, this, &PigroApp::sessionStarted, Qt::DirectConnection);
@@ -23,6 +25,7 @@ void PigroApp::threadStarted()
 void PigroApp::threadFinished()
 {
     emit reportMessage("PigroApp::threadFinished()");
+    const std::lock_guard lock(m_mutex);
     delete m_private;
     m_private = nullptr;
     emit stopped();
@@ -31,7 +34,12 @@ void PigroApp::threadFinished()
 FirmwareData PigroApp::getFirmwareData()
 {
     const std::lock_guard lock(m_mutex);
-    return m_private->fetchFirmwareData();
+    if ( m_private )
+    {
+        return m_private->fetchFirmwareData();
+    }
+
+    throw nano::exception("not ready");
 }
 
 PigroApp::PigroApp(QObject *parent): QObject(parent)
@@ -44,4 +52,15 @@ PigroApp::PigroApp(QObject *parent): QObject(parent)
 
 PigroApp::~PigroApp()
 {
+}
+
+void PigroApp::cancel()
+{
+    emit reportMessage("PigroApp::cancel()");
+    const std::lock_guard lock(m_mutex);
+    if ( m_private )
+    {
+        emit reportMessage("PigroApp::cancel() private->cancel");
+        m_private->cancel();
+    }
 }

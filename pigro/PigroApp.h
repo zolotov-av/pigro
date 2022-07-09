@@ -99,6 +99,10 @@ public:
         m_thread->wait();
     }
 
+public slots:
+
+    void cancel();
+
 signals:
 
     void started();

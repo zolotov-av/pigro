@@ -236,7 +236,7 @@ void Pigro::isp_write_fuse(const QString tty, const QString project_path)
 void Pigro::readFirmware(const QString tty, const QString project_path)
 {
     const FirmwareInfo firmwareInfo{project_path};
-    const auto driver = lookupDriver(firmwareInfo);
+    driver = lookupDriver(firmwareInfo);
 
     if ( m_link->open(tty) )
     {
@@ -260,5 +260,18 @@ void Pigro::readFirmware(const QString tty, const QString project_path)
         m_link->close();
     }
 
+    delete driver;
+    driver = nullptr;
+
     emit dataReady();
+}
+
+void Pigro::cancel()
+{
+    emit reportMessage("Pigro::cancel()");
+    if ( driver )
+    {
+        emit reportMessage("Pigro::cancel() driver->cancel");
+        driver->cancel();
+    }
 }

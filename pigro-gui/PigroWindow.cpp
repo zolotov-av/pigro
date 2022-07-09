@@ -131,7 +131,7 @@ void PigroWindow::showInfo()
 
 void PigroWindow::beginProgress(int min, int max)
 {
-    this->setEnabled(false);
+    //this->setEnabled(false);
     ui.progressBar->setMinimum(min);
     ui.progressBar->setMaximum(max);
     ui.progressBar->setValue(min);
@@ -187,6 +187,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.pbWriteFirmware, &QPushButton::clicked, this, &PigroWindow::writeFirmware);
     connect(ui.pbWriteFuse, &QPushButton::clicked, this, &PigroWindow::writeFuse);
     connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
+    connect(ui.pbCancel, &QPushButton::clicked, link, &PigroApp::cancel);
 
     link->start();
 

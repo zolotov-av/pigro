@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <vector>
+#include <atomic>
 #include <QString>
 
 #include <nano/exception.h>
@@ -26,6 +27,8 @@ private:
     FirmwareInfo m_firmware_info;
 
 protected:
+
+    std::atomic<bool> m_cancel {false};
 
     std::string get_option(const std::string &name, const std::string &default_value = {}) const
     {
@@ -107,6 +110,8 @@ public:
     {
         m_firmware_info = info;
     }
+
+    void cancel();
 
     virtual uint32_t page_size() const = 0;
     virtual uint32_t page_count() const = 0;

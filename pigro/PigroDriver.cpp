@@ -49,6 +49,12 @@ PigroDriver::~PigroDriver()
 
 }
 
+void PigroDriver::cancel()
+{
+    m_cancel = true;
+    reportMessage("PigroDriver::cancel()...");
+}
+
 uint8_t PigroDriver::page_fill() const
 {
     return 0xFF;

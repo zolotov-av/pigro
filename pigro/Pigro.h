@@ -8,6 +8,7 @@
 #include "AVR.h"
 #include "ARM.h"
 #include <mutex>
+#include <atomic>
 
 class Pigro: public QObject
 {
@@ -196,6 +197,11 @@ public slots:
      * Прочитать прошивку зашитую в устройство
      */
     void readFirmware(const QString tty, const QString project_path);
+
+    /**
+     * Прервать текущую операцию
+     */
+    void cancel();
 
 signals:
 

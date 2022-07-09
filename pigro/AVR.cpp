@@ -76,6 +76,11 @@ FirmwareData AVR::readFirmware()
             page.addr = ipage * page_size;
             for(unsigned ibyte = 0; ibyte < page_size; ibyte++)
             {
+                if ( m_cancel )
+                {
+                    throw nano::exception("canceled");
+                }
+
                 uint32_t addr = page.addr + ibyte;
                 page.data[ibyte] = isp_read_memory(addr);
                 reportProgress(addr);
