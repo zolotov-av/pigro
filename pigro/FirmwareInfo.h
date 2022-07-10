@@ -19,6 +19,11 @@ public:
     nano::options projectInfo { };
     nano::options m_chip_info { };
 
+    QString title() const
+    {
+        return QString::fromStdString(projectInfo.value("title", "main"));
+    }
+
     FirmwareInfo() = default;
     FirmwareInfo(const FirmwareInfo &) = default;
     FirmwareInfo(FirmwareInfo &&) = default;

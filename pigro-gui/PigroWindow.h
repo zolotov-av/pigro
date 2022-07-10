@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "PigroApp.h"
+#include "ProjectModel.h"
 #include "ui_PigroWindow.h"
 
 class PigroWindow final: public QMainWindow
@@ -15,6 +16,8 @@ private:
 
     PigroApp *link { new PigroApp(this) };
 
+    ProjectModel *m_project { new ProjectModel(this) };
+
     FirmwareInfo firmwareInfo;
 
     void setButtonsEnabled(bool value);
@@ -25,6 +28,7 @@ private slots:
 
 
     void actionOpenProject();
+    void actionCloseProject();
 
     void pigroStarted();
     void pigroStopped();

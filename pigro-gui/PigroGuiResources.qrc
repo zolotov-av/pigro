@@ -11,5 +11,11 @@
         <file>pigro-gui/icons/icons8-export-csv.png</file>
         <file>pigro-gui/icons/icons8-open-folder.svg</file>
         <file>pigro-gui/icons/icons8-exit.png</file>
+        <file>pigro-gui/icons/icons8-fuse.png</file>
+        <file>pigro-gui/icons/icons8-folder.svg</file>
+        <file>pigro-gui/icons/icons8-matherboard.png</file>
+        <file>pigro-gui/icons/icons8-open-folder.png</file>
+        <file>pigro-gui/icons/icons8-cpu.png</file>
+        <file>pigro-gui/icons/icons8-file.svg</file>
     </qresource>
 </RCC>

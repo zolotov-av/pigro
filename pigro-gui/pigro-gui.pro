@@ -7,6 +7,7 @@ CONFIG += c++17 utf8_source
 
 SOURCES += \
     PigroWindow.cpp \
+    ProjectModel.cpp \
     main_gui.cpp
 
 include(../common.pri)
@@ -18,7 +19,8 @@ FORMS += \
     PigroWindow.ui
 
 HEADERS += \
-    PigroWindow.h
+    PigroWindow.h \
+    ProjectModel.h
 
 DISTFILES += \
     pigro-gui/icons/icons8-cancel.png \

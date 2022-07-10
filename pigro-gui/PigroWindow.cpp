@@ -13,30 +13,25 @@ void PigroWindow::setButtonsEnabled(bool value)
 {
     qDebug() << QStringLiteral("PigroWindow::setButtonsEnabled(%1): thread: %2").arg((value ? "true" : "false"), QThread::currentThread()->objectName());
 
-    ui.pbInfo->setEnabled(value);
-    ui.pbCheckFirmware->setEnabled(value);
-    ui.pbExportFirmware->setEnabled(value);
-    ui.pbChipErase->setEnabled(value);
-    ui.pbWriteFirmware->setEnabled(value);
-    ui.pbWriteFuse->setEnabled(value);
-
     ui.actionInfo->setEnabled(value);
     ui.actionCheck->setEnabled(value);
     ui.actionWrite->setEnabled(value);
     ui.actionWriteFuse->setEnabled(value);
     ui.actionErase->setEnabled(value);
     ui.actionExport->setEnabled(value);
+
+    ui.actionCancel->setEnabled(!value);
 }
 
 void PigroWindow::openProject(const QString &path)
 {
     firmwareInfo.loadFromFile(path);
+    m_project->setFirmwareInfo(firmwareInfo);
 
     if ( firmwareInfo.m_chip_info.have("name") )
     {
         const QString chipName = QString::fromStdString(firmwareInfo.m_chip_info.value("name"));
         ui.leChipName->setText(QStringLiteral("%1 (%2)").arg(chipName, firmwareInfo.device_type));
-
     }
     else
     {
@@ -47,6 +42,8 @@ void PigroWindow::openProject(const QString &path)
 
     ui.lePigroIniPath->setText(path);
     link->setProjectPath(path);
+
+    ui.projectView->expand(m_project->index(0, 0));
 }
 
 void PigroWindow::actionOpenProject()
@@ -69,6 +66,11 @@ void PigroWindow::actionOpenProject()
             QMessageBox::information(this, tr("Error"), tr("Fail to open project file: %1").arg(e.what()));
         }
     }
+}
+
+void PigroWindow::actionCloseProject()
+{
+    m_project->closeProject();
 }
 
 void PigroWindow::pigroStarted()
@@ -210,6 +212,7 @@ void PigroWindow::endProgress()
 PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
 {
     ui.setupUi(this);
+    ui.projectView->setModel(m_project);
 
     {
         QSettings settings;
@@ -235,15 +238,10 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::dataReady, this, &PigroWindow::dataReady);
 
     connect(ui.actionOpenProject, &QAction::triggered, this, &PigroWindow::actionOpenProject);
+    connect(ui.actionCloseProject, &QAction::triggered, this, &PigroWindow::actionCloseProject);
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
     connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
-    connect(ui.pbExportFirmware, &QPushButton::clicked, this, &PigroWindow::readFirmware);
-    connect(ui.pbCheckFirmware, &QPushButton::clicked, this, &PigroWindow::checkFirmware);
-    connect(ui.pbChipErase, &QPushButton::clicked, this, &PigroWindow::chipErase);
-    connect(ui.pbWriteFirmware, &QPushButton::clicked, this, &PigroWindow::writeFirmware);
-    connect(ui.pbWriteFuse, &QPushButton::clicked, this, &PigroWindow::writeFuse);
-    connect(ui.pbInfo, &QPushButton::clicked, this, &PigroWindow::showInfo);
     connect(ui.pbCancel, &QPushButton::clicked, link, &PigroApp::cancel);
 
     connect(ui.actionInfo, &QAction::triggered, this, &PigroWindow::showInfo);
@@ -252,6 +250,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(ui.actionWriteFuse, &QAction::triggered, this, &PigroWindow::writeFuse);
     connect(ui.actionErase, &QAction::triggered, this, &PigroWindow::chipErase);
     connect(ui.actionExport, &QAction::triggered, this, &PigroWindow::readFirmware);
+    connect(ui.actionCancel, &QAction::triggered, link, &PigroApp::cancel);
 
     link->start();
 
