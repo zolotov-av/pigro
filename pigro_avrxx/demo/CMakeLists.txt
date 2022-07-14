@@ -1,5 +1,8 @@
 # I target a recent cmake, it shouldn't be a problem on a dev machine
 cmake_minimum_required(VERSION 3.11)
+
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 # Project name
 project("demo")
 
@@ -22,7 +25,8 @@ set(CMAKE_EXE_LINKER_FLAGS -mmcu=${MCU})
 
 add_compile_options(
     -mmcu=${MCU} # MCU
-    -std=gnu++17
+    -std=gnu++20
+    -fmodules-ts
     -Os # optimize
 #    -I../avrxx
 #    -I../libtiny
@@ -52,6 +56,8 @@ file(GLOB SRC_FILES
     jtag.h
     stm32.h
     main.cpp
+    foo.cpp
+    bar.cpp
     )
 # Create one target
 add_executable(${PRODUCT_NAME} ${SRC_FILES})

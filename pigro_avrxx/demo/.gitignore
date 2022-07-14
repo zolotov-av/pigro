@@ -1,9 +1,8 @@
-*.elf
-/demo_arm
 /.cmake/
 /CMakeCache.txt
-/CMakeCache.txt.prev
-/CMakeFiles
-/Testing
+/CMakeFiles/
+/CMakeLists.txt.user
+/Testing/
 /cmake_install.cmake
+/demo.elf
 /qtcsettings.cmake
