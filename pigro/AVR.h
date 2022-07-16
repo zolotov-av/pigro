@@ -65,8 +65,14 @@ public:
 
     AvrDeviceInfo avr;
 
-    AVR(PigroLink *link): PigroDriver(link) { }
-    ~AVR() override;
+    AVR(PigroLink *link, Pigro *owner);
+    AVR(const AVR &) = delete;
+    AVR(AVR &&) = delete;
+
+    ~AVR();
+
+    AVR& operator = (const AVR &) = delete;
+    AVR& operator = (AVR &&) = delete;
 
     /**
      * @brief Управление линией RESET программируемого контроллера
@@ -260,7 +266,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's low fuse bits %s\n", status);
+            reportMessage(QStringLiteral("write device's low fuse bits %1").arg(status));
         }
     }
 
@@ -272,7 +278,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's high fuse bits %s\n", status);
+            reportMessage(QStringLiteral("write device's high fuse bits %1").arg(status));
         }
     }
 
@@ -284,34 +290,7 @@ public:
         if ( verbose() || !ok )
         {
             const char *status = ok ? "[ ok ]" : "[ fail ]";
-            printf("write device's extended fuse bits %s\n", status);
-        }
-    }
-
-    void check_fuses()
-    {
-        if ( auto s = get_option("fuse_low"); !s.empty() )
-        {
-            const uint8_t fuse_lo = isp_read_fuse_low();
-            const uint8_t x = parse_fuse(s, "fuse_low (pigro.ini)");
-            const char *status = (x == fuse_lo) ? " ok " : "diff";
-            printf("fuse low:  0x%02X [%s]\n", fuse_lo, status);
-        }
-
-        if ( auto s = get_option("fuse_high"); !s.empty() )
-        {
-            const uint8_t fuse_hi = isp_read_fuse_high();
-            const uint8_t x = parse_fuse(s, "fuse_high (pigro.ini)");
-            const char *status = (x == fuse_hi) ? " ok " : "diff";
-            printf("fuse high: 0x%02X [%s]\n", fuse_hi, status);
-        }
-
-        if ( auto s = get_option("fuse_ext"); !s.empty() )
-        {
-            const uint8_t fuse_ext = isp_read_fuse_ext();
-            const uint8_t x = parse_fuse(s, "fuse_ext (pigro.ini)");
-            const char *status = (x == fuse_ext) ? " ok " : "diff";
-            printf("fuse ext:  0x%02X [%s]\n", fuse_ext, status);
+            reportMessage(QStringLiteral("write device's extended fuse bits %1").arg(status));
         }
     }
 
@@ -323,31 +302,14 @@ public:
         return avr.page_byte_size() * avr.page_count;
     }
 
+    virtual QString getIspChipInfo() override;
+    virtual FirmwareData readFirmware() override;
+
     /**
      * Проверить прошивку на корректность
      */
-    bool check_firmware(const FirmwareData &pages, bool verbose)
-    {
-        bool status = true;
-        const uint32_t limit = page_limit();
-        for(const auto page : pages)
-        {
-            const uint32_t page_addr = page.second.addr;
-            const bool page_ok = page_addr < limit;
-            status = status && page_ok;
-            if ( verbose )
-            {
-                const char *page_status = page_ok ? "ok" : "out of range [fail]";
-                printf("PAGE[0x%05X] - %s\n", page_addr, page_status);
-            }
-        }
-        if ( verbose )
-        {
-            const char *status_str = status ? "[ ok ]" : "[fail]";
-            printf("overall status %s\n", status_str);
-        }
-        return status;
-    }
+    bool check_firmware(const FirmwareData &pages, bool verbose);
+    void check_fuse();
 
     void action_test() override;
     void parse_device_info(const nano::options &info) override;

@@ -1,8 +1,7 @@
 #ifndef INTELHEX_H
 #define INTELHEX_H
 
-#include <nano/serial.h>
-
+#include <QString>
 #include <map>
 #include <list>
 #include <array>
@@ -33,12 +32,22 @@ public:
     IntelHEX(const IntelHEX &) = delete;
     IntelHEX(IntelHEX &&) = default;
 
-    IntelHEX(const std::string &path)
+    explicit IntelHEX(const char *path)
+    {
+        open(QString::fromLocal8Bit(path));
+    }
+
+    explicit IntelHEX(const std::string &path)
+    {
+        open(QString::fromStdString(path));
+    }
+
+    explicit IntelHEX(const QString &path)
     {
         open(path);
     }
 
-    void open(const std::string &path);
+    void open(const QString &path);
 
 };
 

@@ -7,6 +7,11 @@ static void not_implemented_yet(const std::string &func)
     throw nano::exception(func + " not implemented yet...");
 }
 
+ARM::ARM(PigroLink *link, Pigro *owner): PigroDriver(link, owner)
+{
+
+}
+
 ARM::~ARM()
 {
 
@@ -20,6 +25,16 @@ uint32_t ARM::page_size() const
 uint32_t ARM::page_count() const
 {
     return arm.page_count;
+}
+
+QString ARM::getIspChipInfo()
+{
+    return QStringLiteral("ARM::getIspChipInfo() not implemented yet");
+}
+
+FirmwareData ARM::readFirmware()
+{
+    throw nano::exception("ARM::readFirmware() not implemented yet");
 }
 
 void ARM::action_test()
@@ -76,7 +91,11 @@ void ARM::isp_stat_firmware(const FirmwareData &pages)
 
 void ARM::isp_check_firmware(const FirmwareData &pages)
 {
-    printf("\nARM::isp_check_firmware()\n\n");
+    const auto dataSize = pages.getDataSize();
+    beginProgress(0, pages.getDataSize());
+    reportMessage("ARM::isp_check_firmware()");
+
+    bool differs = false;
 
     debug_enable();
 
@@ -88,6 +107,9 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
     }
     */
 
+    char line[128];
+    int line_offset = 0;
+    uint32_t pos = 0;
     uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
@@ -95,25 +117,59 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
         {
+            if ( m_cancel )
+            {
+                debug_disable();
+                endProgress();
+                throw nano::exception("canceled");
+            }
+
+            reportProgress(pos+=4);
             const uint16_t offset = i * 4;
             const uint32_t addr = page_addr + offset;
-            if ( counter == 0 ) printf("MEM[0x%08X]", addr);
+            if ( counter == 0 )
+            {
+                line_offset = sprintf(line, "MEM[0x%08X]", addr);
+            }
+
             const uint32_t hex_value = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
             const uint32_t device_value = read_next32();
-            printf("%s", (device_value == hex_value ? "." : "*" ));
-            if ( counter == 0x1F ) printf("\n");
+            if ( device_value != hex_value ) differs = true;
+
+            line[line_offset++] = (device_value == hex_value ? '.' : '*' );
+            if ( counter == 0x1F )
+            {
+                reportMessage(QString::fromUtf8(line, line_offset));
+            }
             counter = (counter + 1) & 0x1F;
         }
     }
 
-    if ( counter != 0 ) printf("\n");
+    if ( counter != 0 )
+    {
+        reportMessage(QString::fromUtf8(line, line_offset));
+    }
+
+    reportMessage(QStringLiteral("pos=%1 dataSize=%2").arg(pos).arg(dataSize));
+
+    if ( differs )
+    {
+        reportResult(tr("[ NO ] firmware is different"));
+    }
+    else
+    {
+        reportResult(tr("[ OK ] firmware is same"));
+    }
 
     debug_disable();
+    endProgress();
 }
 
 void ARM::isp_write_firmware(const FirmwareData &pages)
 {
-    printf("\nARM::isp_write_firmware()\n\n");
+    const auto dataSize = pages.getDataSize();
+    beginProgress(0, dataSize);
+    reportMessage("ARM::isp_write_firmware()");
 
     if ( !check_firmware(pages, false) )
     {
@@ -126,6 +182,7 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
 
     unlock_fpec();
 
+    reportMessage("TODO check chip info...");
     /* TODO:
     auto signature = isp_chip_info();
     if ( signature != avr.signature )
@@ -144,6 +201,9 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
 
     printf("flash_cr: 0x%08X\n", read_fpec(0x10));
 
+    char line[128];
+    int line_offset = 0;
+    uint32_t pos = 0;
     uint8_t counter = 0;
     for(const auto &[page_addr, page] : pages)
     {
@@ -151,36 +211,59 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
         const size_t size = page.data.size() / 4;
         for(size_t i = 0; i < size; i++)
         {
+            if ( m_cancel )
+            {
+                write_fpec(0x10, 0); // FLASH_CR_PG
+                lock_fpec();
+
+                debug_disable();
+
+                endProgress();
+                throw nano::exception("canceled");
+            }
+
+            reportProgress(pos+=4);
             const uint32_t offset = i * 4;
             const uint32_t addr = page_addr + offset;
-            if ( counter == 0 ) printf("MEM[0x%08X]", addr);
+            if ( counter == 0 )
+            {
+                line_offset = sprintf(line, "MEM[0x%08X]", addr);
+            }
             const uint32_t word = page.data[offset] | (page.data[offset+1] << 8) | (page.data[offset+2] << 16) | (page.data[offset+3] << 24);
             cmd_program_next(word);
-            printf(".");
+            line[line_offset++] = '.';
             if ( counter == 0x1F )
             {
-                printf("\n");
+                reportMessage(QString::fromUtf8(line, line_offset));
             }
             counter = (counter + 1) & 0x1F;
         }
     }
 
-    if ( counter != 0 ) printf("\n");
+    if ( counter != 0 )
+    {
+        reportMessage(QString::fromUtf8(line, line_offset));
+    }
 
     write_fpec(0x10, 0); // FLASH_CR_PG
     lock_fpec();
 
     debug_disable();
+
+    reportResult(tr("firmware is written"));
+    endProgress();
 }
 
 void ARM::isp_chip_erase()
 {
-    printf("\nARM::isp_chip_erase()\n\n");
+    beginProgress(0, 1);
+    reportMessage("ARM::isp_chip_erase()");
 
     debug_enable();
 
     unlock_fpec();
 
+    reportMessage("TODO check chip info...");
     /* TODO:
     auto signature = isp_chip_info();
     if ( signature != avr.signature )
@@ -194,22 +277,25 @@ void ARM::isp_chip_erase()
     */
 
     fpec_mass_erase();
+    reportProgress(1);
+    reportResult(tr("chip erased"));
 
     lock_fpec();
 
     debug_disable();
+    endProgress();
 }
 
 void ARM::isp_read_fuse()
 {
-    printf("\nARM::isp_read_fuse()\n\n");
+    reportMessage("ARM::isp_read_fuse()");
 
     not_implemented_yet(__func__);
 }
 
 void ARM::isp_write_fuse()
 {
-    printf("\nARM::isp_write_fuse()\n\n");
+    reportMessage("ARM::isp_write_fuse()");
 
     not_implemented_yet(__func__);
 }

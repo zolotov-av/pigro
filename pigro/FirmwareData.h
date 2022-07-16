@@ -1,12 +1,14 @@
 #ifndef FIRMWAREDATA_H
 #define FIRMWAREDATA_H
 
+#include <QTextStream>
 #include <cstdint>
 #include <map>
 #include <vector>
 #include <string>
 
 #include <nano/math.h>
+#include <nano/exception.h>
 
 #include "IntelHEX.h"
 
@@ -17,6 +19,7 @@ struct PageData
     std::vector<uint8_t> data;
 
     uint32_t page_size() const { return data.size(); }
+    void resize(uint32_t newSize) { data.resize(newSize); }
 };
 
 class FirmwareData: public std::map<uint32_t, PageData>
@@ -78,6 +81,11 @@ public:
         if ( !nano::is_power_of_two(page_size) ) throw nano::exception("FirmwareData: page_size is not power of two");
         return LoadFromHex(IntelHEX(path), page_size, page_fill);
     }
+
+    uint32_t getDataSize() const;
+    std::vector<uint8_t> getDataDump() const;
+
+    void saveToTextStream(QTextStream &ts) const;
 
 };
 

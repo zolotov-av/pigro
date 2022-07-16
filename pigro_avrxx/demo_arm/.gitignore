@@ -1,4 +1,9 @@
 *.elf
-demo
-demo_arm
-pigro
+/demo_arm
+/.cmake/
+/CMakeCache.txt
+/CMakeCache.txt.prev
+/CMakeFiles
+/Testing
+/cmake_install.cmake
+/qtcsettings.cmake

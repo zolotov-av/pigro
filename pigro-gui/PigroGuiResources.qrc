@@ -1,0 +1,21 @@
+<RCC>
+    <qresource prefix="/">
+        <file>pigro-gui/icons/open-file.png</file>
+        <file>pigro-gui/icons/reload.png</file>
+        <file>pigro-gui/icons/save-file.png</file>
+        <file>pigro-gui/icons/icons8-info.svg</file>
+        <file>pigro-gui/icons/icons8-write.png</file>
+        <file>pigro-gui/icons/icons8-cancel.png</file>
+        <file>pigro-gui/icons/icons8-compare.png</file>
+        <file>pigro-gui/icons/icons8-erase.png</file>
+        <file>pigro-gui/icons/icons8-export-csv.png</file>
+        <file>pigro-gui/icons/icons8-open-folder.svg</file>
+        <file>pigro-gui/icons/icons8-exit.png</file>
+        <file>pigro-gui/icons/icons8-fuse.png</file>
+        <file>pigro-gui/icons/icons8-folder.svg</file>
+        <file>pigro-gui/icons/icons8-matherboard.png</file>
+        <file>pigro-gui/icons/icons8-open-folder.png</file>
+        <file>pigro-gui/icons/icons8-cpu.png</file>
+        <file>pigro-gui/icons/icons8-file.svg</file>
+    </qresource>
+</RCC>

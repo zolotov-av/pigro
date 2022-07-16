@@ -33,6 +33,18 @@ namespace nano
         config(sections &&data): sections(data) { }
         ~config() = default;
 
+        config& operator = (const sections &data)
+        {
+            sections::operator=(data);
+            return *this;
+        }
+
+        config& operator = (sections &&data)
+        {
+            sections::operator=(std::move(data));
+            return *this;
+        }
+
         options& section(const nano::string &name)
         {
             return operator[] (name);

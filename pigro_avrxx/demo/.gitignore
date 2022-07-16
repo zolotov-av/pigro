@@ -1,2 +1,8 @@
-demo
-pigro
+/.cmake/
+/CMakeCache.txt
+/CMakeFiles/
+/CMakeLists.txt.user
+/Testing/
+/cmake_install.cmake
+/demo.elf
+/qtcsettings.cmake

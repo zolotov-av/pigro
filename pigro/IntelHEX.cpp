@@ -1,6 +1,7 @@
 #include "IntelHEX.h"
 
-#include <nano/TextReader.h>
+#include <QFile>
+#include <QTextStream>
 #include <nano/string.h>
 
 /**
@@ -12,16 +13,21 @@ static uint8_t parse_hex_byte(const char *line, int i)
     return nano::parse_hex_digit(line[offset]) * 0x10 + nano::parse_hex_digit(line[offset+1]);
 }
 
-void IntelHEX::open(const std::string &path)
+void IntelHEX::open(const QString &path)
 {
     rows.clear();
 
-    nano::TextReader f(path);
+    QFile file(path);
+    if ( !file.open(QIODevice::ReadOnly | QIODevice::Text) )
+    {
+        throw nano::exception(QStringLiteral("fail to open file: ").append(path));
+    }
+    QTextStream f(&file);
 
-    while ( !f.eof() )
+    while ( !f.atEnd() )
     {
         row_t row {};
-        std::string line = f.readLine();
+        const std::string line = f.readLine().toStdString();
         if ( line.length() < 11 ) throw nano::exception("wrong hex-file: line length < 11");
         if ( line[0] != ':' )
         {

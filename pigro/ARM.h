@@ -50,8 +50,14 @@ public:
 
     ArmDeviceInfo arm;
 
-    ARM(PigroLink *link): PigroDriver(link) { }
-    ~ARM() override;
+    ARM(PigroLink *link, Pigro *owner);
+    ARM(const ARM &) = delete;
+    ARM(ARM &&) = delete;
+
+    ~ARM();
+
+    ARM& operator = (const ARM &) = delete;
+    ARM& operator = (ARM &&) = delete;
 
     /**
      * Error code
@@ -698,7 +704,7 @@ public:
     uint32_t page_size() const override;
     uint32_t page_count() const override;
 
-    static uint32_t parse_page_size(const std::string &ps)
+    uint32_t parse_page_size(const std::string &ps)
     {
         if ( ps.empty() ) return 1024;
 
@@ -774,7 +780,7 @@ public:
         bool status = true;
         const uint32_t page_begin = flash_begin();
         const uint32_t page_limit = flash_end();
-        for(const auto page : pages)
+        for(const auto &page : pages)
         {
             const uint32_t page_addr = page.second.addr;
             const bool page_ok = page_in_range(page_addr, page_begin, page_limit);
@@ -792,6 +798,9 @@ public:
         }
         return status;
     }
+
+    virtual QString getIspChipInfo() override;
+    virtual FirmwareData readFirmware() override;
 
     void action_test() override;
     void parse_device_info(const nano::options &) override;

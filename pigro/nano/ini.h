@@ -11,10 +11,14 @@ namespace nano
     {
     public:
 
-        template <int linesize = 512>
-        static config loadFromFile(const string &path)
+        static config loadFromFile(const std::string &path)
         {
-            return IniReader<linesize>(path).data;
+            return IniReader(QString::fromStdString(path)).data;
+        }
+
+        static config loadFromFile(const QString &path)
+        {
+            return IniReader(path).data;
         }
 
     };

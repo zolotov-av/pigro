@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>data/avrdude.ini</file>
+        <file>data/stm32.ini</file>
+    </qresource>
+</RCC>

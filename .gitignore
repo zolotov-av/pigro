@@ -4,5 +4,5 @@ Makefile
 *.o
 *.a
 *.s
-*.hex
-*.dump
+#*.hex
+#*.dump
