@@ -15,6 +15,7 @@ void PigroApp::threadStarted()
     connect(m_private, &Pigro::beginProgress, this, &PigroApp::beginProgress, Qt::DirectConnection);
     connect(m_private, &Pigro::reportProgress, this, &PigroApp::reportProgress, Qt::DirectConnection);
     connect(m_private, &Pigro::reportMessage, this, &PigroApp::reportMessage, Qt::DirectConnection);
+    connect(m_private, &Pigro::reportException, this, &PigroApp::reportException, Qt::DirectConnection);
     connect(m_private, &Pigro::endProgress, this, &PigroApp::endProgress, Qt::DirectConnection);
     connect(m_private, &Pigro::chipInfo, this, &PigroApp::chipInfo, Qt::DirectConnection);
     connect(m_private, &Pigro::dataReady, this, &PigroApp::dataReady, Qt::DirectConnection);

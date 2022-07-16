@@ -46,6 +46,7 @@ private slots:
     void beginProgress(int min, int max);
     void reportProgress(int value);
     void reportMessage(const QString &message);
+    void reportException(const QString &message);
     void endProgress();
 
     void chipInfo(const QString &info);

@@ -58,7 +58,11 @@ int PigroConsole::exec(PigroAction action)
     }
     catch (const std::exception &e)
     {
-        printf("[ FAIL ]: %s", e.what());
+        printf("[ FAIL ] exception raised: %s", e.what());
+    }
+    catch (...)
+    {
+        printf("[ FAIL ] unknown exception raised (non std::exception)");
     }
 
     printf("\n--- END ---\n\n");

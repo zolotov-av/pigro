@@ -204,6 +204,12 @@ void PigroWindow::reportMessage(const QString &message)
     ui.pteMessages->setTextCursor(prev_cursor);
 }
 
+void PigroWindow::reportException(const QString &message)
+{
+    reportMessage(QStringLiteral("[ FAIL ] ").append(message));
+    endProgress();
+}
+
 void PigroWindow::endProgress()
 {
     setButtonsEnabled(true);
@@ -233,6 +239,7 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::beginProgress, this, &PigroWindow::beginProgress, Qt::QueuedConnection);
     connect(link, &PigroApp::reportProgress, this, &PigroWindow::reportProgress);
     connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
+    connect(link, &PigroApp::reportException, this, &PigroWindow::reportException);
     connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress, Qt::QueuedConnection);
     connect(link, &PigroApp::chipInfo, this, &PigroWindow::chipInfo);
     connect(link, &PigroApp::dataReady, this, &PigroWindow::dataReady);

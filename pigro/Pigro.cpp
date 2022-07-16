@@ -96,11 +96,11 @@ void Pigro::isp_chip_info(const QString tty, const QString project_path)
         }
         catch (const std::exception &e)
         {
-            emit reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+            emit reportException(e.what());
         }
         catch (...)
         {
-            emit reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+            emit reportException(QStringLiteral("unknown exception"));
         }
 
         m_link->close();
@@ -131,11 +131,11 @@ void Pigro::isp_check_firmware(const QString tty, const QString project_path)
         }
         catch (const std::exception &e)
         {
-            emit reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+            emit reportException(e.what());
         }
         catch (...)
         {
-            emit reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+            emit reportException(QStringLiteral("unknown exception"));
         }
 
         m_link->close();
@@ -166,11 +166,11 @@ void Pigro::isp_write_firmware(const QString tty, const QString project_path)
         }
         catch (const std::exception &e)
         {
-            emit reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+            emit reportException(e.what());
         }
         catch (...)
         {
-            emit reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+            emit reportException(QStringLiteral("unknown exception"));
         }
 
         m_link->close();
@@ -199,11 +199,11 @@ void Pigro::isp_chip_erase(const QString tty, const QString project_path)
         }
         catch (const std::exception &e)
         {
-            emit reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+            emit reportException(e.what());
         }
         catch (...)
         {
-            emit reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+            emit reportException(QStringLiteral("unknown exception"));
         }
 
         m_link->close();
@@ -231,11 +231,11 @@ void Pigro::isp_write_fuse(const QString tty, const QString project_path)
         }
         catch (const std::exception &e)
         {
-            emit reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+            emit reportException(e.what());
         }
         catch (...)
         {
-            emit reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+            emit reportException(QStringLiteral("unknown exception"));
         }
 
         m_link->close();
@@ -261,11 +261,11 @@ void Pigro::readFirmware(const QString tty, const QString project_path)
         }
         catch (const std::exception &e)
         {
-            emit reportMessage(QStringLiteral("exception raised: %1").arg(e.what()));
+            emit reportException(e.what());
         }
         catch (...)
         {
-            emit reportMessage(QStringLiteral("unknown exception raised (non std::exception)"));
+            emit reportException(QStringLiteral("unknown exception"));
         }
 
         m_link->close();

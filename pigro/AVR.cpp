@@ -245,7 +245,6 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
             if ( m_cancel )
             {
                 isp_program_disable();
-                reportMessage("[ FAIL ] canceled");
                 endProgress();
                 throw nano::exception("canceled");
             }
@@ -324,7 +323,7 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
         {
             if ( m_cancel )
             {
-                reportMessage("[ FAIL ] canceled");
+                isp_program_disable();
                 endProgress();
                 throw nano::exception("canceled");
             }
