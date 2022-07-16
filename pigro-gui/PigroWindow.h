@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "PigroApp.h"
 #include "ProjectModel.h"
+#include "BasicOperation.h"
 #include "ui_PigroWindow.h"
 
 class PigroWindow final: public QMainWindow
@@ -17,6 +18,8 @@ private:
     PigroApp *link { new PigroApp(this) };
 
     ProjectModel *m_project { new ProjectModel(this) };
+
+    BasicOperation *m_operation { new BasicOperation(this) };
 
     FirmwareInfo firmwareInfo;
 
@@ -44,8 +47,6 @@ private slots:
     void showInfo();
 
     void beginProgress(int min, int max);
-    void reportProgress(int value);
-    void reportMessage(const QString &message);
     void reportException(const QString &message);
     void endProgress();
 

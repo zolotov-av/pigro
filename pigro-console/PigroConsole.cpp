@@ -34,11 +34,25 @@ void PigroConsole::reportMessage(const QString &message)
     printf("%s\n", msg.c_str());
 }
 
+void PigroConsole::reportResult(const QString &message)
+{
+    const std::string msg = message.toStdString();
+    printf("\n[ RESULT ] %s\n\n", msg.c_str());
+}
+
+void PigroConsole::reportException(const QString &message)
+{
+    const std::string msg = message.toStdString();
+    printf("[ EXCEPTION ] %s\n", msg.c_str());
+}
+
 PigroConsole::PigroConsole(QObject *parent): QObject(parent)
 {
     connect(pigro, &Pigro::sessionStarted, this, &PigroConsole::sessionStarted);
     connect(pigro, &Pigro::sessionStopped, this, &PigroConsole::sessionStopped);
     connect(pigro, &Pigro::reportMessage, this, &PigroConsole::reportMessage);
+    connect(pigro, &Pigro::reportResult, this, &PigroConsole::reportResult);
+    connect(pigro, &Pigro::reportException, this, &PigroConsole::reportException);
 }
 
 PigroConsole::~PigroConsole()

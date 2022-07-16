@@ -114,6 +114,7 @@ signals:
     void beginProgress(int min, int max);
     void reportProgress(int value);
     void reportMessage(const QString &message);
+    void reportResult(const QString &result);
     void reportException(const QString &message);
     void endProgress();
 

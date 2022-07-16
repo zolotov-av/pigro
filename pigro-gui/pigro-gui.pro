@@ -6,6 +6,7 @@ QT += core gui widgets serialport
 CONFIG += c++17 utf8_source
 
 SOURCES += \
+    BasicOperation.cpp \
     PigroWindow.cpp \
     ProjectModel.cpp \
     main_gui.cpp
@@ -16,9 +17,11 @@ RESOURCES += \
     PigroGuiResources.qrc
 
 FORMS += \
+    BasicOperation.ui \
     PigroWindow.ui
 
 HEADERS += \
+    BasicOperation.h \
     PigroWindow.h \
     ProjectModel.h
 

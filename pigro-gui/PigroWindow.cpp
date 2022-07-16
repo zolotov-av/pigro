@@ -125,6 +125,7 @@ void PigroWindow::readFirmware()
 
     const QString dev = ui.cbTty->currentData().toString();
 
+    m_operation->startOperation(tr("Read firmware..."));
     setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
@@ -135,6 +136,7 @@ void PigroWindow::checkFirmware()
 {
     const QString dev = ui.cbTty->currentData().toString();
 
+    m_operation->startOperation(tr("Checking firmware..."));
     setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
@@ -145,6 +147,7 @@ void PigroWindow::chipErase()
 {
     const QString dev = ui.cbTty->currentData().toString();
 
+    m_operation->startOperation(tr("Chip erase..."));
     setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
@@ -155,6 +158,7 @@ void PigroWindow::writeFirmware()
 {
     const QString dev = ui.cbTty->currentData().toString();
 
+    m_operation->startOperation(tr("Writting firmware..."));
     setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
@@ -165,6 +169,7 @@ void PigroWindow::writeFuse()
 {
     const QString dev = ui.cbTty->currentData().toString();
 
+    m_operation->startOperation(tr("Writting fuses..."));
     setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
@@ -175,38 +180,20 @@ void PigroWindow::showInfo()
 {
     const QString dev = ui.cbTty->currentData().toString();
 
+    m_operation->startOperation(tr("Read chip info..."));
     setButtonsEnabled(false);
     link->setTTY(dev);
     link->setProjectPath(ui.lePigroIniPath->text());
     link->execChipInfo();
 }
 
-void PigroWindow::beginProgress(int min, int max)
+void PigroWindow::beginProgress(int, int)
 {
     setButtonsEnabled(false);
-
-    ui.progressBar->setMinimum(min);
-    ui.progressBar->setMaximum(max);
-    ui.progressBar->setValue(min);
 }
 
-void PigroWindow::reportProgress(int value)
+void PigroWindow::reportException(const QString &)
 {
-    ui.progressBar->setValue(value);
-}
-
-void PigroWindow::reportMessage(const QString &message)
-{
-    QTextCursor prev_cursor = ui.pteMessages->textCursor();
-    ui.pteMessages->moveCursor(QTextCursor::End);
-    ui.pteMessages->insertPlainText(message + "\n");
-    ui.pteMessages->ensureCursorVisible();
-    ui.pteMessages->setTextCursor(prev_cursor);
-}
-
-void PigroWindow::reportException(const QString &message)
-{
-    reportMessage(QStringLiteral("[ FAIL ] ").append(message));
     endProgress();
 }
 
@@ -237,19 +224,25 @@ PigroWindow::PigroWindow(QWidget *parent): QMainWindow(parent)
     connect(link, &PigroApp::stopped, this, &PigroWindow::pigroStopped);
     connect(link, &PigroApp::sessionStarted, this, &PigroWindow::sessionStarted);
     connect(link, &PigroApp::beginProgress, this, &PigroWindow::beginProgress, Qt::QueuedConnection);
-    connect(link, &PigroApp::reportProgress, this, &PigroWindow::reportProgress);
-    connect(link, &PigroApp::reportMessage, this, &PigroWindow::reportMessage);
     connect(link, &PigroApp::reportException, this, &PigroWindow::reportException);
     connect(link, &PigroApp::endProgress, this, &PigroWindow::endProgress, Qt::QueuedConnection);
     connect(link, &PigroApp::chipInfo, this, &PigroWindow::chipInfo);
     connect(link, &PigroApp::dataReady, this, &PigroWindow::dataReady);
+
+    connect(link, &PigroApp::beginProgress, m_operation, &BasicOperation::beginProgress);
+    connect(link, &PigroApp::reportProgress, m_operation, &BasicOperation::reportProgress);
+    connect(link, &PigroApp::reportMessage, m_operation, &BasicOperation::reportMessage);
+    connect(link, &PigroApp::reportResult, m_operation, &BasicOperation::reportResult);
+    connect(link, &PigroApp::reportException, m_operation, &BasicOperation::reportException);
+    connect(link, &PigroApp::endProgress, m_operation, &BasicOperation::endProgress);
+
+    connect(m_operation, &BasicOperation::cancelRequested, link, &PigroApp::cancel);
 
     connect(ui.actionOpenProject, &QAction::triggered, this, &PigroWindow::actionOpenProject);
     connect(ui.actionCloseProject, &QAction::triggered, this, &PigroWindow::actionCloseProject);
 
     connect(ui.pbRefreshTty, &QPushButton::clicked, this, &PigroWindow::refreshTty);
     connect(ui.pbOpenExportFile, &QPushButton::clicked, this, &PigroWindow::openExportFile);
-    connect(ui.pbCancel, &QPushButton::clicked, link, &PigroApp::cancel);
 
     connect(ui.actionInfo, &QAction::triggered, this, &PigroWindow::showInfo);
     connect(ui.actionCheck, &QAction::triggered, this, &PigroWindow::checkFirmware);

@@ -92,7 +92,9 @@ void Pigro::isp_chip_info(const QString tty, const QString project_path)
     {
         try
         {
-            emit chipInfo(driver->getIspChipInfo());
+            const QString info = driver->getIspChipInfo();
+            emit chipInfo(info);
+            emit reportResult(info);
         }
         catch (const std::exception &e)
         {

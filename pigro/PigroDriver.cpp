@@ -34,12 +34,17 @@ void PigroDriver::reportMessage(const QString &message)
     emit m_owner->reportMessage(message);
 }
 
+void PigroDriver::reportResult(const QString &result)
+{
+    emit m_owner->reportResult(result);
+}
+
 void PigroDriver::endProgress()
 {
     emit m_owner->endProgress();
 }
 
-PigroDriver::PigroDriver(PigroLink *link, Pigro *owner): m_owner(owner), m_link(link)
+PigroDriver::PigroDriver(PigroLink *link, Pigro *owner): QObject(owner), m_owner(owner), m_link(link)
 {
 
 }

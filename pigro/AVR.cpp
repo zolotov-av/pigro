@@ -274,11 +274,11 @@ void AVR::isp_check_firmware(const FirmwareData &pages)
 
     if ( differs )
     {
-        reportMessage("[ FAIL ] firmware is different");
+        reportResult("[ NO ] firmware is different");
     }
     else
     {
-        reportMessage("[ OK ] firmware is same");
+        reportResult("[ OK ] firmware is same");
     }
 
     reportProgress(pos++);
@@ -349,7 +349,7 @@ void AVR::isp_write_firmware(const FirmwareData &pages)
 
     isp_program_disable();
 
-    reportMessage("[ DONE ]");
+    reportResult(tr("firmware is written"));
     endProgress();
 }
 
@@ -399,6 +399,7 @@ void AVR::isp_write_fuse()
 
     isp_program_disable();
 
+    reportResult(tr("fuses are written"));
     reportProgress(1);
     endProgress();
 }
@@ -413,5 +414,5 @@ void AVR::isp_chip_erase()
 
     isp_program_disable();
 
-    reportMessage("[ DONE ]");
+    reportResult(tr("chip erased"));
 }

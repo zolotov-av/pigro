@@ -35,6 +35,8 @@ private slots:
     void sessionStarted(int major, int minor);
     void sessionStopped();
     void reportMessage(const QString &message);
+    void reportResult(const QString &message);
+    void reportException(const QString &message);
 
 public:
 

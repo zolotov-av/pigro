@@ -17,8 +17,10 @@
 
 class Pigro;
 
-class PigroDriver
+class PigroDriver: public QObject
 {
+    Q_OBJECT
+
 private:
 
     Pigro *m_owner {nullptr};
@@ -78,6 +80,7 @@ protected:
     void beginProgress(int min, int max);
     void reportProgress(int value);
     void reportMessage(const QString &message);
+    void reportResult(const QString &result);
     void endProgress();
 
 public:

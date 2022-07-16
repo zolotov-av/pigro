@@ -154,11 +154,11 @@ void ARM::isp_check_firmware(const FirmwareData &pages)
 
     if ( differs )
     {
-        reportMessage("[ FAIL ] firmware is different");
+        reportResult(tr("[ NO ] firmware is different"));
     }
     else
     {
-        reportMessage("[ OK ] firmware is same");
+        reportResult(tr("[ OK ] firmware is same"));
     }
 
     debug_disable();
@@ -250,6 +250,7 @@ void ARM::isp_write_firmware(const FirmwareData &pages)
 
     debug_disable();
 
+    reportResult(tr("firmware is written"));
     endProgress();
 }
 
@@ -277,6 +278,7 @@ void ARM::isp_chip_erase()
 
     fpec_mass_erase();
     reportProgress(1);
+    reportResult(tr("chip erased"));
 
     lock_fpec();
 
